@@ -331,19 +331,20 @@ function renderGambitHUD(mount){
     const aOpen = ghPick && ghPick.line===i && ghPick.kind==='action';
     const cond = `<button class="gpick cond ${cOpen?'open':''}" data-line="${i}" data-kind="condition">${cLabel}<span class="gpick-ar">${cOpen?'▴':'▾'}</span></button>`;
     const act  = `<button class="gpick act ${aOpen?'open':''}" data-line="${i}" data-kind="action">${aLabel}<span class="gpick-ar">${aOpen?'▴':'▾'}</span></button>`;
-    return `<div class="gh-row ${on?'':'off'}" data-i="${i}">
-      <div class="gh-drag" title="Arraste para reordenar">⠿</div>
-      <span class="gh-pri">${i+1}</span>
-      <div class="gh-conds">
-        <div class="gh-cline"><span class="gh-if">SE</span>${cond}</div>
-        ${cOpen ? ghInlineList(hs, def, i, 'condition') : ''}
-        <div class="gh-cline"><span class="gh-arw">➜</span>${act}</div>
-        ${aOpen ? ghInlineList(hs, def, i, 'action') : ''}
+    return `<div class="gh-row ${on?'':'off'} ${(cOpen||aOpen)?'exp':''}" data-i="${i}">
+      <div class="gh-rowhead">
+        <div class="gh-drag" title="Arraste para reordenar">⠿</div>
+        <span class="gh-pri">${i+1}</span>
+        <span class="gh-rowlbl">Prioridade ${i+1}</span>
+        <div class="gh-tools">
+          <button class="gh-toggle ${on?'on':''}" data-i="${i}" title="${on?'Desligar':'Ligar'} esta linha"><span class="gh-knob"></span></button>
+          <button class="gh-rm" data-i="${i}" title="Remover">✕</button>
+        </div>
       </div>
-      <div class="gh-tools">
-        <button class="gh-toggle ${on?'on':''}" data-i="${i}" title="${on?'Desligar':'Ligar'} esta linha"><span class="gh-knob"></span></button>
-        <button class="gh-rm" data-i="${i}" title="Remover">✕</button>
-      </div>
+      <div class="gh-cline"><span class="gh-if">SE</span>${cond}</div>
+      ${cOpen ? ghInlineList(hs, def, i, 'condition') : ''}
+      <div class="gh-cline"><span class="gh-arw">ENTÃO</span>${act}</div>
+      ${aOpen ? ghInlineList(hs, def, i, 'action') : ''}
     </div>`;
   }).join('');
   const locked = Array.from({length: def.maxSlots - hs.slots}, (_,k)=>{
