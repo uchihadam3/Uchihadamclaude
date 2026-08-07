@@ -109,6 +109,58 @@ $('#folha').addEventListener('click', e=>{
     $('#folha').classList.remove('on');
 });
 
+/* PERGUNTAR UM TEXTO SEM SAIR DO JOGO.
+   O nome do ranking era pedido pela caixa de texto do sistema operacional:
+   fonte do sistema, botões do sistema, no meio de um jogo pintado à mão. Além
+   do estrago visual, ela é a única parte da tela que não obedece ao jogo — em
+   celular abre por cima de tudo, e alguns navegadores a bloqueiam sem avisar,
+   o que deixava o botão de publicar sem efeito nenhum e sem explicação.
+
+   Devolve o texto, ou `null` se a pessoa desistir. */
+function perguntar({ titulo, texto, valor='', dica='', ok='CONFIRMAR', max=22 }){
+  return new Promise(resolve=>{
+    const f = $('#folha');
+    $('#folhac').innerHTML = `
+      <div class="cabeca" style="margin-bottom:13px">
+        <div class="rot">${esc(dica)}</div>
+        <h2 class="tit">${esc(titulo)}</h2>
+      </div>
+      ${texto ? `<p class="mini" style="margin-bottom:13px">${esc(texto)}</p>` : ''}
+      <input class="campo" id="pcampo" maxlength="${max}" value="${esc(valor)}"
+             placeholder="seu nome" autocomplete="off" spellcheck="false">
+      <div class="folhab">
+        <button class="bt" data-nao>DEIXA PRA LÁ</button>
+        <button class="bt p" data-sim>${esc(ok)}</button>
+      </div>`;
+    f.classList.add('on');
+    const campo = $('#pcampo');
+    campo.focus(); campo.select();
+    let respondido = false;
+    const fechar = v => {
+      if(respondido) return; respondido = true;
+      f.classList.remove('on'); f.removeEventListener('click', clique);
+      resolve(v);
+    };
+    const confirmar = () => {
+      const v = campo.value.trim();
+      /* campo vazio não fecha a folha calada: sumir sem dizer por quê seria
+         pior que a caixa do sistema que estamos substituindo */
+      if(!v){ campo.classList.add('ruim'); campo.focus();
+              setTimeout(()=>campo.classList.remove('ruim'), 700); return; }
+      SFX.clique(); fechar(v);
+    };
+    const clique = e => {
+      if(e.target.closest('[data-sim]')) confirmar();
+      else if(e.target.closest('[data-nao]') || e.target.id === 'folha') fechar(null);
+    };
+    f.addEventListener('click', clique);
+    campo.onkeydown = e => {
+      if(e.key === 'Enter') confirmar();
+      if(e.key === 'Escape') fechar(null);
+    };
+  });
+}
+
 /* a folha de placas veio nas seis cores do jogo. `classePlaca` diz qual
    arquivo usar a partir da cor pedida, e cai na placa azul quando a cor não
    é uma das seis — assim nenhuma tela fica sem moldura. */
@@ -513,8 +565,17 @@ function mesa(refazer, chegada){
   const el = $('#mesa');
   ajustar();
   /* na sala do chefe o baralho inteiro é outro — o verso troca antes da
-     primeira virada, para o encontro pesar sem precisar de um aviso */
-  el.classList.toggle('chefe', !!s.boss);
+     primeira virada, para o encontro pesar sem precisar de um aviso.
+
+     ATRIBUTO e não classe. `chefe` já era o nome da pílula vermelha que mostra
+     o nome do chefe no topo da sala, e dar essa classe ao #mesa fez o
+     tabuleiro herdar ela inteira: fundo vermelho chapado, `border-radius:99px`
+     e `overflow:hidden`. A grade sobreviveu — `#mesa` é seletor de id e ganha
+     de classe — mas o raio de 99px com overflow RECORTA as quatro pontas do
+     tabuleiro, e as cartas dos cantos ficavam cortadas pela metade. Metade de
+     carta não recebe toque: de fora, "o chefe não funciona, as cartas não
+     viram". Um atributo não colide com nome de classe nenhum. */
+  el.toggleAttribute('data-chefe', !!s.boss);
   const peq = el.dataset.pequena === '1';
   const todas = s.porPos();
   const monta = ()=>{ el.innerHTML = todas.map(c=>cartaHTML(c, peq)).join(''); };
@@ -645,8 +706,16 @@ function voa(id, grande, pequeno='', cls=''){
 }
 
 /* ═══════════════════ a jogada ═══════════════════ */
+/* Registro de todo toque que chega na mesa, com o motivo de ter sido aceito ou
+   recusado. Custa um objeto por toque e é a diferença entre investigar um
+   "não vira" e adivinhar: sem ele, um toque engolido pela animação e um toque
+   que nunca chegou ao handler são indistinguíveis de fora. */
+const MN_TOQUES = [];
 async function tocarCarta(id){
-  if(travado || !run?.sala) return;
+  const _reg = { id, t:Math.round(performance.now()), travado,
+                 alvo:!!alvoPendente, sala:!!run?.sala, saiu:null };
+  MN_TOQUES.push(_reg);
+  if(travado || !run?.sala){ _reg.saiu = travado ? 'travado' : 'sem sala'; return; }
   /* com ferramenta armada, o toque é MIRA e não virada. Sem esse desvio o
      jogador armaria a Mão Leve e viraria a carta sem querer. */
   if(alvoPendente){
@@ -662,12 +731,16 @@ async function tocarCarta(id){
   const s = run.sala;
   salaViva = s;
   const c = s.cartas.find(x=>x.id===id);
-  if(!c || c.resolvida || c.virada) return;
+  if(!c || c.resolvida || c.virada){
+    _reg.saiu = !c ? 'carta não existe' : c.resolvida ? 'já resolvida' : 'já virada';
+    return;
+  }
 
   acordar();
   const primeira = s.abertas.length === 0;
   const rel = run.virar(id);
-  if(rel.erro) return;
+  if(rel.erro){ _reg.saiu = 'motor recusou: '+rel.erro; return; }
+  _reg.saiu = 'virou';
   SFX.virar();
   mostrando.add(id);
   mesa(false);
@@ -1147,8 +1220,17 @@ function telaFim(){
 }
 
 async function enviarPlacar(bt){
-  const nome = (localStorage.getItem('mnemonic.nome') || '').trim()
-    || (prompt('Como você quer aparecer no ranking?', '') || '').trim();
+  let nome = (localStorage.getItem('mnemonic.nome') || '').trim();
+  if(!nome){
+    nome = (await perguntar({
+      dica: 'ranking mundial',
+      titulo: 'Como você quer aparecer?',
+      texto: 'Este nome sobe junto com o seu placar e com a lista das suas '
+           + 'jogadas. Fica guardado neste aparelho — na próxima run o jogo '
+           + 'não pergunta de novo.',
+      ok: 'PUBLICAR',
+    }) || '').trim();
+  }
   if(!nome) return;
   localStorage.setItem('mnemonic.nome', nome.slice(0,22));
   bt.disabled = true; bt.textContent = 'MANDANDO…';
@@ -1349,4 +1431,9 @@ if(retomar()){
 ir('titulo');
 
 /* deixa o motor à mão no console — é assim que se investiga um bug de regra */
-window.MN = { get run(){ return run; }, Run, verificar, planoDaSala, RANK };
+window.MN = { get run(){ return run; }, Run, verificar, planoDaSala, RANK,
+  /* o estado que decide se um toque na carta é aceito. Sem isto à mão, um
+     travamento vira adivinhação: não dá para separar "a regra recusou" de "a
+     tela ainda estava animando" olhando de fora. */
+  get travado(){ return travado; }, get mostrando(){ return [...mostrando]; },
+  get alvoPendente(){ return alvoPendente; }, toques: MN_TOQUES, perguntar };
