@@ -32,18 +32,24 @@
   .brand small{display:block;font-size:8px;color:var(--dim);letter-spacing:1.4px;text-transform:uppercase;font-weight:700}
   .logo-emblem{height:36px;width:auto;image-rendering:pixelated;filter:drop-shadow(0 2px 2px #0009);flex:none}
   .ticon{width:20px;height:20px;object-fit:contain;image-rendering:pixelated;vertical-align:-4px;margin-right:4px}
-  /* ---------- moldura enxuta da Base (ref. Acampamento Base) ---------- */
-  #screen-base{position:relative;padding:24px 4px 6px}
-  .base-frame{position:relative;background:var(--panel);
-    border:4px solid #6f7580;border-radius:16px;
-    box-shadow:inset 0 0 0 3px #a9803f, 0 8px 22px rgba(10,14,20,.4);
-    padding:20px 12px 14px}
-  .base-title{position:absolute;top:-17px;left:50%;transform:translateX(-50%);z-index:3;white-space:nowrap;
-    background:linear-gradient(180deg,#a9743f,#7a5024);color:#fbeecb;
-    border:3px solid #4a2f16;border-radius:10px;padding:5px 20px;
-    font-size:15px;font-weight:900;letter-spacing:.3px;
-    text-shadow:0 1px 0 #3a2410;box-shadow:0 3px 0 #3a2410,0 6px 12px rgba(20,12,4,.4)}
+  /* ---------- Base: moldura de ARTE (pedra+madeira) sobre o acampamento ---------- */
+  #screen-base{position:relative;padding:30px 2px 8px;border-radius:16px;
+    background:linear-gradient(rgba(20,26,34,.42),rgba(20,26,34,.60)),url(assets/bg_basecamp.png) center/cover no-repeat;
+    box-shadow:0 8px 22px rgba(10,14,20,.45)}
+  .base-frame{position:relative;
+    border:22px solid transparent;border-image:url(assets/frame9.png) 46 round;
+    background:var(--panel);background-clip:padding-box;border-radius:10px;
+    padding:16px 12px 12px;image-rendering:pixelated}
+  .base-frame > *{image-rendering:auto}
+  .base-title{position:absolute;top:-22px;left:50%;transform:translateX(-50%);z-index:3;
+    width:min(300px,78%);height:46px;
+    background:url(assets/ribbon.png) center/100% 100% no-repeat;image-rendering:pixelated;
+    display:flex;align-items:center;justify-content:center;
+    color:#f7ead0;font-size:14px;font-weight:900;letter-spacing:.4px;
+    text-shadow:0 1px 0 #2c1a0c,0 0 3px #2c1a0c}
+  .base-title span{image-rendering:auto;padding-bottom:2px}
   .base-frame .tabbody{background:transparent;border:none;box-shadow:none;padding:12px 2px 2px}
+  .base-frame .tabbar{margin-top:4px}
   .nav{display:flex;gap:6px;flex:0 0 auto}
   .res{order:3;flex-basis:100%;display:flex;justify-content:space-between;gap:6px;font-weight:800;font-size:12px;
     background:#2c2114;border:1px solid #23190e;border-radius:10px;padding:6px 10px;color:#f2e7d2}

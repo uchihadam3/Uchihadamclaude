@@ -128,7 +128,7 @@ function renderBase(){
   const tabs = [['gambits','menu_gambits','Gambits'],['forge','menu_forge','Forja'],['academy','menu_academy','Academia']];
   $('screen-base').innerHTML = `
     <div class="base-frame">
-      <div class="base-title">🏕️ Acampamento Base</div>
+      <div class="base-title"><span>Acampamento Base</span></div>
       <div class="tabbar">${tabs.map(([k,ic,l])=>`<button class="tab ${baseTab===k?'on':''}" data-tab="${k}"><img class="ticon" src="assets/${ic}.png" alt="" />${l}</button>`).join('')}</div>
       <div class="tabbody" id="base-body"></div>
     </div>`;
