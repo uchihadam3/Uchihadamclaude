@@ -37,6 +37,8 @@ import { LISTA_BOSSES } from '../data/bosses.js';
 import { svgGlifo } from '../arte/glifos.js';
 import { SFX, acordar, mudo, estaMudo } from './sfx.js';
 import { ICO, ICO_CLASSE, ICO_CHEFE } from './icones.js';
+import { CAPITULOS, FAMILIA_DE_PECA, peca, PALAVRAS, COR_COMBO, corDoCombo }
+  from './catalogo.js';
 import * as RANK from '../net/ranking.js';
 
 const $  = s => document.querySelector(s);
@@ -57,11 +59,6 @@ let telaAtual = 'titulo';
 let salaViva = null;
 let abaRank = 'mundial';
 let alvoPendente = null;
-
-/* a escada de combo também é uma escada de COR: o jogador vê o degrau
-   subir antes de ler o nome dele */
-const COR_COMBO = ['#8d99b1','#7fd4ff','#66e6a6','#efb54b','#ffa24d','#ff6a5a','#e05a8a','#a98bff','#ffffff'];
-const corDoCombo = n => COR_COMBO[Math.max(0, COMBOS.findIndex(c=>c===degrauCombo(n)))] || COR_COMBO[0];
 
 /* ═══════════════════════════════════════════ navegação */
 function ir(nome){
@@ -112,21 +109,66 @@ $('#folha').addEventListener('click', e=>{
     $('#folha').classList.remove('on');
 });
 
-/* ═══════════════════════════════════════════ peças de texto reutilizáveis */
-const verbete = (icone, titulo, texto, extra='') =>
-  `<div class="verb"><div class="em">${icone}</div><div>
-     <h4>${titulo}${extra}</h4><p>${texto}</p></div></div>`;
-
-const fichaFamilia = f => verbete(svgGlifo(f.id, 0, 'gl'), esc(f.nome), esc(f.regra),
-  `<span class="tag" style="color:${f.cor}">${esc(f.traco)}</span>`);
-const fichaTipo = t => verbete(ICO[t.id] || ICO.normal, esc(t.nome), esc(t.d),
-  `<span class="tag" style="color:${t.cor}">${t.base||10} base${
-    t.mult&&t.mult!==1 ? ' · ×'+t.mult : ''}</span>`);
-function fichaReliquia(id){
-  const r = POR_ID[id]; if(!r) return '';
-  return verbete(ICO.reliquia, esc(r.nome), esc(r.d),
-    `<span class="tag" style="color:${RARIDADE[r.r]}">${r.r}</span>`);
+/* ═══════════════════════════════════════════ VITRINE
+   O jogo não tem uma lista em lugar nenhum. Toda coisa que ele nomeia é um
+   LADRILHO que se toca, e o texto abre por cima. Uma lista o jogador varre
+   com o olho e esquece; uma vitrine ele percorre com o dedo, e o que abriu
+   é o que ele quis saber. */
+function ladrilho(tipo, id, extra=''){
+  const p = peca(tipo, id); if(!p) return '';
+  return `<button class="lad" data-peca="${tipo}:${esc(id)}" style="--fc:${p.cor}">
+    <span class="agu">${p.ico}</span>
+    <span class="ic">${p.ico}</span>
+    <span class="nm">${esc(p.nome)}</span>
+    ${p.tag ? `<span class="tg">${esc(p.tag)}</span>` : ''}
+    ${extra}</button>`;
 }
+const vitrine = (tipo, ids, extra) =>
+  `<div class="vit">${ids.map(id=>ladrilho(tipo, id, extra?extra(id):'')).join('')}</div>`;
+
+/* a peça aberta: a mesma coisa, em tamanho grande */
+function abrirPeca(tipo, id){
+  const p = peca(tipo, id); if(!p) return;
+  SFX.clique();
+  ficha(`<div class="pecao" style="--fc:${p.cor}">
+      <div class="ic">${p.ico}</div>
+      <h3>${esc(p.nome)}</h3>
+      ${p.tag ? `<div class="rot" style="color:${p.cor}">${esc(p.tag)}</div>` : ''}
+      ${p.texto ? `<p class="tx">${esc(p.texto)}</p>` : ''}
+      ${p.nota ? `<p class="nt">${esc(p.nota)}</p>` : ''}
+    </div>
+    ${p.dados?.length ? `<div class="meds" style="margin-top:13px">${p.dados.map(
+      ([r,v])=>medalha(ICO.combo, v, r, p.cor)).join('')}</div>` : ''}
+    ${p.amostra?.length ? `<div class="rot" style="margin:13px 0 6px">o desenho da família</div>
+      <div class="chips">${p.amostra.map(g=>
+        `<span class="chip" style="--fc:${p.cor}"><span class="ic">${g}</span></span>`).join('')}</div>` : ''}`);
+}
+/* um toque em qualquer ladrilho da tela abre a peça — não importa a tela */
+document.addEventListener('click', e=>{
+  const b = e.target.closest('[data-peca]');
+  if(!b) return;
+  const [tipo, ...resto] = b.dataset.peca.split(':');
+  abrirPeca(tipo, resto.join(':'));
+});
+
+/* MEDALHA: número com cara de troféu. Nenhum número do jogo aparece como
+   linha de tabela. */
+const medalha = (ico, valor, rotulo, cor='var(--ouro)', forte=false) =>
+  `<div class="mede ${forte?'forte':''}" style="--fc:${cor}">
+     <span class="ic">${ico}</span>
+     <span class="cx"><span class="vl">${esc(valor)}</span>
+       <span class="rt">${esc(rotulo)}</span></span></div>`;
+
+/* CHIP: relíquia (ou coisa curta) que se toca */
+const chipReliquia = id => {
+  const r = POR_ID[id]; if(!r) return '';
+  return `<button class="chip" data-peca="reliquia:${id}" style="--fc:${RARIDADE[r.r]}">
+    <span class="ic">${ICO.reliquia}</span><span>${esc(r.nome)}</span></button>`;
+};
+const chipsReliquias = ids => ids.length
+  ? `<div class="chips">${ids.map(chipReliquia).join('')}</div>`
+  : `<div class="chips"><span class="chip vazio"><span class="ic">${ICO.reliquia}</span>
+       <span>nenhuma relíquia ainda</span></span></div>`;
 
 /* ═══════════════════════════════════════════ TÍTULO */
 (function fundoAnimado(){
@@ -258,15 +300,15 @@ function telaMapa(){
           <p class="mini" style="font-style:italic">${esc(b.dica)}</p></div>` : ''}
       ` : ''}
       <div class="hr"></div>
-      <dl class="tabnum">
-        <dt>Pontos da run</dt><dd>${nf(run.pontos)}</dd>
-        <dt>Moedas</dt><dd>${nf(run.moedas)}</dd>
-        <dt>Foco</dt><dd>${run.foco}</dd>
-        <dt>Salas vencidas</dt><dd>${run.estatisticas.salas}</dd>
-      </dl>
-      ${run.reliquias.length ? `<div class="hr"></div>
-        <div class="rot" style="margin-bottom:5px">suas relíquias</div>
-        ${run.reliquias.map(fichaReliquia).join('')}` : ''}
+      <div class="rot" style="margin-bottom:6px">a sua run até aqui</div>
+      <div class="meds">
+        ${medalha(ICO.meta, nf(run.pontos), 'pontos', 'var(--ouro)', true)}
+        ${medalha(ICO.moeda, nf(run.moedas), 'moedas', '#ffc93f')}
+        ${medalha(ICO.foco, run.foco, 'foco', 'var(--perigo)')}
+        ${medalha(ICO.combate, run.estatisticas.salas, 'salas', '#66e6a6')}
+      </div>
+      <div class="rot" style="margin:13px 0 6px">suas relíquias</div>
+      ${chipsReliquias(run.reliquias)}
     </div>
     <div class="pe"><button class="bt p g" id="entrar">
       ${ehComb ? (tipo==='boss'?'ENFRENTAR O CHEFE':'ENTRAR NA SALA') : 'SEGUIR'}</button></div>`;
@@ -351,13 +393,9 @@ function medidores(){
   if(rq.children.length !== run.reliquias.length){
     rq.innerHTML = run.reliquias.map((id,i)=>{
       const r = POR_ID[id];
-      return `<b data-rel="${id}" class="${i===run.reliquias.length-1?'nova':''}"
+      return `<b data-peca="reliquia:${id}" class="${i===run.reliquias.length-1?'nova':''}"
         style="color:${RARIDADE[r.r]}" title="${esc(r.nome)}">${ICO.reliquia}</b>`;
     }).join('');
-    rq.querySelectorAll('[data-rel]').forEach(e=>e.onclick = ()=>{
-      SFX.clique();
-      ficha(`<div class="rot">relíquia</div>` + fichaReliquia(e.dataset.rel));
-    });
   }
 }
 
@@ -722,15 +760,20 @@ async function aplicarFerramenta(arg){
 function escolherDeLista(f, campo){
   const s = run.sala; if(!s) return;
   const chaves = [...new Set(s.fechadas().map(c=>campo==='tipo'?c.tipo:c.fam))];
-  ficha(`<div class="rot">${esc(f.nome)}</div>
-    <h3 class="tit" style="margin:3px 0 11px">Revelar o quê?</h3>
-    <div class="grade">${chaves.map(k=>{
+  ficha(`<div class="pecao" style="--fc:var(--ouro)">
+      <div class="ic">${ICO.vista}</div>
+      <h3>${esc(f.nome)}</h3>
+      <p class="tx">Escolha o que revelar no tabuleiro.</p>
+    </div>
+    <div class="vit" style="margin-top:13px">${chaves.map(k=>{
       const o = campo==='tipo' ? TIPOS[k] : FAMILIAS[k];
       const ic = campo==='tipo' ? (ICO[k]||ICO.normal) : svgGlifo(k, 0, 'gl');
-      return `<button class="op esc" data-esc="${k}" style="--fc:${o.cor}">
-        <span class="gf" style="color:${o.cor}">${ic}</span>
-        <h3 style="color:${o.cor}">${esc(o.nome)}</h3>
-        <p>${esc(campo==='tipo' ? o.d : o.regra)}</p></button>`;
+      const n = run.sala.fechadas().filter(c=>(campo==='tipo'?c.tipo:c.fam)===k).length;
+      return `<button class="lad" data-esc="${k}" style="--fc:${o.cor}">
+        <span class="agu">${ic}</span><span class="qt">${n}</span>
+        <span class="ic">${ic}</span>
+        <span class="nm">${esc(o.nome)}</span>
+        <span class="tg">${n} fechada${n>1?'s':''}</span></button>`;
     }).join('')}</div>`);
   $('#folhac').querySelectorAll('[data-esc]').forEach(b=>b.onclick = ()=>{
     $('#folha').classList.remove('on');
@@ -743,20 +786,24 @@ $('#bregras').onclick = ()=>{
   SFX.clique();
   const tipos = [...new Set(s.emJogo().map(c=>c.tipo))].map(t=>TIPOS[t]);
   ficha(`
-    <div class="rot">o que vale nesta sala</div>
-    <h3 class="tit" style="margin:3px 0 11px">${s.pares} pares · meta ${nf(s.meta)}</h3>
-    ${s.boss ? `<div class="verb"><div class="em" style="color:${s.boss.cor}">${ICO_CHEFE[s.boss.id]||''}</div>
-      <div><h4 style="color:${s.boss.cor}">${esc(s.boss.nome)}</h4>
-      <p>${esc(s.boss.regra)}</p>
-      <p style="color:var(--txt3);margin-top:4px;font-style:italic">${esc(s.boss.dica)}</p></div></div>` : ''}
-    <div class="rot" style="margin:13px 0 4px">famílias no tabuleiro</div>
-    ${s.familias.map(fichaFamilia).join('')}
-    <div class="rot" style="margin:13px 0 4px">cartas que apareceram</div>
-    ${tipos.map(fichaTipo).join('')}
-    <div class="rot" style="margin:13px 0 4px">a escada do combo</div>
-    ${COMBOS.slice(1).map((c,i)=>verbete(ICO.combo, esc(c.nome),
-      `${c.n} acerto${c.n>1?'s':''} seguido${c.n>1?'s':''} sem errar.`,
-      `<span class="tag" style="color:${COR_COMBO[i+1]}">×${vg(c.mult.toFixed(1))}</span>`)).join('')}`);
+    <div class="pecao" style="--fc:${s.boss ? s.boss.cor : 'var(--ouro)'}">
+      <div class="ic">${s.boss ? (ICO_CHEFE[s.boss.id]||'') : ICO.meta}</div>
+      <h3>${s.boss ? esc(s.boss.nome) : 'Sala comum'}</h3>
+      ${s.boss ? `<p class="tx">${esc(s.boss.regra)}</p>
+                  <p class="nt">${esc(s.boss.dica)}</p>` : ''}
+    </div>
+    <div class="meds" style="margin-top:13px">
+      ${medalha(ICO.meta, nf(s.meta), 'meta', 'var(--ouro)', true)}
+      ${medalha(ICO.normal, s.pares, 'pares', '#7fd4ff')}
+      ${medalha(ICO.virada, s.viradasMax, 'viradas', '#66e6a6')}
+      ${medalha(ICO.foco, s.focoMax, 'foco', 'var(--perigo)')}
+    </div>
+    <div class="rot" style="margin:15px 0 6px">famílias no tabuleiro</div>
+    ${vitrine('familia', s.familias.map(f=>f.id))}
+    <div class="rot" style="margin:15px 0 6px">cartas que já apareceram</div>
+    ${vitrine('carta', tipos.map(t=>t.id))}
+    <div class="rot" style="margin:15px 0 6px">a escada do combo</div>
+    ${vitrine('combo', COMBOS.slice(1).map(c=>String(c.n)))}`);
 };
 
 /* ═══════════════════════════════════════════ RECOMPENSA / TESOURO */
@@ -893,18 +940,24 @@ function telaFim(){
       <div class="pts num" style="font-size:clamp(38px,13vw,60px)">${nf(p.pontos)}</div>
       <div class="rot">pontos da run</div>
       <div class="hr"></div>
-      <dl class="tabnum">
-        <dt>Classe</dt><dd>${esc(run.C.nome)}</dd>
-        <dt>Salas vencidas</dt><dd>${p.est.salas}</dd>
-        <dt>Pares fechados</dt><dd>${p.est.acertos}</dd>
-        <dt>Erros</dt><dd>${p.est.erros}</dd>
-        <dt>Maior combo</dt><dd>${p.est.maiorCombo} · ${esc(degrauCombo(p.est.maiorCombo).nome)}</dd>
-        <dt>Moedas ganhas</dt><dd>${nf(p.est.moedasGanhas)}</dd>
-        <dt>Semente</dt><dd style="font-size:11px;font-weight:700">${esc(p.semente)}</dd>
-      </dl>
-      ${p.reliquias.length ? `<div class="hr"></div>
-        <div class="rot" style="margin-bottom:5px">o que você juntou</div>
-        ${p.reliquias.map(fichaReliquia).join('')}` : ''}
+      <div class="rot" style="margin-bottom:6px">o que ficou da run</div>
+      <div class="meds">
+        ${medalha(ICO.combate, p.est.salas, 'salas', '#66e6a6')}
+        ${medalha(ICO.feito, p.est.acertos, 'pares', 'var(--ouro)')}
+        ${medalha(ICO.recusa, p.est.erros, 'erros', 'var(--perigo)')}
+        ${medalha(ICO.combo, p.est.maiorCombo, esc(degrauCombo(p.est.maiorCombo).nome),
+                  corDoCombo(p.est.maiorCombo))}
+        ${medalha(ICO.moeda, nf(p.est.moedasGanhas), 'moedas', '#ffc93f')}
+        ${medalha(ICO.virada, p.est.viradasSobrando, 'viradas de sobra', '#7fd4ff')}
+      </div>
+      <div class="rot" style="margin:13px 0 6px">a coleção desta run</div>
+      ${chipsReliquias(p.reliquias)}
+      <div class="chips" style="margin-top:9px">
+        <span class="chip" style="--fc:${cor}"><span class="ic">${ICO_CLASSE[run.classeId]||''}</span>
+          <span>${esc(run.C.nome)}</span></span>
+        <span class="chip" style="--fc:#5b6683"><span class="ic">${ICO.semente}</span>
+          <span>${esc(p.semente)}</span></span>
+      </div>
     </div>
     <div class="pe">
       <button class="bt p g" id="enviar">MANDAR PARA O RANKING</button>
@@ -960,115 +1013,101 @@ async function carregarRank(){
   const alvo = $('#rlista'); if(!alvo) return;
   let linhas = [];
   try { linhas = await RANK.buscar({ aba:abaRank, semente:semeanteDoDia() }); }
-  catch(e){ alvo.innerHTML = `<p class="mini">Não deu para falar com os relays.
-    Verifique a conexão e tente de novo.</p>`; return; }
+  catch(e){ alvo.innerHTML = semRanking('Não deu para falar com os relays.',
+    'Verifique a conexão e tente de novo.'); return; }
   if(!$('#t-rank').classList.contains('on')) return;
 
-  /* AQUI mora o anti-cheat: nada entra na lista sem ser recalculado */
+  /* AQUI mora o anti-cheat: nada entra no quadro sem ser recalculado */
   const bons = [];
   for(const l of linhas) if(verificar(l.placar, l.registro).ok) bons.push(l);
   bons.sort((a,b)=>b.placar.pontos - a.placar.pontos);
+  if(!bons.length){
+    alvo.innerHTML = semRanking('Ninguém conferido ainda nesta aba.',
+      linhas.length ? `${linhas.length} placares chegaram, e nenhum bateu com as próprias jogadas.`
+                    : 'Jogue uma run e seja o primeiro do quadro.');
+    return;
+  }
   const eu = localStorage.getItem('mnemonic.nome');
-  alvo.innerHTML = bons.length ? bons.slice(0,60).map((l,i)=>`
-    <div class="lin ${l.nome===eu?'eu':''}">
-      <div class="pos num">${i+1}</div>
-      <div class="qm">${esc(l.nome)}
-        ${l.placar.venceu?'<span class="sel" style="color:var(--bom)">completou</span>':''}
-        <small>${esc(CLASSES[l.placar.classe]?.nome||l.placar.classe)}
-          · mundo ${l.placar.mundo+1} · ${l.placar.est?.salas??0} salas</small></div>
-      <div class="pt num">${nf(l.placar.pontos)}</div>
-    </div>`).join('')
-    : `<p class="mini">Nenhum placar conferido ainda nesta aba.
-       ${linhas.length ? `(${linhas.length} chegaram, e nenhum bateu com as próprias jogadas.)` : ''}</p>`;
+  const CORP = ['#efb54b','#cfd6e4','#c08a4a'];
+  const topo = bons.slice(0,3);
+  const resto = bons.slice(3,60);
+  /* pódio: 2º, 1º, 3º — a ordem que o olho espera num pódio */
+  const ordem = [1,0,2].filter(i=>topo[i]);
+  alvo.innerHTML = `
+    <div class="podio">${ordem.map(i=>{
+      const l = topo[i];
+      return `<div class="pod p${i+1}" style="--fc:${CORP[i]}">
+        <div class="cor">${i+1}</div>
+        <div class="qm">${esc(l.nome)}</div>
+        <div class="pt num">${nf(l.placar.pontos)}</div>
+        <div class="cl">${esc(CLASSES[l.placar.classe]?.nome||l.placar.classe)}</div>
+      </div>`;
+    }).join('')}</div>
+    ${resto.length ? `<div class="fila">${resto.map((l,i)=>`
+      <div class="rk ${l.nome===eu?'eu':''}">
+        <div class="n num">${i+4}</div>
+        <div class="cx">
+          <div class="qm">${esc(l.nome)}</div>
+          <div class="sb">${esc(CLASSES[l.placar.classe]?.nome||l.placar.classe)}
+            · mundo ${l.placar.mundo+1} · ${l.placar.est?.salas??0} salas
+            ${l.placar.venceu?' · completou':''}</div>
+        </div>
+        <div class="pt num">${nf(l.placar.pontos)}</div>
+      </div>`).join('')}</div>` : ''}`;
 }
+const semRanking = (titulo, sub) => `
+  <div class="pecao" style="--fc:#5b6683;padding-top:30px">
+    <div class="ic">${ICO.recusa}</div>
+    <h3 style="color:var(--txt2)">${esc(titulo)}</h3>
+    <p class="nt">${esc(sub)}</p></div>`;
 
-/* ═══════════════════════════════════════════ COMO SE JOGA */
-const CAPITULOS = [
-  { id:'basico', n:'O básico', html:()=>`
-    <p class="sub">Mnemonic é um jogo da memória em que o tabuleiro tem regras
-    e a regra muda a cada sala.</p>
-    ${verbete(ICO.meta, 'Você não limpa o tabuleiro — você bate a META',
-      'A sala é vencida ao chegar na meta de pontos. Limpar tudo é só o jeito '
-      +'mais comum de chegar lá, e nas salas grandes nem sempre dá tempo.')}
-    ${verbete(ICO.virada, 'VIRADA é o relógio',
-      'Cada tentativa (duas cartas) gasta uma virada. Quando acabam e a meta '
-      +'não foi batida, a run acaba.')}
-    ${verbete(ICO.foco, 'FOCO é quantas vezes você pode esquecer',
-      'Errar duas cartas que você NUNCA tinha visto não custa nada: é '
-      +'exploração, e exploração é obrigatória. Errar duas cartas que você já '
-      +'conhecia custa 1 de Foco. Zerou o Foco, perdeu a sala.')}
-    ${verbete(ICO.combo, 'COMBO é onde mora o placar',
-      'Acertos seguidos multiplicam tudo. Dois pares separados valem muito '
-      +'menos que dois pares emendados — é por isso que vale arriscar.')}
-    ${verbete(ICO.feito, 'O par fechado FICA no tabuleiro',
-      'Ele apaga e ganha um carimbo, mas não sai do lugar. Assim a grade '
-      +'nunca se remexe e você não perde de vista o que já decorou.')}`},
-  { id:'memoria', n:'Vista e conhecida', html:()=>`
-    <p class="sub">Duas palavras que o jogo usa o tempo todo e que não querem
-    dizer a mesma coisa.</p>
-    ${verbete(ICO.vista, 'VISTA', 'A carta está aparecendo AGORA. Ela some no '
-      +'fim da tentativa. Algumas relíquias esticam esse prazo.')}
-    ${verbete(ICO.conhecida, 'CONHECIDA', 'Você já viu essa carta alguma vez. '
-      +'Isso não se apaga nunca, e é o que decide se o erro custa Foco.')}
-    <p class="mini">É por isso que o Fantasma dói: ele apaga a VISTA e deixa a
-    CONHECIDA. Some da tela e continua sendo sua obrigação lembrar.</p>
-    ${verbete(ICO.orfa, 'SEM PAR', 'Quando um Espelho fecha com uma carta '
-      +'comum, a dupla dela fica sem par — e passa a fechar com qualquer outra '
-      +'carta sem par. Cartas saem sempre de duas em duas, então nunca sobra '
-      +'uma sozinha.')}`},
-  { id:'cartas', n:'As cartas', html:()=>LISTA_TIPOS.map(fichaTipo).join('') },
-  { id:'familias', n:'As famílias', html:()=>
-    `<p class="sub">Cada sala sorteia duas ou três. A família manda em uma
-     regra do tabuleiro inteiro.</p>` + LISTA_FAMILIAS.map(fichaFamilia).join('') },
-  { id:'classes', n:'As classes', html:()=>LISTA_CLASSES.map(c=>
-    verbete(`<span style="color:${c.cor}">${ICO_CLASSE[c.id]||''}</span>`,
-      esc(c.nome), esc(c.d)+'<br><b style="color:'+c.cor+'">'+esc(c.ferramenta.nome)
-      +'</b> — '+esc(c.ferramenta.d))).join('') },
-  { id:'chefes', n:'Os chefes', html:()=>
-    `<p class="sub">Um por mundo, sempre na última sala. Cada um apaga a
-     resposta que servia até ali.</p>` + LISTA_BOSSES.map(b=>
-    verbete(`<span style="color:${b.cor}">${ICO_CHEFE[b.id]||''}</span>`,
-      esc(b.nome), esc(b.regra)+'<br><i style="color:var(--txt3)">'+esc(b.dica)+'</i>')).join('') },
-  { id:'reliquias', n:'As relíquias', html:()=>
-    ['lendaria','rara','comum'].map(r=>
-      `<div class="rot" style="margin:13px 0 4px;color:${RARIDADE[r]}">${r}</div>`
-      + RELIQUIAS.filter(x=>x.r===r).map(x=>fichaReliquia(x.id)).join('')).join('') },
-  { id:'combo', n:'A escada do combo', html:()=>
-    `<p class="sub">Quantos pares seguidos, e por quanto multiplica.</p>`
-    + COMBOS.slice(1).map((c,i)=>verbete(ICO.combo, esc(c.nome),
-        `${c.n} acerto${c.n>1?'s':''} seguido${c.n>1?'s':''} sem errar.`,
-        `<span class="tag" style="color:${COR_COMBO[i+1]}">×${vg(c.mult.toFixed(1))}</span>`)).join('') },
-  { id:'ranking', n:'O ranking', html:()=>`
-    <p class="sub">Não existe servidor. E mesmo assim não adianta trapacear.</p>
-    ${verbete(ICO.semente, 'Tudo nasce de uma SEMENTE',
-      'O tabuleiro, o mapa, as relíquias oferecidas, o chefe: tudo é sorteado '
-      +'a partir de um número. A mesma semente monta a mesma run em qualquer '
-      +'aparelho. É isso que faz a run diária ser a mesma para todo mundo.')}
-    ${verbete(ICO.prova, 'O placar vem com a prova',
-      'Quando você publica, sobe junto a lista inteira das suas jogadas. '
-      +'Quem abre o ranking REFAZ a sua run a partir da semente e confere se '
-      +'chega no mesmo número.')}
-    ${verbete(ICO.recusa, 'Placar que não bate não aparece',
-      'Inflar a pontuação, dizer que venceu, apagar as últimas jogadas, pegar '
-      +'uma relíquia que não foi oferecida, comprar sem moeda: nada disso '
-      +'sobrevive ao recálculo. A linha simplesmente não é mostrada.')}` },
-];
-let capAtual = 'basico';
+/* ═══════════════════════════════════════════ COMO SE JOGA
+   Era o pior lugar do jogo: nove capítulos de texto empilhado, que é
+   exatamente o formato que ninguém lê. Agora é uma COLEÇÃO — o menu mostra
+   os oito conjuntos como peças, cada conjunto abre a sua vitrine, e o texto
+   só aparece quando o jogador toca a peça que quis saber. */
+let capAtual = null;
 function telaLivro(){
-  const c = CAPITULOS.find(x=>x.id===capAtual) || CAPITULOS[0];
-  $('#t-livro').innerHTML = `
-    <div class="topo-linha">
-      <button class="bt pq" id="voltarLivro">VOLTAR</button>
-      <div class="cabeca"><div class="rot">como se joga</div>
-        <h2 class="tit">${esc(c.n)}</h2></div>
-    </div>
-    <div class="abas">${CAPITULOS.map(x=>
-      `<button data-cap="${x.id}" class="${x.id===capAtual?'on':''}">${esc(x.n)}</button>`).join('')}</div>
-    <div class="rol">${c.html()}</div>`;
+  const t = $('#t-livro');
+  if(!capAtual){
+    t.innerHTML = `
+      <div class="topo-linha">
+        <button class="bt pq" id="voltarLivro">VOLTAR</button>
+        <div class="cabeca"><div class="rot">como se joga</div>
+          <h2 class="tit">A coleção</h2></div>
+      </div>
+      <div class="rol">
+        <div class="vit">${CAPITULOS.map(c=>`
+          <button class="lad" data-cap="${c.id}" style="--fc:${c.cor}">
+            <span class="agu">${c.ico}</span>
+            <span class="qt">${c.lista().length}</span>
+            <span class="ic">${c.ico}</span>
+            <span class="nm">${esc(c.nome)}</span>
+          </button>`).join('')}</div>
+        <div class="hr"></div>
+        <div class="rot" style="margin-bottom:6px">em uma frase</div>
+        <div class="vit">
+          ${['meta','virada','foco','combo'].map(id=>ladrilho('palavra', id)).join('')}
+        </div>
+      </div>`;
+  } else {
+    const c = CAPITULOS.find(x=>x.id===capAtual);
+    t.innerHTML = `
+      <div class="topo-linha">
+        <button class="bt pq" id="voltarCap">VOLTAR</button>
+        <div class="cabeca"><div class="rot" style="color:${c.cor}">${c.lista().length} peças</div>
+          <h2 class="tit">${esc(c.nome)}</h2></div>
+      </div>
+      <p class="mini" style="flex:0 0 auto;margin:0 0 10px">${esc(c.resumo)}
+        <b style="color:var(--txt2)">Toque para abrir.</b></p>
+      <div class="rol">${vitrine(c.id, c.lista())}</div>`;
+    $('#voltarCap').onclick = ()=>{ SFX.clique(); capAtual = null; telaLivro(); };
+  }
   $$('#t-livro [data-cap]').forEach(b=>b.onclick = ()=>{
     SFX.clique(); capAtual = b.dataset.cap; telaLivro();
   });
-  $('#voltarLivro').onclick = ()=>{ SFX.clique(); run ? seguir() : ir('titulo'); };
+  const v = $('#voltarLivro');
+  if(v) v.onclick = ()=>{ SFX.clique(); run ? seguir() : ir('titulo'); };
 }
 
 /* ═══════════════════════════════════════════ salvar e retomar */

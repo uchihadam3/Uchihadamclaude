@@ -27,8 +27,9 @@ export const ICO = {
              +'<path d="M16 8.5 L20 12 L16 15.5"/>'),
   espelho:  S('<path d="M12 2.5 V21.5"/><path d="M12 5 L4.5 12 L12 19"/>'
              +'<path d="M12 5 L19.5 12 L12 19" stroke-dasharray="2.4 2.4"/>'),
-  bomba:    S('<circle cx="11" cy="15" r="6"/><path d="M15.4 10.6 L18 8"/>'
-             +'<path d="M18 8 c2-2 3.4-1 3.4 1"/>'),
+  bomba:    S('<circle cx="10.5" cy="15" r="6.8"/><path d="M15.4 10 L17.6 7.8"/>'
+             +'<path d="M17.6 7.8 c1.6-1.6 3.4-1.2 3.4.6 0 1.4-1.4 1.8-2.2 1"/>'
+             +'<path d="M7 12.4 a4.6 4.6 0 0 1 2.6-2.4"/>'),
   gelo:     S('<path d="M12 2.5 V21.5"/><path d="M4 7 L20 17"/><path d="M20 7 L4 17"/>'
              +'<path d="M12 6 l-2.4-2.4M12 6 l2.4-2.4"/>'),
   corrente: S('<rect x="2.5" y="8.5" width="9" height="7" rx="3.5"/>'
