@@ -180,7 +180,8 @@ export function glifo(fam, i){
    quase iguais e um alvo quase igual à espiral, então continua desenhada: no
    jogo da memória, dois símbolos parecidos não são feiúra, são um par que não
    fecha e um jogador que acha que o jogo trapaceou. */
-export const FAMILIA_PINTADA = new Set(['runas','alquimia','xadrez']);
+export const FAMILIA_PINTADA = new Set(['runas','alquimia','xadrez',
+                                        'egito','dragoes','tecnologia','mitologia']);
 
 /* svg pronto, do tamanho que a tela pedir — ou a peça pintada, se houver */
 export function svgGlifo(fam, i, cls='gl'){

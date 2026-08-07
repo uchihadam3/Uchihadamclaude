@@ -53,7 +53,43 @@ def conferir(pasta):
     pares.sort()
     return len(fs), pares
 
+def escolher(pasta, quantos=18):
+    """Das N células de uma folha, quais 18 formam o conjunto mais separado.
+
+    As folhas voltam com sobra: pedi 18 e vieram 20, 25, às vezes com a última
+    fila repetida. Escolher a dedo é o que eu vinha fazendo, e é ruim por dois
+    motivos: eu comparo par a par com o olho, que cansa, e a decisão não fica
+    registrada em lugar nenhum — na próxima folha começa do zero.
+
+    Aqui é guloso e explicável: começa pelo par mais distante que existe na
+    folha e, a cada rodada, entra a célula que fica MAIS LONGE da mais parecida
+    já escolhida. Não é o ótimo global (isso é caro e não vale), mas ataca
+    exatamente o que estraga um jogo de memória: o par mais próximo do conjunto.
+    """
+    fs = sorted(pathlib.Path(pasta).glob('*.png'))
+    nomes = [f.stem for f in fs]
+    ass = {f.stem: assinatura(f) for f in fs}
+    d = {(a, b): float(np.sqrt(((ass[a] - ass[b]) ** 2).mean()))
+         for a, b in itertools.permutations(nomes, 2)}
+    if len(nomes) <= quantos: return nomes
+    a, b = max(itertools.combinations(nomes, 2), key=lambda p: d[p])
+    escolhidos = [a, b]
+    while len(escolhidos) < quantos:
+        resto = [n for n in nomes if n not in escolhidos]
+        proximo = max(resto, key=lambda n: min(d[(n, e)] for e in escolhidos))
+        escolhidos.append(proximo)
+    return sorted(escolhidos)
+
 if __name__ == '__main__':
+    if sys.argv[1:2] == ['escolher']:
+        for pasta in sys.argv[2:]:
+            fora = escolher(pasta)
+            n, pares = conferir(pasta)
+            print(f'{pathlib.Path(pasta).name}: {" ".join(fora)}')
+            sub = [p for p in pares if p[1] in fora and p[2] in fora]
+            print(f'   par mais próximo entre os escolhidos: '
+                  f'{sub[0][1]} × {sub[0][2]} = {sub[0][0]:.1f}')
+        sys.exit(0)
     alvos = sys.argv[1:] or sorted(p.name for p in pathlib.Path('arte/glifo').iterdir() if p.is_dir())
     ruim = 0
     for fam in alvos:
