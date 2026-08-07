@@ -286,24 +286,44 @@ img.gl{object-fit:contain;stroke:none;
         backface-visibility:hidden;-webkit-backface-visibility:hidden;
         display:grid;place-items:center;overflow:hidden;
         border:2px solid var(--traco)}
-/* verso: peça grossa com selo */
-.fr{background:
-      repeating-linear-gradient(45deg,rgba(255,255,255,.045) 0 3px,transparent 3px 9px),
-      radial-gradient(120% 92% at 50% 0%, #35507f, #1b2c4c 58%, #101c31);
-    box-shadow:inset 0 3px 0 rgba(255,255,255,.16), inset 0 -6px 12px rgba(0,0,0,.55),
-               0 4px 0 rgba(0,0,0,.55)}
-.fr:before{content:'';position:absolute;inset:5px;border-radius:calc(var(--r) - 5px);
-  border:2px solid rgba(255,194,60,.16)}
-.fr:after{content:'';width:36%;height:36%;border-radius:50%;
-  border:2.5px solid rgba(255,194,60,.3);
-  box-shadow:inset 0 0 0 4px rgba(255,194,60,.09), 0 0 10px rgba(255,194,60,.15)}
-/* frente: cor cheia da família */
-.ff{transform:rotateY(180deg);color:#fff;padding:11%;
+/* ───────── O VERSO É PINTADO ─────────
+   O verso é a coisa mais vista do jogo: metade das cartas está de costas o
+   tempo todo. Ele era um degradê com dois círculos por cima, e o degradê é
+   justamente o que faz uma tela parecer aplicativo. Agora é arte, e o desenho
+   ocupa a carta inteira — `cover` e não `contain`, porque uma margem de fundo
+   em volta denunciaria que ali existe um retângulo colado. */
+.fr{background:url(arte/carta/v-azul.png) center/cover no-repeat, #101c31;
+    box-shadow:inset 0 -5px 10px rgba(0,0,0,.4), 0 4px 0 rgba(0,0,0,.55)}
+/* O VERSO DIZ O QUE DÁ PARA SABER SEM VIRAR — e só isso.
+   Carta fixa e carta sem par são coisas que o jogo já te contou; mostrá-las
+   de costas é lembrete, não dica. O que NÃO pode entrar aqui é "conhecida":
+   marcar de costas a carta que você já viu tiraria a memória do jogo da
+   memória e a tela passaria a jogar por você. */
+.ct.marc .fr{background-image:url(arte/carta/v-ouro.png)}
+.ct.orfa .fr{background-image:url(arte/carta/v-roxo.png)}
+/* na sala do chefe o baralho inteiro troca: o encontro tem de pesar antes da
+   primeira virada */
+#mesa.chefe .fr{background-image:url(arte/carta/v-vinho.png)}
+/* frente: cor cheia da família, dentro de uma moldura pintada.
+   A moldura entra como border-image por cima do fundo colorido — assim a cor
+   continua sendo a da família (que é o que identifica o par) e a moldura diz
+   o QUE aquela carta faz com você. */
+.ff{transform:rotateY(180deg);color:#fff;padding:14%;
+    border:0;
     background:
       radial-gradient(112% 84% at 50% 0%, color-mix(in srgb,var(--fc) 62%, #0d1728),
                       color-mix(in srgb,var(--fc) 16%, #08111f) 78%);
-    box-shadow:inset 0 3px 0 color-mix(in srgb,var(--fc) 70%,transparent),
-               inset 0 -6px 12px rgba(0,0,0,.5), 0 4px 0 rgba(0,0,0,.55)}
+    box-shadow:inset 0 -6px 12px rgba(0,0,0,.5), 0 4px 0 rgba(0,0,0,.55)}
+.ct.temold .ff{background-clip:padding-box;
+  border-image:url(arte/carta/m-prata.png) 44 fill / 15px / 0 stretch;
+  box-shadow:0 4px 0 rgba(0,0,0,.55)}
+.ct.m-ouro  .ff{border-image-source:url(arte/carta/m-ouro.png)}
+.ct.m-gelo  .ff{border-image-source:url(arte/carta/m-gelo.png)}
+.ct.m-aco   .ff{border-image-source:url(arte/carta/m-aco.png)}
+.ct.m-fogo  .ff{border-image-source:url(arte/carta/m-fogo.png)}
+.ct.m-roxo  .ff{border-image-source:url(arte/carta/m-roxo.png)}
+.ct.m-coral .ff{border-image-source:url(arte/carta/m-coral.png)}
+.ct.m-vinho .ff{border-image-source:url(arte/carta/m-vinho.png)}
 .ff .gl{stroke-width:2.4;color:#fff;
   filter:drop-shadow(0 2px 0 rgba(0,0,0,.55)) drop-shadow(0 0 10px var(--fc))}
 

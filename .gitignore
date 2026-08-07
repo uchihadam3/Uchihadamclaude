@@ -1,1 +1,3 @@
 dados-abismo/_*.png
+__pycache__/
+*.pyc

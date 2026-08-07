@@ -36,7 +36,7 @@ import { RELIQUIAS, POR_ID, RARIDADE } from '../data/reliquias.js';
 import { LISTA_BOSSES } from '../data/bosses.js';
 import { svgGlifo } from '../arte/glifos.js';
 import { SFX, acordar, mudo, estaMudo } from './sfx.js';
-import { ICO, ICO_CLASSE, ICO_CHEFE, icoReliquia } from './icones.js';
+import { ICO, ICO_CLASSE, ICO_CHEFE, icoReliquia, MOLDURA_DO_TIPO } from './icones.js';
 import { CAPITULOS, FAMILIA_DE_PECA, peca, PALAVRAS, COR_COMBO, corDoCombo }
   from './catalogo.js';
 import * as RANK from '../net/ranking.js';
@@ -485,8 +485,13 @@ function cartaHTML(c, pequena){
       ? `<span class="selo tp" style="color:${t.cor}">${esc(t.nome)}</span>` : '';
   const gelo = c.camadas>1 ? '<span class="selo pv" style="color:#a8e2ff">GELO</span>' : '';
   const selada = c.resolvida && !mostrando.has(c.id);
+  /* a moldura pintada da frente. O curinga fica de fora: a face dele é o
+     arco-íris inteiro e uma moldura por cima esconderia justamente o que o
+     identifica. */
+  const mold = curinga ? '' : MOLDURA_DO_TIPO[c.tipo] || '';
   const cls = ['ct', faceAberta(c)?'ab':'', c.marcada?'marc':'', selada?'feito':'',
-               curinga?'curinga':'', c.orfa?'orfa':''];
+               curinga?'curinga':'', c.orfa?'orfa':'',
+               mold ? 'temold '+mold : ''];
   /* o curinga não usa desenho de família: ele tem cara própria, e é por isso
      que dá para reconhecê-lo assim que vira */
   const desenho = curinga ? ICO.espelho : svgGlifo(c.fam, c.simbolo);
@@ -505,6 +510,9 @@ function mesa(refazer, chegada){
   const s = run.sala || salaViva; if(!s) return;
   const el = $('#mesa');
   ajustar();
+  /* na sala do chefe o baralho inteiro é outro — o verso troca antes da
+     primeira virada, para o encontro pesar sem precisar de um aviso */
+  el.classList.toggle('chefe', !!s.boss);
   const peq = el.dataset.pequena === '1';
   const todas = s.porPos();
   const monta = ()=>{ el.innerHTML = todas.map(c=>cartaHTML(c, peq)).join(''); };

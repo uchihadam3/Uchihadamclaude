@@ -166,6 +166,26 @@ export const ICO_FAM = {};
 for(const id of ['runas','espaco','alquimia','xadrez','mitologia','tecnologia',
   'dragoes','egito']) ICO_FAM[id] = pintura('fam', id);
 
+/* ─────────── A MOLDURA DA CARTA ───────────
+   Oito molduras pintadas chegaram, e catorze tipos de carta existem. Em vez
+   de esticar as oito para caber uma em cada tipo, elas agrupam por AQUILO QUE
+   A CARTA FAZ COM VOCÊ — neutra, dinheiro, valor, lenda, memória, perigo,
+   armadilha, mecânica. O jogador não precisa decorar catorze molduras; precisa
+   bater o olho e saber se aquela carta vai render, atrapalhar ou explodir.
+
+   A cor continua sendo a da FAMÍLIA, que é o que identifica o par. A moldura
+   é a outra pergunta, e as duas não podem responder a mesma coisa. */
+export const MOLDURA_DO_TIPO = {
+  normal:'m-prata',  espelho:'m-prata',            /* sem truque, ou curinga */
+  ouro:'m-ouro',     raio:'m-ouro',                /* rende */
+  cristal:'m-gelo',  gelo:'m-gelo',                /* vale mais, custa mais */
+  lendaria:'m-fogo',                               /* uma por tabuleiro */
+  fantasma:'m-roxo', portal:'m-roxo',              /* mexem com a memória */
+  bomba:'m-coral',                                 /* tem pavio */
+  mimic:'m-vinho',                                 /* mente para você */
+  camaleao:'m-aco',  veneno:'m-aco', corrente:'m-aco',
+};
+
 /* a marca de uma relíquia, com o amuleto genérico como rede de segurança:
    relíquia nova entra no jogo sem quebrar a tela enquanto a arte não chega */
 export const icoReliquia = id => ICO_RELIQUIA[id] || ICO.reliquia;

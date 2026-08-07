@@ -282,6 +282,39 @@ def limpar_sobras(im):
             for y, x in mancha: a[y, x, 3] = 0
     return Image.fromarray(a, 'RGBA')
 
+def so_a_maior(im):
+    """Fica só com a mancha maior — para peça que é UMA coisa inteiriça.
+
+    Os modelos assinam: quase toda folha volta com um brilhinho de quatro
+    pontas solto num canto. Numa moldura de carta isso é fatal, porque a
+    moldura é oca de propósito e o brilho fica boiando no meio do buraco — a
+    carta ganha uma estrelinha rosa que ninguém pediu.
+
+    Não vale como regra geral (o frasco de veneno tem uma gota separada e ela
+    é parte do desenho), então quem chama é quem sabe que a peça é inteiriça.
+    """
+    a = np.array(im)
+    op = a[..., 3] > 24
+    if not op.any(): return im
+    h, w = a.shape[:2]
+    visto = np.zeros((h, w), bool)
+    maior, manchas = None, []
+    for sy, sx in zip(*np.where(op)):
+        if visto[sy, sx]: continue
+        pilha = [(sy, sx)]; visto[sy, sx] = True; mancha = []
+        while pilha:
+            y, x = pilha.pop(); mancha.append((y, x))
+            for dy, dx in ((1,0),(-1,0),(0,1),(0,-1)):
+                ny, nx = y+dy, x+dx
+                if 0 <= ny < h and 0 <= nx < w and op[ny, nx] and not visto[ny, nx]:
+                    visto[ny, nx] = True; pilha.append((ny, nx))
+        manchas.append(mancha)
+        if maior is None or len(mancha) > len(maior): maior = mancha
+    for m in manchas:
+        if m is maior: continue
+        for y, x in m: a[y, x, 3] = 0
+    return Image.fromarray(a, 'RGBA')
+
 def aparar(im, folga=3):
     """corta a moldura vazia em volta da peça"""
     a = np.array(im)

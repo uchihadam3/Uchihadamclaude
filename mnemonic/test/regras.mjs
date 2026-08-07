@@ -25,7 +25,7 @@ import { BOSSES, LISTA_BOSSES, BOSS_DO_MUNDO } from '../js/data/bosses.js';
 import { EVENTOS } from '../js/data/eventos.js';
 import { glifo, POR_FAMILIA } from '../js/arte/glifos.js';
 import { ICO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, ICO_RELIQUIA, TEM_ARTE,
-         icoReliquia } from '../js/ui/icones.js';
+         icoReliquia, MOLDURA_DO_TIPO } from '../js/ui/icones.js';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { Sala, COMBOS, degrauCombo, pontosPerfeitos, colunasPara } from '../js/engine/tabuleiro.js';
 import { Run, verificar, planoDaSala, SALAS, MUNDOS, COMBATE, MAX_JOGADAS } from '../js/engine/run.js';
@@ -783,13 +783,26 @@ secao('16c. Nenhuma arte apontada existe só no CSS');
 
   /* e o caminho contrário: arte recortada que ninguém usa é peso morto no
      repositório e sinal de que o recorte saiu do lugar */
+  /* as molduras e os versos vivem só no CSS, e o CSS aponta para eles por
+     classe. O que se confere aqui é que TODO tipo de carta recebe uma moldura
+     e que essa moldura é uma das que o CSS sabe desenhar — um tipo esquecido
+     sairia com a face nua no meio de um tabuleiro emoldurado. */
+  const molduras = new Set([...html.matchAll(/\.ct\.(m-[a-z]+)\s+\.ff/g)].map(m=>m[1]));
+  molduras.add('m-prata');   /* a padrão, escrita em .ct.temold */
+  for(const t of LISTA_TIPOS){
+    if(t.id === 'espelho'){ ok(true, 'o curinga não usa moldura (a face dele é a marca)'); continue; }
+    const m = MOLDURA_DO_TIPO[t.id];
+    ok(!!m, `o tipo ${t.id} tem moldura`);
+    ok(molduras.has(m), `a moldura ${m} do tipo ${t.id} existe no CSS`);
+  }
+
   const src = m => /src="([^"]+)"/.exec(m || '')?.[1];
   const usados = new Set([...alvos,
     ...[...TEM_ARTE].map(id=>src(ICO[id])),
     ...Object.values(ICO_CLASSE).map(src), ...Object.values(ICO_CHEFE).map(src),
     ...Object.values(ICO_FAM).map(src),    ...Object.values(ICO_RELIQUIA).map(src),
   ].filter(Boolean));
-  for(const pasta of ['ico','fx','ui','classe','chefe','fam','rel']){
+  for(const pasta of ['ico','fx','ui','classe','chefe','fam','rel','carta']){
     const dir = new URL('../arte/'+pasta+'/', import.meta.url);
     for(const f of readdirSync(dir)){
       if(f.endsWith('.json')) continue;   /* medida, não arte */
