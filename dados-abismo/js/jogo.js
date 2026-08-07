@@ -789,6 +789,9 @@ function fichaHTML(){
       e.travaOff>0?`— apagada por ${e.travaOff} turno${e.travaOff>1?'s':''}`:sl.frase}</div>`:''}
     <div class="flin">${chips.map(c=>SIM.chip(c.id,c.v)).join('')}</div>
     ${linhasConceito(chips)}
+    ${sl && !e._arrombada && !(e.travaOff>0) ? `<div class="fexp">${SIM.ico('fechadura','sic')}
+      <span><b>Abrir</b> · os dados que o seu golpe GASTAR precisam cumprir essa regra.
+      Cumpriu, o dano acontece; não cumpriu, o dano é <b>zero</b> — não é reduzido, é zero.</span></div>`:''}
     ${e.aura?`<div class="fexp">${SIM.ico('aura','sic')}<span><b>Aura</b> · ${e.aura.txt}</span></div>`:''}
     <div class="fdesc">${e.desc||''}</div>`;
 }
@@ -869,7 +872,8 @@ function pintar(){
           : sl.frase}</div>${
         alocSel && tr && !e._arrombada && !(e.travaOff>0)
           ? `<div class="ver ${aberta?'s':'n'}">${SIM.ico(aberta?'sim':'nao')}${
-              aberta?'sua mão abre':'sua mão não abre'}</div>` : ''}</div>`;
+              aberta?'os dados que você marcou ABREM'
+                    :'os dados que você marcou NÃO abrem'}</div>` : ''}</div>`;
     /* O QUE ELE FAZ, em chips ícone+palavra: a intenção deste turno e os
        traços que valem sempre (explode ao morrer, aura, invoca). O golpe da
        Lasca de Fêmur no campo inteiro não estava escrito em lugar nenhum. */
