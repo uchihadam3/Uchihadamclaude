@@ -169,8 +169,25 @@ export function glifo(fam, i){
   }).join('');
 }
 
-/* svg pronto, do tamanho que a tela pedir */
+/* ---------- A ARTE PINTADA, FAMÍLIA POR FAMÍLIA ----------
+   As folhas chegam uma família de cada vez, e uma família só entra INTEIRA:
+   se metade dos símbolos fosse pintada e a outra metade desenhada, o jogador
+   passaria a distinguir o par pelo ESTILO em vez de pelo desenho, e a família
+   deixaria de ser um conjunto.
+
+   O critério para entrar não é o desenho ser bonito — é os 18 não se
+   confundirem entre si (tools/distinguir.py). Espaço voltou com dois sóis
+   quase iguais e um alvo quase igual à espiral, então continua desenhada: no
+   jogo da memória, dois símbolos parecidos não são feiúra, são um par que não
+   fecha e um jogador que acha que o jogo trapaceou. */
+export const FAMILIA_PINTADA = new Set(['runas','alquimia','xadrez']);
+
+/* svg pronto, do tamanho que a tela pedir — ou a peça pintada, se houver */
 export function svgGlifo(fam, i, cls='gl'){
+  const n = ((Math.abs(i|0)) % POR_FAMILIA + POR_FAMILIA) % POR_FAMILIA;
+  if(FAMILIA_PINTADA.has(fam))
+    return `<img class="${cls} art" src="arte/glifo/${fam}/`
+         + String(n).padStart(2,'0') + '.png" alt="" aria-hidden="true">';
   return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">`
        + glifo(fam, i) + '</svg>';
 }

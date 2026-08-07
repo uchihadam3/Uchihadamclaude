@@ -326,6 +326,32 @@ img.gl{object-fit:contain;stroke:none;
 .ct.m-vinho .ff{border-image-source:url(arte/carta/m-vinho.png)}
 .ff .gl{stroke-width:2.4;color:#fff;
   filter:drop-shadow(0 2px 0 rgba(0,0,0,.55)) drop-shadow(0 0 10px var(--fc))}
+/* A MARCA PINTADA PRECISA DAS DUAS MEDIDAS.
+   Só `width:100%` e a altura vem da proporção do arquivo: a runa da haste
+   simples é um PNG de 24×128, e ela saía cinco vezes mais alta que a carta,
+   estourando por cima e por baixo. Com as duas travadas e `contain`, o
+   arquivo se ajusta à caixa em vez de mandar nela. */
+.ff img.gl{width:100%;height:100%;object-fit:contain;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))}
+/* E A LINHA DO GRID PRECISA TER TAMANHO.
+   `place-items:center` numa linha `auto` faz o `height:100%` da imagem
+   resolver contra o próprio conteúdo: circular. O navegador desiste, usa a
+   altura natural do arquivo, e a linha cresce junto — a runa de 24×128 saía
+   cinco vezes mais alta que a carta e o `overflow:hidden` mostrava só o topo
+   dela, que parecia uma barra grossa. Com `minmax(0,1fr)` a linha passa a
+   valer o que a face vale, e a imagem cabe. */
+.ff{grid-template-rows:minmax(0,1fr);grid-template-columns:minmax(0,1fr)}
+/* dentro da moldura pintada o desenho recua mais: a moldura não ocupa espaço
+   de layout (é border-image sobre borda de largura zero), então sem este
+   recuo o glifo encostaria nela por dentro */
+.ct.temold .ff{padding:19%}
+/* E O FUNDO PRECISA ESCURECER. A marca pintada é marfim, e a face é tingida
+   pela cor da FAMÍLIA — sobre o dourado das Runas, marfim sobre dourado, ela
+   quase sumia. Com menos cor no fundo a marca volta a ter contorno, e a
+   família continua reconhecível pelo tom e pela moldura. */
+.ct.pint .ff{background:
+  radial-gradient(112% 84% at 50% 0%, color-mix(in srgb,var(--fc) 30%, #0a1322),
+                  color-mix(in srgb,var(--fc) 8%, #060d18) 78%)}
 
 /* ───────── O CURINGA NÃO PODE SE DISFARÇAR ─────────
    O Espelho recebia um desenho de família igual ao de qualquer outra carta,

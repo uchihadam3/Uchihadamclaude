@@ -23,7 +23,7 @@ import { CLASSES, LISTA_CLASSES } from '../js/data/classes.js';
 import { RELIQUIAS, POR_ID, sortearReliquias } from '../js/data/reliquias.js';
 import { BOSSES, LISTA_BOSSES, BOSS_DO_MUNDO } from '../js/data/bosses.js';
 import { EVENTOS } from '../js/data/eventos.js';
-import { glifo, POR_FAMILIA } from '../js/arte/glifos.js';
+import { glifo, POR_FAMILIA, FAMILIA_PINTADA, svgGlifo } from '../js/arte/glifos.js';
 import { ICO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, ICO_RELIQUIA, TEM_ARTE,
          icoReliquia, MOLDURA_DO_TIPO } from '../js/ui/icones.js';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -808,6 +808,32 @@ secao('16c. Nenhuma arte apontada existe só no CSS');
       if(f.endsWith('.json')) continue;   /* medida, não arte */
       ok(usados.has('arte/'+pasta+'/'+f), `arte/${pasta}/${f} está em uso`);
     }
+  }
+}
+
+/* ════════════════════════════════════════════════════════ 16e */
+secao('16e. Família pintada entra inteira, e existe no disco');
+{
+  /* Uma família com metade dos símbolos pintada e metade desenhada ensinaria o
+     jogador a distinguir o par pelo ESTILO em vez de pelo desenho — e aí ela
+     deixa de ser um conjunto. Ou entram os dezoito, ou nenhum. */
+  for(const fam of FAMILIA_PINTADA){
+    ok(!!FAMILIAS[fam], `${fam} é uma família de verdade`);
+    for(let i = 0; i < POR_FAMILIA; i++){
+      const m = svgGlifo(fam, i);
+      ok(m.startsWith('<img'), `${fam}/${i} usa a arte pintada`);
+      const src = /src="([^"]+)"/.exec(m)?.[1];
+      ok(src && existsSync(new URL('../'+src, import.meta.url)),
+         `existe no disco: ${src}`);
+    }
+    /* e nada de sobra: arquivo a mais quer dizer recorte fora do lugar */
+    const dir = new URL('../arte/glifo/'+fam+'/', import.meta.url);
+    eq(readdirSync(dir).length, POR_FAMILIA, `${fam} tem exatamente ${POR_FAMILIA} arquivos`);
+  }
+  /* família sem arte continua desenhada, e desenhada por inteiro */
+  for(const f of LISTA_FAMILIAS){
+    if(FAMILIA_PINTADA.has(f.id)) continue;
+    ok(svgGlifo(f.id, 0).startsWith('<svg'), `${f.id} continua desenhada`);
   }
 }
 

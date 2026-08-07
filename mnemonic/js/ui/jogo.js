@@ -495,6 +495,8 @@ function cartaHTML(c, pequena){
   /* o curinga não usa desenho de família: ele tem cara própria, e é por isso
      que dá para reconhecê-lo assim que vira */
   const desenho = curinga ? ICO.espelho : svgGlifo(c.fam, c.simbolo);
+  /* a face escurece quando a marca é pintada — ver .ct.pint no CSS */
+  if(!curinga && desenho.startsWith('<img')) cls.push('pint');
   return `<button class="${cls.join(' ')}" data-c="${c.id}" data-sig="${assinatura(c)}"
       style="--fc:${cor}" aria-label="carta ${c.pos+1}${curinga?' (curinga)':''}">
     <span class="fx">

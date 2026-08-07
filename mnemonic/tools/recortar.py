@@ -282,6 +282,61 @@ def limpar_sobras(im):
             for y, x in mancha: a[y, x, 3] = 0
     return Image.fromarray(a, 'RGBA')
 
+def sem_rosa(im):
+    """Apaga pixel rosa numa folha que foi pedida sem rosa nenhum.
+
+    O brilhinho que o modelo assina nem sempre fica solto: na runa da haste
+    com o retângulo no topo ele encostou no desenho e virou UMA mancha só com
+    ele, então nem `so_a_maior` nem `sem_assinatura` alcançavam.
+
+    Como a folha inteira foi pedida em marfim, preto e ouro, a cor resolve
+    sozinha o que a topologia não resolve. Nenhuma dessas três tem mais rosa
+    que verde — marfim é neutro, ouro tem verde ALTO — então todo pixel onde o
+    rosa se destaca é sobra do fundo, esteja ele onde estiver.
+    """
+    a = np.array(im).astype(int)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    rosa = ((r + b) / 2 - g > 40) & (r > 120)
+    a[..., 3] = np.where(rosa, 0, a[..., 3])
+    return Image.fromarray(a.astype(np.uint8), 'RGBA')
+
+def sem_assinatura(im, chave=(252, 4, 252)):
+    """Apaga o brilhinho que o modelo assina no canto.
+
+    Quase toda folha volta com um brilho de quatro pontas solto num canto. Ele
+    é desenhado sobre o fundo com pouca opacidade, então depois da desmistura
+    sai ROSADO — e a folha inteira foi pedida em marfim, preto e ouro. É isso
+    que o identifica: mancha pequena, solta, e da cor da chave.
+
+    `so_a_maior` não serve aqui. Um anel de Espaço tem três pontinhos orbitando
+    em volta e eles são peças do desenho; o xadrez de quatro casas só se toca
+    pelos cantos e nem é uma mancha só. O que se apaga é o que é pequeno E
+    tem a cor do fundo.
+    """
+    a = np.array(im)
+    op = a[..., 3] > 24
+    if not op.any(): return im
+    h, w = a.shape[:2]
+    total = int(op.sum())
+    visto = np.zeros((h, w), bool)
+    k = np.asarray(chave, float)
+    for sy, sx in zip(*np.where(op)):
+        if visto[sy, sx]: continue
+        pilha = [(sy, sx)]; visto[sy, sx] = True; mancha = []
+        while pilha:
+            y, x = pilha.pop(); mancha.append((y, x))
+            for dy, dx in ((1,0),(-1,0),(0,1),(0,-1)):
+                ny, nx = y+dy, x+dx
+                if 0 <= ny < h and 0 <= nx < w and op[ny, nx] and not visto[ny, nx]:
+                    visto[ny, nx] = True; pilha.append((ny, nx))
+        if len(mancha) > total * 0.04: continue      # grande: é desenho
+        ys, xs = zip(*mancha)
+        cor = a[list(ys), list(xs), :3].astype(float).mean(axis=0)
+        # rosada = perto da chave e longe de cinza
+        if np.abs(cor - k).max() < 150 and (cor[0] + cor[2]) / 2 - cor[1] > 25:
+            for y, x in mancha: a[y, x, 3] = 0
+    return Image.fromarray(a, 'RGBA')
+
 def so_a_maior(im):
     """Fica só com a mancha maior — para peça que é UMA coisa inteiriça.
 
