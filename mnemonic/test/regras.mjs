@@ -680,6 +680,48 @@ secao('16. Os dados: nada meio escrito');
   }
 }
 
+/* ════════════════════════════════════════════════════════ 15b */
+secao('15b. Par de desenhos diferentes sempre diz POR QUÊ');
+{
+  /* 8,8% dos pares do jogo fecham com cartas de desenhos DIFERENTES: pelo
+     curinga ou por duas órfãs. Quem joga não tem como adivinhar isso, e sem
+     aviso parece defeito do jogo. Este teste garante que o motor nunca fecha
+     um par assim sem dizer o motivo — é do relatório que a tela tira o aviso. */
+  let total = 0, diferentes = 0, semMotivo = 0;
+  const porMotivo = {};
+  for(const cl of ['detetive','mago','cientista']){
+    for(const sem of ['pq1','pq2','pq3']){
+      const r = new Run({ semente:sem, classe:cl });
+      const original = r.virar.bind(r);
+      r.virar = id => {
+        const s = r.sala;
+        const rel = original(id);
+        const ac = rel?.eventos?.find(e=>e.e==='acerto');
+        if(ac && s){
+          total++;
+          const [a,b] = ac.cartas.map(x=>s.cartas.find(c=>c.id===x));
+          porMotivo[ac.por] = (porMotivo[ac.por]||0)+1;
+          if(a.fam!==b.fam || a.simbolo!==b.simbolo){
+            diferentes++;
+            if(ac.por === 'par') semMotivo++;
+          }
+        }
+        return rel;
+      };
+      jogarRun(r);
+    }
+  }
+  ok(total>500, `houve pares suficientes para medir (${total})`);
+  eq(semMotivo, 0, 'nenhum par de desenhos diferentes fecha sem motivo declarado');
+  ok(diferentes>0, `e eles acontecem de verdade (${diferentes} de ${total})`);
+  ok(porMotivo.curinga>0, `o curinga fecha pares (${porMotivo.curinga||0})`);
+  ok(porMotivo.orfas>0, `duas órfãs fecham pares (${porMotivo.orfas||0})`);
+  ok(Object.keys(porMotivo).every(k=>['par','curinga','orfas'].includes(k)),
+     'e não existe um quarto motivo escondido: '+Object.keys(porMotivo).join(', '));
+  console.log('   pares por motivo:', porMotivo,
+    `· desenhos diferentes: ${(diferentes/total*100).toFixed(1)}%`);
+}
+
 /* ════════════════════════════════════════════════════════ 16b */
 secao('16b. Todo nome do jogo tem um desenho');
 {

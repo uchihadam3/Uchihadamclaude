@@ -431,26 +431,45 @@ function ajustar(){
 }
 addEventListener('resize', ajustar);
 
+/* tudo o que a face da carta mostra, num texto só. É com isto que a tela
+   descobre que precisa redesenhar aquela carta — antes, a atualização no
+   lugar só mexia em classes, e uma carta que MUDAVA no meio da sala (o
+   Camaleão trocando de símbolo, o Mago transmutando em curinga) continuava
+   exibindo o desenho antigo. A tela mentia, e o par "errado" fechava. */
+const assinatura = c => [c.fam, c.simbolo, c.tipo, c.camadas, c.pavio,
+  c.orfa?1:0, c.revelado?1:0, c.marcada?1:0, c.sumiu?1:0].join('|');
+
 function cartaHTML(c, pequena){
   if(c.sumiu) return `<div class="vazio" data-v="${c.id}"></div>`;
   const f = FAMILIAS[c.fam], t = TIPOS[c.tipo];
   const cor = f ? f.cor : '#cfd6e4';
+  const curinga = !!t.curinga;
   const selos = [];
   /* o que o jogo JÁ te contou fica escrito na carta — nada de adivinhar */
   if(c.orfa)     selos.push('<span class="selo of">SEM PAR</span>');
   if(c.revelado) selos.push('<span class="selo mi">FALSA</span>');
   if(c.marcada)  selos.push('<span class="selo eg">FIXA</span>');
   if(c.pavio>0 && c.conhecida) selos.push(`<span class="selo pv">${c.pavio}</span>`);
-  const frente = (!pequena && t.id!=='normal')
-    ? `<span class="selo tp" style="color:${t.cor}">${esc(t.nome)}</span>` : '';
-  const gelo = c.camadas>1 ? '<span class="selo pv" style="color:#9fd8ff">GELO</span>' : '';
+  /* CURINGA e SEM PAR aparecem SEMPRE, mesmo em carta pequena: são as duas
+     únicas coisas que fazem um par fechar com desenhos DIFERENTES, e escondê-las
+     por falta de espaço era o que fazia o jogo parecer quebrado. */
+  const frente = curinga
+    ? '<span class="selo tp">CURINGA</span>'
+    : c.orfa ? '<span class="selo tp" style="color:#4fb8ff">SEM PAR</span>'
+    : (!pequena && t.id!=='normal')
+      ? `<span class="selo tp" style="color:${t.cor}">${esc(t.nome)}</span>` : '';
+  const gelo = c.camadas>1 ? '<span class="selo pv" style="color:#a8e2ff">GELO</span>' : '';
   const selada = c.resolvida && !mostrando.has(c.id);
-  const cls = ['ct', faceAberta(c)?'ab':'', c.marcada?'marc':'', selada?'feito':''];
-  return `<button class="${cls.join(' ')}" data-c="${c.id}" style="--fc:${cor}"
-      aria-label="carta ${c.pos+1}">
+  const cls = ['ct', faceAberta(c)?'ab':'', c.marcada?'marc':'', selada?'feito':'',
+               curinga?'curinga':'', c.orfa?'orfa':''];
+  /* o curinga não usa desenho de família: ele tem cara própria, e é por isso
+     que dá para reconhecê-lo assim que vira */
+  const desenho = curinga ? ICO.espelho : svgGlifo(c.fam, c.simbolo);
+  return `<button class="${cls.join(' ')}" data-c="${c.id}" data-sig="${assinatura(c)}"
+      style="--fc:${cor}" aria-label="carta ${c.pos+1}${curinga?' (curinga)':''}">
     <span class="fx">
       <span class="fr">${selos.join('')}</span>
-      <span class="ff">${svgGlifo(c.fam, c.simbolo)}${frente}${gelo}
+      <span class="ff">${desenho}${frente}${gelo}
         ${selada ? `<span class="ok">${ICO.feito}</span>` : ''}</span>
     </span></button>`;
 }
@@ -477,6 +496,14 @@ function mesa(refazer, chegada){
       /* carta que deixou o tabuleiro vira casa vazia — aí precisa remontar */
       if(!e || (c.sumiu && e.classList.contains('ct'))){ monta(); break; }
       if(!e.classList.contains('ct')) continue;
+      /* a carta mudou de cara: redesenha só ela, sem mexer no resto da mesa */
+      if(e.dataset.sig !== assinatura(c)){
+        const ordem = e.style.order;
+        e.outerHTML = cartaHTML(c, peq);
+        const novo = el.querySelector(`[data-c="${c.id}"]`);
+        if(novo) novo.style.order = ordem;
+        continue;
+      }
       e.classList.toggle('ab', faceAberta(c));
       e.classList.toggle('marc', !!c.marcada);
       const selada = c.resolvida && !mostrando.has(c.id);
@@ -630,13 +657,21 @@ async function animar(rel){
     raio(a, b, cor);
     for(const id of acerto.cartas){ onda(id, cor); faiscas(id, cor, 9); }
     const d = degrauCombo(acerto.combo);
-    voa(a, '+'+nf(acerto.pontos),
-        acerto.combo>1 ? `${d.nome} ×${vg((rel.mult ?? d.mult).toFixed(1))}` : '');
+    const legenda = acerto.por==='curinga' ? 'curinga fecha com qualquer uma'
+                  : acerto.por==='orfas'   ? 'duas sem par fecham entre si'
+                  : acerto.combo>1 ? `${d.nome} ×${vg((rel.mult ?? d.mult).toFixed(1))}` : '';
+    voa(a, '+'+nf(acerto.pontos), legenda);
+    /* par de desenhos diferentes precisa de explicação na hora, senão parece
+       defeito — e é 8,8% dos pares do jogo */
+    if(acerto.por==='curinga')
+      aviso('CURINGA', 'o Espelho fecha com qualquer carta', '#ffffff');
+    else if(acerto.por==='orfas')
+      aviso('DUAS SEM PAR', 'cartas que perderam a dupla fecham entre si', '#4fb8ff');
     $('#combo').classList.remove('sobe'); void $('#combo').offsetWidth;
     $('#combo').classList.add('sobe');
     medidores();
     /* degrau novo é acontecimento: clarão na tela inteira */
-    if(acerto.combo>=2 && d.n===acerto.combo){
+    if(acerto.combo>=2 && d.n===acerto.combo && acerto.por==='par'){
       clarao(corDoCombo(acerto.combo)+'55');
       aviso(d.nome, 'combo ×'+vg(d.mult.toFixed(1)), corDoCombo(acerto.combo));
     }

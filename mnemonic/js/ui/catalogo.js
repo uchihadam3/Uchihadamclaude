@@ -67,6 +67,11 @@ export const PALAVRAS = [
   { id:'feito', nome:'Par feito', cor:'#ffc23c', ico:ICO.feito, tag:'fica no tabuleiro',
     texto:'O par fechado apaga e ganha um carimbo, mas não sai do lugar.',
     nota:'Assim a grade nunca se remexe e você não perde de vista o que já decorou das outras cartas.' },
+  { id:'curinga', nome:'Curinga', cor:'#ffffff', ico:ICO.espelho, tag:'fecha com qualquer uma',
+    texto:'A carta Espelho é curinga: ela fecha par com QUALQUER outra carta, '
+        + 'mesmo com desenho diferente. Por isso ela não usa desenho de família '
+        + '— a face dela é o arco-íris, e uma vez virada você a reconhece na hora.',
+    nota:'Quando o par fecha por curinga, o jogo avisa na tela. Sem esse aviso o par de desenhos diferentes parecia defeito.' },
   { id:'orfa', nome:'Sem par', cor:'#4fb8ff', ico:ICO.orfa, tag:'perdeu a dupla',
     texto:'Quando um Espelho fecha com uma carta comum, a dupla dela fica sem '
         + 'par — e passa a fechar com qualquer outra carta sem par.',

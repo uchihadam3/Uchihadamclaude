@@ -284,8 +284,14 @@ export class Sala {
     }
     const ganho = Math.round(base * mult * this.multCombo());
     this.pontos += ganho;
-    rel.ganho = ganho; rel.mult = this.multCombo(); rel.par = [a.id,b.id];
-    rel.eventos.push({ e:'acerto', cartas:[a.id,b.id], pontos:ganho, combo:this.combo });
+    /* POR QUE este par fechou. Oito e meio por cento dos pares do jogo fecham
+       com cartas de desenhos DIFERENTES — pelo curinga ou por duas órfãs — e
+       sem dizer o motivo isso parece defeito para quem está jogando. O motor
+       sabe; quem tem de contar é ele, porque a tela não pode refazer a conta. */
+    const por = a.par===b.par ? 'par'
+              : (TIPOS[a.tipo].curinga || TIPOS[b.tipo].curinga) ? 'curinga' : 'orfas';
+    rel.ganho = ganho; rel.mult = this.multCombo(); rel.par = [a.id,b.id]; rel.por = por;
+    rel.eventos.push({ e:'acerto', cartas:[a.id,b.id], pontos:ganho, combo:this.combo, por });
 
     /* o que o TIPO faz ao ser resolvido */
     if(t.moedas){ const m=t.moedas+(this.mods.moedaBonus||0); this.moedas+=m;
@@ -345,6 +351,11 @@ export class Sala {
      cartas em jogo sobra uma que nunca fecha com ninguém. Se a carta já era
      órfã, ela sai acompanhada de outra órfã; se não houver, não sai. */
   _removerPar(c, rel, evento='sumiu'){
+    /* carta que já saiu não sai de novo. Sem esta linha, as DUAS cartas de um
+       par de Bombas estouravam na mesma virada: a primeira levava as duas, e a
+       segunda — já resolvida — caía no ramo da órfã e arrastava uma carta
+       solta e inocente junto, deixando um número ímpar em jogo. */
+    if(c.resolvida) return false;
     let dupla = this.emJogo().filter(x=>x.par===c.par);
     if(dupla.length < 2){
       const outra = this.emJogo().find(x=>x.orfa && x.id!==c.id);
@@ -370,6 +381,7 @@ export class Sala {
   /* ---------- o que passa a cada virada ---------- */
   _passarTempo(rel){
     for(const c of this.emJogo()){
+      if(c.resolvida) continue;      // saiu no meio deste mesmo laço
       if(c.pavio>0){
         c.pavio--;
         if(c.pavio===0){
@@ -394,9 +406,21 @@ export class Sala {
      resposta é bug, não desafio. */
   _trocarSimbolo(c, rel){
     const irmao = this.cartas.find(x=>x.par===c.par && x.id!==c.id && !x.resolvida);
-    const f = this.rng.pick(this.familias);
-    const s = this.rng.pick(f.s);
-    for(const x of [c, irmao]) if(x){ x.fam=f.id; x.simbolo=s; this._esquecer(x); }
+    /* O DESENHO NOVO NÃO PODE COLIDIR com o de outro par em jogo.
+       `_montar` garante desenhos distintos, mas o Camaleão sorteava um
+       símbolo qualquer da família e podia cair no desenho de outro par — o
+       tabuleiro então mostrava dois pares iguais, o jogador tentava fechar
+       os dois "iguais" e errava com toda a razão. A garantia de desenhos
+       distintos tem de valer a partida INTEIRA, não só na montagem. */
+    const usados = new Set(this.emJogo()
+      .filter(x => x.par!==c.par && x.tipo!=='mimic')
+      .map(x => x.fam+'|'+x.simbolo));
+    const livres = [];
+    for(const f of this.familias) for(const sim of f.s)
+      if(!usados.has(f.id+'|'+sim)) livres.push({ fam:f.id, sim });
+    if(!livres.length) return;      // sem desenho livre, melhor não trocar
+    const d = this.rng.pick(livres);
+    for(const x of [c, irmao]) if(x){ x.fam=d.fam; x.simbolo=d.sim; this._esquecer(x); }
     rel.eventos.push({ e:'camaleao', cartas:[c.id, irmao?.id].filter(x=>x!=null) });
   }
   _embaralhar(n, rel){

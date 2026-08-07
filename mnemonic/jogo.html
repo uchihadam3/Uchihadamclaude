@@ -298,6 +298,27 @@ svg{display:block}
 .ff .gl{stroke-width:2.4;color:#fff;
   filter:drop-shadow(0 2px 0 rgba(0,0,0,.55)) drop-shadow(0 0 10px var(--fc))}
 
+/* ───────── O CURINGA NÃO PODE SE DISFARÇAR ─────────
+   O Espelho recebia um desenho de família igual ao de qualquer outra carta,
+   e fechava par com qualquer uma. Do lado de quem joga isso é indistinguível
+   de defeito: você vira dois desenhos diferentes e o par fecha. Agora a face
+   do curinga é o arco-íris — nenhuma família tem essa cor, então uma vez
+   virado ele se identifica sozinho. */
+.ct.curinga .ff{border-color:#fff;
+  background:linear-gradient(135deg,#ff4f52 0%,#ffc23c 21%,#4fe08a 44%,
+                             #4fb8ff 67%,#b478ff 100%);
+  box-shadow:0 0 0 2px rgba(255,255,255,.45), inset 0 3px 0 rgba(255,255,255,.5),
+             inset 0 -6px 14px rgba(0,0,0,.45), 0 4px 0 rgba(0,0,0,.55)}
+.ct.curinga .ff .gl{color:#fff;stroke-width:2.9;
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,.75)) drop-shadow(0 0 9px rgba(0,0,0,.6))}
+.ct.curinga .selo.tp{color:#fff;background:rgba(0,0,0,.72)}
+/* ───────── A ÓRFÃ TAMBÉM SE ANUNCIA ─────────
+   Ela fecha com qualquer outra órfã, então precisa gritar nos dois lados:
+   de costas (para você planejar) e de frente (para você entender o par). */
+.ct.orfa .fr, .ct.orfa .ff{border-style:dashed;border-color:var(--azul)}
+.ct.orfa .fr{box-shadow:0 0 0 2px rgba(79,184,255,.35),
+  inset 0 3px 0 rgba(255,255,255,.16), 0 4px 0 rgba(0,0,0,.55)}
+
 /* ① RECONHECER */
 .ct.par{z-index:6;animation:parPulso .62s cubic-bezier(.25,1.35,.4,1) both}
 .ct.par .ff{border-color:#fff;
@@ -678,10 +699,12 @@ svg{display:block}
   box-shadow:inset 0 2px 0 rgba(255,255,255,.6), 0 3px 0 #6d4a08}
 
 /* ═══════════ AVISO ═══════════ */
-#aviso{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);z-index:50;
+/* o aviso sobe para a faixa do painel: antes ele caía justamente sobre as
+   duas cartas de que estava falando, e tapava o que mandava olhar */
+#aviso{position:fixed;left:50%;top:19%;transform:translate(-50%,-50%);z-index:50;
   pointer-events:none;text-align:center;width:94%;display:none}
 #aviso.on{display:block;animation:avisoIn 1.6s cubic-bezier(.2,.9,.3,1) both}
-#aviso .a1{font-size:clamp(30px,10.5vw,52px);font-weight:900;letter-spacing:-.01em;color:#fff;
+#aviso .a1{font-size:clamp(26px,9vw,46px);font-weight:900;letter-spacing:-.01em;color:#fff;
   text-shadow:0 4px 0 rgba(0,0,0,.95), 0 8px 0 rgba(0,0,0,.5),
               0 0 34px var(--ag,rgba(255,194,60,.8))}
 #aviso .a2{font-size:12px;color:var(--osso2);font-weight:900;letter-spacing:.18em;
