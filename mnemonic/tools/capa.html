@@ -1,0 +1,52 @@
+<!doctype html><meta charset="utf-8"><title>capa</title>
+<style>
+/* Gerador da capa do arcade. A capa é feita das PEÇAS DO JOGO — os
+   mesmos glifos, as mesmas cores, o mesmo verso de carta — para não
+   prometer na vitrine uma coisa que o jogo não entrega. */
+ html,body{margin:0;background:#070910;overflow:hidden}
+ #c{position:relative;width:1400px;height:896px;overflow:hidden;
+    background:
+      radial-gradient(120% 90% at 50% -12%, #16203a 0%, rgba(19,26,43,0) 62%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 1px, transparent 1px 56px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.02) 0 1px, transparent 1px 56px),
+      #070910;
+    font-family:ui-sans-serif,system-ui,"Helvetica Neue",Arial,sans-serif}
+ .g{position:absolute;display:grid;grid-template-columns:repeat(6,132px);gap:16px;
+    left:50%;top:54%;transform:translate(-50%,-50%) rotateX(19deg) rotateZ(-13deg);
+    transform-style:preserve-3d}
+ .k{width:132px;height:177px;border-radius:16px;display:grid;place-items:center;padding:14px;
+    background:repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0 3px,transparent 3px 8px),
+               linear-gradient(160deg,#1b2233,#11161f);
+    border:1px solid #2a3447;box-shadow:0 14px 34px rgba(0,0,0,.55)}
+ .k:after{content:'';width:44%;height:44%;border-radius:50%;border:2px solid rgba(232,180,74,.16)}
+ .k.o{background:linear-gradient(165deg,#161c2a,#0e1320);border-color:var(--fc);
+      box-shadow:0 0 0 1px var(--fc),0 16px 40px rgba(0,0,0,.6),
+                 inset 0 0 40px color-mix(in srgb,var(--fc) 16%,transparent);color:var(--fc)}
+ .k.o:after{display:none}
+ .k svg{width:100%;height:100%;stroke:currentColor;stroke-width:1.7;fill:none;
+        stroke-linecap:round;stroke-linejoin:round}
+ #veu{position:absolute;inset:0;background:
+   linear-gradient(180deg,rgba(7,9,16,.55) 0%,rgba(7,9,16,.05) 15%,rgba(7,9,16,.72) 40%,
+                   rgba(7,9,16,.40) 62%,rgba(7,9,16,.93) 100%)}
+ #tx{position:absolute;left:0;right:0;top:33%;text-align:center}
+ h1{margin:0;font-size:112px;font-weight:800;letter-spacing:.15em;line-height:1;
+    background:linear-gradient(180deg,#fff 6%,#f6d78e 46%,#a8792a 100%);
+    -webkit-background-clip:text;color:transparent;
+    filter:drop-shadow(0 6px 26px rgba(232,180,74,.3))}
+ p{margin:14px 0 0;color:#9aa6bc;font-size:23px;letter-spacing:.3em;text-transform:uppercase}
+</style>
+<div id="c"><div class="g" id="g"></div><div id="veu"></div>
+  <div id="tx"><h1>MNEMONIC</h1><p>o que você lembra é o que você tem</p></div></div>
+<script type="module">
+import { FAMILIAS } from '/mnemonic/js/data/familias.js';
+import { svgGlifo } from '/mnemonic/js/arte/glifos.js';
+const abertas = { 2:['runas',3], 4:['espaco',11], 7:['alquimia',8], 10:['dragoes',6],
+                  12:['xadrez',14], 15:['egito',5], 17:['mitologia',8], 20:['tecnologia',9] };
+let h='';
+for(let i=0;i<24;i++){
+  const a = abertas[i];
+  h += a ? `<div class="k o" style="--fc:${FAMILIAS[a[0]].cor}">${svgGlifo(a[0],a[1])}</div>`
+         : '<div class="k"></div>';
+}
+g.innerHTML = h;
+</script>
