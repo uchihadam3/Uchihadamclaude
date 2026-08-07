@@ -294,39 +294,20 @@ function renderForge(body, onlyId){
 }
 
 function renderAcademy(body){
-  const shopIds = Object.keys(ACADEMY.conditionShop);
-  body.innerHTML = `<h3 style="padding:0 2px 8px">🎓 Academia de Tática</h3>
-    <div class="panel" style="margin-bottom:12px;background:var(--panel)">
-      <h3>➕ Slots de Gambit por herói</h3>
-      <div class="hero-cards">${S.heroes.map(hs=>{
-        const def = HERO_DEFS.find(h=>h.id===hs.id); const nextSlot = hs.slots+1;
-        const cost = ACADEMY.slotCosts[nextSlot];
-        return `<div class="hcard" style="--acc:${accentOf(def.id)}"><div class="top"><div class="av">${spriteFor(def.id)}</div>
-          <div><div class="nm">${def.name}</div><div class="kl">${hs.slots}/${def.maxSlots} slots</div></div></div>
-          ${ cost
-            ? `${costHTML(cost)}<button class="small primary slot-btn" data-id="${hs.id}" ${canAfford(cost)?'':'disabled'} style="margin-top:8px;width:100%">Desbloquear slot ${nextSlot}</button>`
-            : `<div class="tiny" style="color:var(--gold);margin-top:6px">★ Slots no máximo</div>` }
-        </div>`;
-      }).join('')}</div>
-    </div>
-    <div class="panel" style="background:var(--panel)">
-      <h3>📜 Loja de Condicionais (desbloqueia p/ todos)</h3>
-      <div class="hero-cards">${shopIds.map(cid=>{
-        const owned = S.unlockedConditions.includes(cid); const cost = ACADEMY.conditionShop[cid];
-        return `<div class="hcard"><div class="nm" style="font-size:13px">${CONDITIONS[cid].label}</div>
-          ${ owned ? `<div class="tiny" style="color:var(--heal);margin-top:8px">✓ Desbloqueada</div>`
-                   : `<div style="margin-top:8px">${costHTML(cost)}</div>
-                      <button class="small cond-btn" data-id="${cid}" ${canAfford(cost)?'':'disabled'} style="margin-top:8px;width:100%">Comprar</button>` }
-        </div>`;
-      }).join('')}</div>
-    </div>`;
+  body.innerHTML = `<p class="muted tiny" style="margin:0 2px 10px">Desbloqueie mais linhas de gambit por herói. (As condicionais você compra na 📜 Loja de Gambits.)</p>
+    <div class="hero-cards">${S.heroes.map(hs=>{
+      const def = HERO_DEFS.find(h=>h.id===hs.id); const nextSlot = hs.slots+1;
+      const cost = ACADEMY.slotCosts[nextSlot];
+      return `<div class="hcard" style="--acc:${accentOf(def.id)}"><div class="top"><div class="av">${spriteFor(def.id)}</div>
+        <div><div class="nm">${def.name}</div><div class="kl">${hs.slots}/${def.maxSlots} slots</div></div></div>
+        ${ cost
+          ? `${costHTML(cost)}<button class="small primary slot-btn" data-id="${hs.id}" ${canAfford(cost)?'':'disabled'} style="margin-top:8px;width:100%">Desbloquear slot ${nextSlot}</button>`
+          : `<div class="tiny" style="color:var(--gold);margin-top:6px">★ Slots no máximo</div>` }
+      </div>`;
+    }).join('')}</div>`;
   body.querySelectorAll('.slot-btn').forEach(b => b.onclick = () => {
     const hs = S.heroes.find(h=>h.id===b.dataset.id); const cost = ACADEMY.slotCosts[hs.slots+1];
     if(!cost || !canAfford(cost)) return; spend(cost); hs.slots++; save(S); bumpRes(); renderAcademy(body);
-  });
-  body.querySelectorAll('.cond-btn').forEach(b => b.onclick = () => {
-    const cid = b.dataset.id; const cost = ACADEMY.conditionShop[cid];
-    if(!canAfford(cost)) return; spend(cost); S.unlockedConditions.push(cid); save(S); bumpRes(); renderAcademy(body);
   });
 }
 
