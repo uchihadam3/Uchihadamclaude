@@ -28,8 +28,8 @@ const vg = n => String(n).replace('.', ',');
 
 /* a escada de combo também é uma escada de COR: o degrau se reconhece pela
    cor antes de o nome ser lido */
-export const COR_COMBO = ['#8d99b1','#7fd4ff','#66e6a6','#efb54b','#ffa24d',
-                          '#ff6a5a','#e05a8a','#a98bff','#ffffff'];
+export const COR_COMBO = ['#63789e','#4fb8ff','#4fe08a','#ffc23c','#ffa24d',
+                          '#ff4f52','#ff6fae','#b478ff','#ffffff'];
 export const corDoCombo = n =>
   COR_COMBO[Math.max(0, COMBOS.findIndex(c => c === degrauCombo(n)))] || COR_COMBO[0];
 
@@ -38,16 +38,16 @@ export const corDoCombo = n =>
    peças da coleção, elas viram um parágrafo que ninguém lê — e são
    justamente as duas coisas que decidem toda partida. */
 export const PALAVRAS = [
-  { id:'meta', nome:'Meta', cor:'#efb54b', ico:ICO.meta, tag:'como se vence',
+  { id:'meta', nome:'Meta', cor:'#ffc23c', ico:ICO.meta, tag:'como se vence',
     texto:'A sala é vencida ao chegar na meta de pontos — não limpando o '
         + 'tabuleiro. Limpar tudo é só o jeito mais comum de chegar lá, e nas '
         + 'salas grandes nem sempre dá tempo.',
     nota:'É o que faz cada par valer um TANTO, em vez de valer só "menos uma carta".' },
-  { id:'virada', nome:'Virada', cor:'#7fd4ff', ico:ICO.virada, tag:'o relógio',
+  { id:'virada', nome:'Virada', cor:'#4fb8ff', ico:ICO.virada, tag:'o relógio',
     texto:'Cada tentativa — duas cartas — gasta uma virada. Quando as viradas '
         + 'acabam e a meta não foi batida, a run acaba ali.',
     nota:'Virada que sobra no fim da sala vira moeda.' },
-  { id:'foco', nome:'Foco', cor:'#ff6a5a', ico:ICO.foco, tag:'o limite de falhas',
+  { id:'foco', nome:'Foco', cor:'#ff4f52', ico:ICO.foco, tag:'o limite de falhas',
     texto:'Errar duas cartas que você NUNCA tinha visto não custa nada: é '
         + 'exploração, e exploração é obrigatória. Errar duas cartas que você '
         + 'já conhecia custa 1 de Foco. Zerou o Foco, perdeu a sala.',
@@ -56,27 +56,27 @@ export const PALAVRAS = [
     texto:'Acertos seguidos multiplicam tudo. Dois pares separados valem muito '
         + 'menos que dois pares emendados.',
     nota:'É por isso que vale arriscar em vez de virar carta por carta com segurança.' },
-  { id:'vista', nome:'Vista', cor:'#66e6a6', ico:ICO.vista, tag:'aparecendo agora',
+  { id:'vista', nome:'Vista', cor:'#4fe08a', ico:ICO.vista, tag:'aparecendo agora',
     texto:'A carta está na tela NESTE instante. Ela some no fim da tentativa. '
         + 'Algumas relíquias esticam esse prazo.',
     nota:'Se durasse para sempre, a tela guardaria o tabuleiro por você — e o jogo da memória não teria memória.' },
-  { id:'conhecida', nome:'Conhecida', cor:'#a98bff', ico:ICO.conhecida, tag:'você já viu',
+  { id:'conhecida', nome:'Conhecida', cor:'#b478ff', ico:ICO.conhecida, tag:'você já viu',
     texto:'Você viu essa carta alguma vez. Isso não se apaga nunca, e é o que '
         + 'decide se o erro custa Foco.',
     nota:'É por isso que o Fantasma dói: ele apaga a VISTA e deixa a CONHECIDA.' },
-  { id:'feito', nome:'Par feito', cor:'#efb54b', ico:ICO.feito, tag:'fica no tabuleiro',
+  { id:'feito', nome:'Par feito', cor:'#ffc23c', ico:ICO.feito, tag:'fica no tabuleiro',
     texto:'O par fechado apaga e ganha um carimbo, mas não sai do lugar.',
     nota:'Assim a grade nunca se remexe e você não perde de vista o que já decorou das outras cartas.' },
-  { id:'orfa', nome:'Sem par', cor:'#7fd4ff', ico:ICO.orfa, tag:'perdeu a dupla',
+  { id:'orfa', nome:'Sem par', cor:'#4fb8ff', ico:ICO.orfa, tag:'perdeu a dupla',
     texto:'Quando um Espelho fecha com uma carta comum, a dupla dela fica sem '
         + 'par — e passa a fechar com qualquer outra carta sem par.',
     nota:'Cartas saem sempre de duas em duas, então nunca sobra uma sozinha.' },
-  { id:'semente', nome:'Semente', cor:'#8d99b1', ico:ICO.semente, tag:'de onde nasce a run',
+  { id:'semente', nome:'Semente', cor:'#63789e', ico:ICO.semente, tag:'de onde nasce a run',
     texto:'O tabuleiro, o mapa, as relíquias oferecidas e o chefe são todos '
         + 'sorteados a partir de um número. A mesma semente monta a mesma run '
         + 'em qualquer aparelho.',
     nota:'É isso que faz a run diária ser exatamente a mesma para todo mundo.' },
-  { id:'prova', nome:'Prova', cor:'#66e6a6', ico:ICO.prova, tag:'o placar não se inventa',
+  { id:'prova', nome:'Prova', cor:'#4fe08a', ico:ICO.prova, tag:'o placar não se inventa',
     texto:'Ao publicar, sobe junto a lista inteira das suas jogadas. Quem abre '
         + 'o ranking REFAZ a sua run a partir da semente e confere se chega no '
         + 'mesmo número.',
@@ -88,14 +88,14 @@ const PALAVRA_POR_ID = Object.fromEntries(PALAVRAS.map(p => [p.id, p]));
    `peca(tipo, id)` devolve sempre o mesmo formato, venha de onde vier. */
 export const FAMILIA_DE_PECA = {
   palavra: {
-    nome:'As palavras', ico:ICO.conhecida, cor:'#a98bff',
+    nome:'As palavras', ico:ICO.conhecida, cor:'#b478ff',
     resumo:'O vocabulário que decide toda partida.',
     lista: () => PALAVRAS.map(p => p.id),
     peca: id => { const p = PALAVRA_POR_ID[id];
       return { cor:p.cor, ico:p.ico, nome:p.nome, tag:p.tag, texto:p.texto, nota:p.nota }; },
   },
   carta: {
-    nome:'As cartas', ico:ICO.normal, cor:'#7fd4ff',
+    nome:'As cartas', ico:ICO.normal, cor:'#4fb8ff',
     resumo:'Catorze tipos. Cada um ataca a memória, a conta ou o tabuleiro.',
     lista: () => LISTA_TIPOS.map(t => t.id),
     peca: id => { const t = TIPOS[id];
@@ -109,7 +109,7 @@ export const FAMILIA_DE_PECA = {
                        ...(t.pavio ? [['pavio', t.pavio+' viradas']] : []) ] }; },
   },
   familia: {
-    nome:'As famílias', ico:ICO.reliquia, cor:'#efb54b',
+    nome:'As famílias', ico:ICO.reliquia, cor:'#ffc23c',
     resumo:'Cada sala sorteia duas ou três. A família manda no tabuleiro inteiro.',
     lista: () => LISTA_FAMILIAS.map(f => f.id),
     peca: id => { const f = FAMILIAS[id];
@@ -118,7 +118,7 @@ export const FAMILIA_DE_PECA = {
                amostra: f.s.slice(0,6).map(i => svgGlifo(f.id, i, 'gl')) }; },
   },
   classe: {
-    nome:'As classes', ico:ICO_CLASSE.detetive, cor:'#66e6a6',
+    nome:'As classes', ico:ICO_CLASSE.detetive, cor:'#4fe08a',
     resumo:'Oito jeitos diferentes de jogar — não oito níveis de força.',
     lista: () => LISTA_CLASSES.map(c => c.id),
     peca: id => { const c = CLASSES[id];
@@ -128,7 +128,7 @@ export const FAMILIA_DE_PECA = {
                        ['moedas', c.moedas] ] }; },
   },
   chefe: {
-    nome:'Os chefes', ico:ICO.chefe, cor:'#ff6a5a',
+    nome:'Os chefes', ico:ICO.chefe, cor:'#ff4f52',
     resumo:'Um por mundo. Cada um apaga a resposta que servia até ali.',
     lista: () => LISTA_BOSSES.map(b => b.id),
     peca: id => { const b = BOSSES[id];
@@ -136,7 +136,7 @@ export const FAMILIA_DE_PECA = {
                texto:b.regra, nota:b.dica }; },
   },
   reliquia: {
-    nome:'As relíquias', ico:ICO.reliquia, cor:'#a98bff',
+    nome:'As relíquias', ico:ICO.reliquia, cor:'#b478ff',
     resumo:'Nenhuma dá só "+N". Cada uma muda uma regra ou muda a conta.',
     lista: () => RELIQUIAS.map(r => r.id),
     peca: id => { const r = POR_ID[id];

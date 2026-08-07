@@ -154,7 +154,7 @@ document.addEventListener('click', e=>{
 /* MEDALHA: número com cara de troféu. Nenhum número do jogo aparece como
    linha de tabela. */
 const medalha = (ico, valor, rotulo, cor='var(--ouro)', forte=false) =>
-  `<div class="mede ${forte?'forte':''}" style="--fc:${cor}">
+  `<div class="mede ${forte?'forte':''}" style="--c:${cor}">
      <span class="ic">${ico}</span>
      <span class="cx"><span class="vl">${esc(valor)}</span>
        <span class="rt">${esc(rotulo)}</span></span></div>`;
@@ -225,12 +225,14 @@ function telaClasse(){
         <h2 class="tit">Quem vai lembrar por você?</h2>
       </div>
     </div>
-    <div class="rol"><div class="grade">
+    <div class="rol"><div class="grade fila1">
     ${LISTA_CLASSES.map(c=>`
-      <button class="op esc" data-classe="${c.id}" style="--fc:${c.cor}">
+      <button class="op" data-classe="${c.id}" style="--fc:${c.cor}">
         <span class="agua">${ICO_CLASSE[c.id]||''}</span>
-        <span class="gf" style="color:${c.cor}">${ICO_CLASSE[c.id]||''}</span>
-        <h3 style="color:${c.cor}">${esc(c.nome)}</h3>
+        <span class="cab">
+          <span class="gf">${ICO_CLASSE[c.id]||''}</span>
+          <h3>${esc(c.nome)}</h3>
+        </span>
         <div class="lm">“${esc(c.lema)}”</div>
         <p>${esc(c.d)}</p>
         <div class="stats">
@@ -238,8 +240,8 @@ function telaClasse(){
           <span>viradas <b>${c.viradasBonus>=0?'+':''}${c.viradasBonus}</b></span>
           <span>moedas <b>${c.moedas}</b></span>
         </div>
-        <div class="pr" style="color:${c.cor}">${ICO.reliquia}${esc(c.ferramenta.nome)}</div>
-        <p style="font-size:11.5px">${esc(c.ferramenta.d)}</p>
+        <div class="ferc"><span class="ic">${ICO.reliquia}</span>
+          <span class="tx"><b>${esc(c.ferramenta.nome)}</b>${esc(c.ferramenta.d)}</span></div>
       </button>`).join('')}
     </div></div>`;
   $$('#t-classe [data-classe]').forEach(b=>b.onclick = ()=>{
@@ -252,9 +254,11 @@ const NOME_SALA = { combate:'Combate', elite:'Elite', boss:'Chefe', loja:'Loja',
                     evento:'Evento', descanso:'Fogueira', tesouro:'Tesouro' };
 const ICO_SALA = { combate:'combate', elite:'elite', boss:'chefe', loja:'loja',
                    evento:'evento', descanso:'fogueira', tesouro:'tesouro' };
-const COR_SALA = { boss:'#ff6a5a', elite:'#ffa24d', loja:'#66e6a6',
-                   tesouro:'#a98bff', descanso:'#ff8a4d', evento:'#7fd4ff',
-                   combate:'#efb54b' };
+/* uma cor por tipo de sala, e sempre a mesma — no mapa, no título e na
+   moldura do que te espera */
+const COR_SALA = { boss:'#ff4f52', elite:'#ffa24d', loja:'#4fe08a',
+                   tesouro:'#b478ff', descanso:'#ff8a4d', evento:'#4fb8ff',
+                   combate:'#ffc23c' };
 
 function telaMapa(){
   const b = run.bossDoMundo();
@@ -279,23 +283,26 @@ function telaMapa(){
     <div class="hr"></div>
     <div class="rol">
       ${ehComb ? `
-        <div class="op esc" style="--fc:${cor};cursor:default">
+        <div class="op" style="--fc:${cor};cursor:default;align-items:center;text-align:center">
           <span class="agua">${ICO.meta}</span>
-          <div class="rot">o que te espera</div>
-          <h3>${plano.pares} pares · ${plano.pares*2} cartas</h3>
-          <div class="stats">
-            <span>meta <b style="color:var(--ouro)">${nf(plano.meta)}</b></span>
-            <span>viradas <b>${plano.viradas + run.bonusViradas}</b></span>
-            <span>foco <b>${run.foco}</b></span>
+          <div class="rot">para vencer esta sala, faça</div>
+          <div class="num" style="font-size:clamp(46px,15vw,68px);font-weight:900;line-height:.95;
+               color:var(--ouro2);text-shadow:0 4px 0 var(--ouroE),0 7px 0 rgba(0,0,0,.7),
+               0 0 30px rgba(255,194,60,.5)">${nf(plano.meta)}</div>
+          <div class="rot">pontos</div>
+          <div class="stats" style="justify-content:center">
+            <span>${plano.pares*2} cartas</span>
+            <span>${plano.viradas + run.bonusViradas} viradas</span>
+            <span>foco ${run.foco}</span>
           </div>
-          <p class="mini">Vencer é bater a meta, não limpar o tabuleiro.</p>
+          <p class="mini" style="text-align:center">Não precisa limpar o tabuleiro.</p>
         </div>
         ${tipo==='boss' ? `
-        <div class="op esc" style="--fc:var(--perigo);cursor:default;margin-top:9px">
+        <div class="op esc" style="--fc:#ff4f52;cursor:default;margin-top:9px">
           <span class="agua">${ICO_CHEFE[b.id]||''}</span>
-          <span class="gf" style="color:var(--perigo)">${ICO_CHEFE[b.id]||''}</span>
-          <div class="rot" style="color:var(--perigo)">chefe do mundo</div>
-          <h3 style="color:var(--perigo)">${esc(b.nome)}</h3>
+          <div class="rot">chefe do mundo</div>
+          <span class="cab"><span class="gf">${ICO_CHEFE[b.id]||''}</span>
+            <h3>${esc(b.nome)}</h3></span>
           <p>${esc(b.regra)}</p>
           <p class="mini" style="font-style:italic">${esc(b.dica)}</p></div>` : ''}
       ` : ''}
@@ -303,9 +310,9 @@ function telaMapa(){
       <div class="rot" style="margin-bottom:6px">a sua run até aqui</div>
       <div class="meds">
         ${medalha(ICO.meta, nf(run.pontos), 'pontos', 'var(--ouro)', true)}
-        ${medalha(ICO.moeda, nf(run.moedas), 'moedas', '#ffc93f')}
-        ${medalha(ICO.foco, run.foco, 'foco', 'var(--perigo)')}
-        ${medalha(ICO.combate, run.estatisticas.salas, 'salas', '#66e6a6')}
+        ${medalha(ICO.moeda, nf(run.moedas), 'moedas', '#ffc23c')}
+        ${medalha(ICO.foco, run.foco, 'foco', 'var(--vermelho)')}
+        ${medalha(ICO.combate, run.estatisticas.salas, 'salas', '#4fe08a')}
       </div>
       <div class="rot" style="margin:13px 0 6px">suas relíquias</div>
       ${chipsReliquias(run.reliquias)}
@@ -342,6 +349,7 @@ function pintarSala(){
     + (run.tipoSala()==='elite' ? ' · elite' : '');
   mesa(true, true);
   medidores();
+  talvezGuia();
 }
 
 let ptsAnterior = 0, focoAnterior = null;
@@ -353,7 +361,7 @@ function medidores(){
     ptsAnterior = s.pontos;
   }
   $('#pts').textContent = nf(s.pontos);
-  $('#meta').textContent = '/ ' + nf(s.meta);
+  $('#meta').textContent = nf(s.meta);
   const pc = Math.min(100, s.pontos/s.meta*100);
   $('#barra').querySelector('i').style.width = pc.toFixed(1)+'%';
   $('#barra').classList.toggle('cheia', pc>=100);
@@ -368,17 +376,18 @@ function medidores(){
   /* acima de sete, bolinha vira número: onze bolinhas empurravam o resto da
      fila de medidores para uma segunda linha e comiam a mesa */
   f.querySelector('.focos').innerHTML = teto > 7
-    ? `<span class="v num" style="color:${s.foco<=1?'var(--perigo)':'inherit'}">${s.foco}<span
-        style="color:var(--txt3);font-size:11px">/${teto}</span></span>`
+    ? `<span class="v num" style="color:${s.foco<=1?'var(--vermelho)':'inherit'}">${s.foco}<span
+        style="color:var(--osso3);font-size:11px">/${teto}</span></span>`
     : [...Array(teto)].map((_,i)=>
         `<b class="${i < s.foco ? '' : 'off'}${perdeu && i===s.foco ? ' perdeu':''}"></b>`).join('');
   focoAnterior = s.foco;
 
   const d = degrauCombo(s.combo), c = $('#combo');
-  c.style.setProperty('--cc', corDoCombo(s.combo));
+  c.style.setProperty('--c', corDoCombo(s.combo));
   c.classList.toggle('viva', s.combo>0);
-  c.querySelector('.n').textContent = s.combo ? d.nome : 'sem combo';
-  c.querySelector('.m').textContent = '×' + vg(s.multCombo().toFixed(1));
+  c.querySelector('.cn').textContent = s.combo
+    ? `${d.nome} · ${s.combo} seguido${s.combo>1?'s':''}` : 'sem combo — emende os acertos';
+  c.querySelector('.cm').textContent = '×' + vg(s.multCombo().toFixed(1));
 
   const fer = run.C.ferramenta, bf = $('#bfer');
   const pode = fer.custoEssencia ? s.essencia >= fer.custoEssencia : s.usosFer > 0;
@@ -603,7 +612,7 @@ async function animar(rel){
     SFX.trinca();
     for(const id of trinca.cartas){
       el(id)?.classList.add('trinca');
-      onda(id, '#9fd8ff');
+      onda(id, '#a8e2ff');
       setTimeout(()=>el(id)?.classList.remove('trinca'), 560);
     }
     voa(trinca.cartas[0], 'TRINCOU', 'falta mais uma', 'frio');
@@ -666,25 +675,25 @@ async function animar(rel){
   const saindo = [];
   for(const e of rel.eventos){
     if(e.e==='moedas'){ SFX.moeda(); voa(acerto?.cartas?.[0] ?? 0, '+'+e.n, 'moedas', 'moeda'); }
-    if(e.e==='virada_extra') aviso('+1 VIRADA', 'alquimia devolveu', '#8ad46a');
-    if(e.e==='xadrez') aviso('DOBRADO', 'peça de xadrez', '#d8d8e8');
+    if(e.e==='virada_extra') aviso('+1 VIRADA', 'alquimia devolveu', '#4fe08a');
+    if(e.e==='xadrez') aviso('DOBRADO', 'peça de xadrez', '#dbe4f5');
     if(e.e==='runa') voa(acerto?.cartas?.[1] ?? 0, '+0,1', 'runa', 'moeda');
     if(e.e==='revelou'){ SFX.revelar(); for(const id of (e.cartas||[])) piscar(id); }
-    if(e.e==='marcou'){ SFX.revelar(); aviso('CARTA FIXA', 'o Egito marcou uma', '#f0c14b'); }
+    if(e.e==='marcou'){ SFX.revelar(); aviso('CARTA FIXA', 'o Egito marcou uma', '#ffc23c'); }
     if(e.e==='explodiu'){ SFX.chefe(); clarao('rgba(255,106,90,.5)');
-      aviso('EXPLODIU', 'a bomba levou o par', '#ff6a5a');
-      for(const id of (e.cartas||[])){ faiscas(id, '#ff6a5a', 14); saindo.push(id); } }
-    if(e.e==='camaleao'){ aviso('TROCOU', 'o camaleão mudou de símbolo', '#7ee3a8');
-      for(const id of (e.cartas||[])) onda(id, '#7ee3a8'); }
-    if(e.e==='embaralhou' || e.e==='espaco'){ SFX.chefe(); aviso('EMBARALHOU', 'trocaram de lugar', '#b06bff'); }
-    if(e.e==='espelhou'){ SFX.chefe(); clarao('rgba(216,216,232,.34)'); aviso('ESPELHOU', 'o lado trocou', '#d8d8e8'); }
-    if(e.e==='esqueceu'){ SFX.chefe(); aviso('ESQUECEU', 'o chefe apagou uma carta', '#e05a8a'); }
+      aviso('EXPLODIU', 'a bomba levou o par', '#ff4f52');
+      for(const id of (e.cartas||[])){ faiscas(id, '#ff4f52', 14); saindo.push(id); } }
+    if(e.e==='camaleao'){ aviso('TROCOU', 'o camaleão mudou de símbolo', '#4fe08a');
+      for(const id of (e.cartas||[])) onda(id, '#4fe08a'); }
+    if(e.e==='embaralhou' || e.e==='espaco'){ SFX.chefe(); aviso('EMBARALHOU', 'trocaram de lugar', '#b478ff'); }
+    if(e.e==='espelhou'){ SFX.chefe(); clarao('rgba(216,216,232,.34)'); aviso('ESPELHOU', 'o lado trocou', '#dbe4f5'); }
+    if(e.e==='esqueceu'){ SFX.chefe(); aviso('ESQUECEU', 'o chefe apagou uma carta', '#ff6fae'); }
     if(e.e==='sumiu'){ SFX.chefe(); clarao('rgba(127,212,255,.34)');
-      aviso('SUMIU', 'um par deixou o tabuleiro', '#7fd4ff');
+      aviso('SUMIU', 'um par deixou o tabuleiro', '#4fb8ff');
       for(const id of (e.cartas||[])) saindo.push(id); }
     if(e.e==='orfa') for(const id of (e.cartas||[])) piscar(id);
-    if(e.e==='mimic'){ aviso('MIMIC', 'era cópia', '#e05a8a');
-      for(const id of (e.cartas ? e.cartas : [e.carta])) if(id!=null) onda(id, '#e05a8a'); }
+    if(e.e==='mimic'){ aviso('MIMIC', 'era cópia', '#ff6fae');
+      for(const id of (e.cartas ? e.cartas : [e.carta])) if(id!=null) onda(id, '#ff6fae'); }
   }
   /* o que realmente deixa o tabuleiro sai com estrondo, e deixa a casa vazia */
   if(saindo.length){
@@ -699,14 +708,14 @@ async function animar(rel){
 
   if(rel.eventos.some(e=>e.e==='vitoria')){
     SFX.vitoria(); clarao('rgba(102,230,166,.5)');
-    aviso('SALA VENCIDA', 'meta batida', '#66e6a6');
+    aviso('SALA VENCIDA', 'meta batida', '#4fe08a');
     await espera(900);
   }
   if(rel.eventos.some(e=>e.e==='derrota')){
     const m = rel.eventos.find(e=>e.e==='derrota').motivo;
     SFX.derrota(); clarao('rgba(255,106,90,.55)');
     aviso('SALA PERDIDA', m==='foco' ? 'acabou o foco'
-        : m==='viradas' ? 'acabaram as viradas' : 'acabaram as cartas', '#ff6a5a');
+        : m==='viradas' ? 'acabaram as viradas' : 'acabaram as cartas', '#ff4f52');
     await espera(1000);
   }
 }
@@ -740,15 +749,15 @@ function armar(f){
 }
 async function aplicarFerramenta(arg){
   const rel = run.usarFerramenta(arg);
-  if(rel.erro){ aviso('NÃO DÁ', rel.por || rel.erro, '#ff6a5a'); medidores(); return; }
+  if(rel.erro){ aviso('NÃO DÁ', rel.por || rel.erro, '#ff4f52'); medidores(); return; }
   SFX.revelar();
   for(const e of rel.eventos){
     if(e.e==='revelou') for(const id of (e.cartas||[])) piscar(id);
-    if(e.e==='voltou') aviso('DESFEITO', 'o último erro voltou', '#b06bff');
-    if(e.e==='transmutou'){ aviso('TRANSMUTADO', 'virou espelho', '#d8d8e8'); onda(e.carta,'#d8d8e8'); }
-    if(e.e==='concentrou') aviso('CONCENTRAÇÃO', 'multiplicador dobrado', '#efb54b');
-    if(e.e==='trocou'){ aviso('TROCADO', 'mudaram de lugar', '#7ee3a8');
-      for(const id of (e.cartas||[])) onda(id, '#7ee3a8'); }
+    if(e.e==='voltou') aviso('DESFEITO', 'o último erro voltou', '#b478ff');
+    if(e.e==='transmutou'){ aviso('TRANSMUTADO', 'virou espelho', '#dbe4f5'); onda(e.carta,'#dbe4f5'); }
+    if(e.e==='concentrou') aviso('CONCENTRAÇÃO', 'multiplicador dobrado', '#ffc23c');
+    if(e.e==='trocou'){ aviso('TROCADO', 'mudaram de lugar', '#4fe08a');
+      for(const id of (e.cartas||[])) onda(id, '#4fe08a'); }
     if(e.e==='acerto'){ SFX.acerto(e.combo);
       const cor = FAMILIAS[salaViva?.cartas.find(c=>c.id===e.cartas[0])?.fam]?.cor || '#fff';
       for(const id of e.cartas){ onda(id, cor); faiscas(id, cor, 8); }
@@ -794,9 +803,9 @@ $('#bregras').onclick = ()=>{
     </div>
     <div class="meds" style="margin-top:13px">
       ${medalha(ICO.meta, nf(s.meta), 'meta', 'var(--ouro)', true)}
-      ${medalha(ICO.normal, s.pares, 'pares', '#7fd4ff')}
-      ${medalha(ICO.virada, s.viradasMax, 'viradas', '#66e6a6')}
-      ${medalha(ICO.foco, s.focoMax, 'foco', 'var(--perigo)')}
+      ${medalha(ICO.normal, s.pares, 'pares', '#4fb8ff')}
+      ${medalha(ICO.virada, s.viradasMax, 'viradas', '#4fe08a')}
+      ${medalha(ICO.foco, s.focoMax, 'foco', 'var(--vermelho)')}
     </div>
     <div class="rot" style="margin:15px 0 6px">famílias no tabuleiro</div>
     ${vitrine('familia', s.familias.map(f=>f.id))}
@@ -805,6 +814,61 @@ $('#bregras').onclick = ()=>{
     <div class="rot" style="margin:15px 0 6px">a escada do combo</div>
     ${vitrine('combo', COMBOS.slice(1).map(c=>String(c.n)))}`);
 };
+
+/* ═══════════════════════════════════════════ O GUIA
+   O jogador disse que não entendia o que fazer, e estava certo: o jogo
+   explicava tudo num menu que ninguém abre ANTES de jogar. Explicação que
+   mora em outra tela é explicação que não existe. Então a primeira sala
+   ensina apontando — recorta a coisa na tela, fala dela em duas frases, e
+   sai da frente. */
+const PASSOS_GUIA = [
+  { alvo:'#mesa', t:'Vire duas cartas',
+    p:'Toque uma, depois outra. Se tiverem o mesmo desenho, o par fecha, vale '
+     +'pontos e fica no tabuleiro carimbado.' },
+  { alvo:'#quadro', t:'Chegue nos pontos da meta',
+    p:'Você vence a sala batendo este número. Não precisa limpar o tabuleiro — '
+     +'nas salas grandes nem dá tempo.' },
+  { alvo:'#combo', t:'Emende os acertos',
+    p:'Cada par fechado sem errar no meio multiplica tudo. É aqui que o placar '
+     +'cresce de verdade — dois pares emendados valem muito mais que dois separados.' },
+  { alvo:'#mvir', t:'As viradas são o relógio',
+    p:'Cada tentativa de duas cartas gasta uma virada. Se acabarem antes da meta, '
+     +'a run acaba.' },
+  { alvo:'#mfoc', t:'O foco é o quanto você pode esquecer',
+    p:'Errar duas cartas que você NUNCA viu é de graça — explorar faz parte. '
+     +'Errar duas que você JÁ viu custa um foco. Zerou, perdeu a sala.' },
+  { alvo:'#bfer', t:'A ferramenta da sua classe',
+    p:'Cada classe tem uma, com usos contados. Guarde para a hora em que ela '
+     +'salva a sala.' },
+];
+function guia(i=0){
+  const g = $('#guia');
+  const fim = ()=>{ g.classList.remove('on'); localStorage.setItem('mnemonic.guia','1'); };
+  if(i >= PASSOS_GUIA.length) return fim();
+  const passo = PASSOS_GUIA[i];
+  const el = $(passo.alvo);
+  if(!el) return guia(i+1);
+  const r = el.getBoundingClientRect(), pad = 9;
+  const f = g.querySelector('.furo');
+  f.style.left = (r.left-pad)+'px'; f.style.top = (r.top-pad)+'px';
+  f.style.width = (r.width+pad*2)+'px'; f.style.height = (r.height+pad*2)+'px';
+  const fala = g.querySelector('.fala');
+  /* a fala vai para o lado OPOSTO do recorte, senão tapa o que está mostrando */
+  const cabeEmbaixo = r.bottom < innerHeight*0.52;
+  fala.style.top    = cabeEmbaixo ? (r.bottom+pad+16)+'px' : 'auto';
+  fala.style.bottom = cabeEmbaixo ? 'auto' : (innerHeight - r.top + pad + 16)+'px';
+  g.querySelector('.passo').textContent = `passo ${i+1} de ${PASSOS_GUIA.length}`;
+  g.querySelector('h4').textContent = passo.t;
+  g.querySelector('p').textContent = passo.p;
+  g.classList.add('on');
+  $('#guiaOk').onclick = ()=>{ SFX.clique(); guia(i+1); };
+  $('#guiaPular').onclick = ()=>{ SFX.clique(); fim(); };
+}
+function talvezGuia(){
+  if(localStorage.getItem('mnemonic.guia')==='1') return;
+  if(run.mundo!==0 || run.indice!==0) return;
+  setTimeout(()=>{ if(telaAtual==='sala') guia(0); }, 800);
+}
 
 /* ═══════════════════════════════════════════ RECOMPENSA / TESOURO */
 function telaPremio(){
@@ -829,8 +893,8 @@ function telaPremio(){
                 style="--fc:${RARIDADE[r.r]};animation-delay:${i*70}ms">
           ${r.r==='lendaria' ? '<span class="fita">lendária</span>' : ''}
           <span class="agua">${ICO.reliquia}</span>
-          <span class="gf" style="color:${RARIDADE[r.r]}">${ICO.reliquia}</span>
-          <h3 style="color:${RARIDADE[r.r]}">${esc(r.nome)}</h3>
+          <span class="cab"><span class="gf">${ICO.reliquia}</span>
+            <h3>${esc(r.nome)}</h3></span>
           <p>${esc(r.d)}</p>
           <div class="pr" style="color:${RARIDADE[r.r]}">${r.r}</div>
         </button>`).join('')
@@ -840,7 +904,7 @@ function telaPremio(){
   $$('#t-premio [data-pega]').forEach(b=>b.onclick = ()=>{
     SFX.premio(); clarao('rgba(239,181,75,.4)');
     if(run.ganharReliquia(b.dataset.pega)){ run.passar(); seguir(); }
-    else aviso('NÃO DEU', 'essa não está na oferta', '#ff6a5a');
+    else aviso('NÃO DEU', 'essa não está na oferta', '#ff4f52');
   });
   $('#pular').onclick = ()=>{ SFX.clique(); run.passar(); seguir(); };
 }
@@ -863,10 +927,10 @@ function telaLoja(){
             style="--fc:${cor}" ${i.vendido || caro ? 'disabled' : ''}>
             ${i.vendido ? '<span class="vendido">vendido</span>' : ''}
             <span class="agua">${i.id.startsWith('__') ? ICO.tesouro : ICO.reliquia}</span>
-            <span class="gf" style="color:${cor}">${i.id.startsWith('__') ? ICO.tesouro : ICO.reliquia}</span>
-            <h3 style="color:${cor}">${esc(i.nome)}</h3>
+            <span class="cab"><span class="gf">${i.id.startsWith('__') ? ICO.tesouro : ICO.reliquia}</span>
+              <h3>${esc(i.nome)}</h3></span>
             <p>${esc(i.d)}</p>
-            <div class="pr" style="color:${caro ? 'var(--txt3)' : 'var(--ouro)'}">
+            <div class="pr" style="color:${caro ? 'var(--osso3)' : 'var(--ouro)'}">
               ${ICO.moeda}${nf(i.preco)}</div>
           </button>`;
         }).join('')}
@@ -875,7 +939,7 @@ function telaLoja(){
     t.querySelectorAll('[data-compra]').forEach(b=>b.onclick = ()=>{
       const r = run.comprar(b.dataset.compra);
       if(r.ok){ SFX.moeda(); aviso('COMPRADO', esc(r.item.nome)); desenhar(); }
-      else aviso('NÃO DÁ', r.por, '#ff6a5a');
+      else aviso('NÃO DÁ', r.por, '#ff4f52');
     });
     $('#sair').onclick = ()=>{ SFX.clique(); run.passar(); seguir(); };
   };
@@ -888,7 +952,7 @@ function telaEvento(){
   const ev = run.evento();
   if(!ev){ run.passar(); return seguir(); }
   const fogo = run.tipoSala()==='descanso';
-  const cor = fogo ? '#ffa24d' : '#7fd4ff';
+  const cor = fogo ? '#ffa24d' : '#4fb8ff';
   t.innerHTML = `
     <div class="topo-linha"><div class="cabeca">
       <div class="rot" style="color:${cor}">${fogo ? 'fogueira' : 'evento'}</div>
@@ -897,7 +961,7 @@ function telaEvento(){
     <div class="rol">
       <div class="op esc" style="--fc:${cor};cursor:default">
         <span class="agua">${fogo ? ICO.fogueira : ICO.evento}</span>
-        <p style="font-size:14.5px;line-height:1.6;color:var(--txt)">${esc(ev.txt)}</p>
+        <p style="font-size:14.5px;line-height:1.6;color:var(--osso)">${esc(ev.txt)}</p>
       </div>
       <div class="hr"></div>
       <div class="grade um">${ev.ops.map((o,i)=>`
@@ -910,7 +974,7 @@ function telaEvento(){
     if(r.ok){
       t.querySelector('.rol').innerHTML =
         `<div class="op esc" style="--fc:${cor};cursor:default">
-           <p style="font-size:15px;line-height:1.6;color:var(--txt)">${esc(r.txt)}</p></div>`;
+           <p style="font-size:15px;line-height:1.6;color:var(--osso)">${esc(r.txt)}</p></div>`;
       setTimeout(()=>seguir(), 1500);
     }
   });
@@ -923,12 +987,12 @@ function telaFim(){
   const u = run.ultimaSala;
   (venceu ? SFX.vitoria : SFX.derrota)();
   clarao(venceu ? 'rgba(102,230,166,.4)' : 'rgba(255,106,90,.4)');
-  const cor = venceu ? 'var(--bom)' : 'var(--perigo)';
+  const cor = venceu ? 'var(--verde)' : 'var(--vermelho)';
   $('#t-fim').innerHTML = `
     <div class="rol" style="display:flex;flex-direction:column;justify-content:center">
-      <div class="selao" style="color:${cor};align-self:flex-start">
+      <div class="selao" style="--fc:${cor};align-self:flex-start">
         ${venceu ? ICO.meta : ICO.recusa}${venceu ? 'run completa' : 'a run acabou'}</div>
-      <h2 class="grandao" style="color:${cor};margin-top:11px">
+      <h2 class="grandao" style="color:${cor};--brilho:${cor};margin-top:11px">
         ${venceu ? 'VOCÊ LEMBROU' : 'VOCÊ ESQUECEU'}</h2>
       <p class="sub">${venceu
         ? `Seis mundos, ${p.est.salas} salas vencidas.`
@@ -937,18 +1001,18 @@ function telaFim(){
            : u?.motivo==='viradas' ? ' — as viradas acabaram.'
            : u?.motivo==='tabuleiro' ? ' — o tabuleiro acabou antes da meta.' : '.')}</p>
       <div class="hr"></div>
-      <div class="pts num" style="font-size:clamp(38px,13vw,60px)">${nf(p.pontos)}</div>
+      <div class="placarfim">${nf(p.pontos)}</div>
       <div class="rot">pontos da run</div>
       <div class="hr"></div>
       <div class="rot" style="margin-bottom:6px">o que ficou da run</div>
       <div class="meds">
-        ${medalha(ICO.combate, p.est.salas, 'salas', '#66e6a6')}
+        ${medalha(ICO.combate, p.est.salas, 'salas', '#4fe08a')}
         ${medalha(ICO.feito, p.est.acertos, 'pares', 'var(--ouro)')}
-        ${medalha(ICO.recusa, p.est.erros, 'erros', 'var(--perigo)')}
+        ${medalha(ICO.recusa, p.est.erros, 'erros', 'var(--vermelho)')}
         ${medalha(ICO.combo, p.est.maiorCombo, esc(degrauCombo(p.est.maiorCombo).nome),
                   corDoCombo(p.est.maiorCombo))}
-        ${medalha(ICO.moeda, nf(p.est.moedasGanhas), 'moedas', '#ffc93f')}
-        ${medalha(ICO.virada, p.est.viradasSobrando, 'viradas de sobra', '#7fd4ff')}
+        ${medalha(ICO.moeda, nf(p.est.moedasGanhas), 'moedas', '#ffc23c')}
+        ${medalha(ICO.virada, p.est.viradasSobrando, 'viradas de sobra', '#4fb8ff')}
       </div>
       <div class="rot" style="margin:13px 0 6px">a coleção desta run</div>
       ${chipsReliquias(p.reliquias)}
@@ -1000,7 +1064,7 @@ function telaRank(){
     <div class="abas">${ABAS.map(a=>
       `<button data-aba="${a.id}" class="${a.id===abaRank?'on':''}">${a.n}</button>`).join('')}</div>
     <div class="rol" id="rlista"><p class="mini">Procurando nos relays…</p></div>
-    <p class="mini" style="flex:0 0 auto;padding-top:9px;border-top:1px solid var(--borda)">
+    <p class="mini" style="flex:0 0 auto;padding-top:9px;border-top:1px solid var(--traco)">
       Cada placar vem com a lista de jogadas. Seu aparelho REFAZ a run a
       partir da semente e só mostra a linha se o número bater.</p>`;
   t.querySelectorAll('[data-aba]').forEach(b=>b.onclick = ()=>{
@@ -1028,7 +1092,7 @@ async function carregarRank(){
     return;
   }
   const eu = localStorage.getItem('mnemonic.nome');
-  const CORP = ['#efb54b','#cfd6e4','#c08a4a'];
+  const CORP = ['#ffc23c','#cfd6e4','#c08a4a'];
   const topo = bons.slice(0,3);
   const resto = bons.slice(3,60);
   /* pódio: 2º, 1º, 3º — a ordem que o olho espera num pódio */
@@ -1058,7 +1122,7 @@ async function carregarRank(){
 const semRanking = (titulo, sub) => `
   <div class="pecao" style="--fc:#5b6683;padding-top:30px">
     <div class="ic">${ICO.recusa}</div>
-    <h3 style="color:var(--txt2)">${esc(titulo)}</h3>
+    <h3 style="color:var(--osso2)">${esc(titulo)}</h3>
     <p class="nt">${esc(sub)}</p></div>`;
 
 /* ═══════════════════════════════════════════ COMO SE JOGA
@@ -1084,7 +1148,7 @@ function telaLivro(){
             <span class="ic">${c.ico}</span>
             <span class="nm">${esc(c.nome)}</span>
           </button>`).join('')}</div>
-        <div class="hr"></div>
+        <div style="margin:13px 0"><button class="bt g" id="verGuia">Ver o guia de novo</button></div>
         <div class="rot" style="margin-bottom:6px">em uma frase</div>
         <div class="vit">
           ${['meta','virada','foco','combo'].map(id=>ladrilho('palavra', id)).join('')}
@@ -1099,13 +1163,17 @@ function telaLivro(){
           <h2 class="tit">${esc(c.nome)}</h2></div>
       </div>
       <p class="mini" style="flex:0 0 auto;margin:0 0 10px">${esc(c.resumo)}
-        <b style="color:var(--txt2)">Toque para abrir.</b></p>
+        <b style="color:var(--osso2)">Toque para abrir.</b></p>
       <div class="rol">${vitrine(c.id, c.lista())}</div>`;
     $('#voltarCap').onclick = ()=>{ SFX.clique(); capAtual = null; telaLivro(); };
   }
   $$('#t-livro [data-cap]').forEach(b=>b.onclick = ()=>{
     SFX.clique(); capAtual = b.dataset.cap; telaLivro();
   });
+  const vg2 = $('#verGuia');
+  if(vg2) vg2.onclick = ()=>{ SFX.clique(); localStorage.removeItem('mnemonic.guia');
+    if(run?.sala){ ir('sala'); setTimeout(()=>guia(0), 350); }
+    else aviso('PRONTO', 'o guia volta na próxima sala'); };
   const v = $('#voltarLivro');
   if(v) v.onclick = ()=>{ SFX.clique(); run ? seguir() : ir('titulo'); };
 }

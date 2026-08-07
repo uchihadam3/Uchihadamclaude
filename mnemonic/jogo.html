@@ -3,659 +3,729 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#06070d">
+<meta name="theme-color" content="#081428">
 <title>Mnemonic</title>
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   MNEMONIC — o palácio da memória.
+   MNEMONIC — a linguagem visual.
 
-   A direção: papel de arquiteto à noite. Fundo de tinta quase preta,
-   régua fina, e uma só cor quente — âmbar — reservada para o que o
-   jogador ganha. Tudo o que é do jogo (carta, painel, botão) tem
-   moldura com bisel e cantoneira, porque é peça de tabuleiro e peça de
-   tabuleiro tem borda. As cores das oito famílias são as únicas outras
-   cores da tela, e elas só aparecem na face das cartas: assim reconhecer
-   uma família é reconhecer uma cor, que é metade da memória.
+   A versão anterior parecia um aplicativo de estudo: traço de 1px,
+   rótulo cinza minúsculo, painel de texto, muito respiro. Bonito de
+   documento, morto de jogo.
+
+   O que faz um jogo PARECER jogo — e é o que o Balatro acerta — não é
+   ter mais efeito. São quatro coisas, e todas estão aqui:
+
+   1. PEÇA FÍSICA. Nada é "painel". Tudo é uma PLACA: contorno preto
+      grosso, luz na aresta de cima, sombra dura embaixo. Dá para ver o
+      volume. Peça se pega; painel se lê.
+   2. NÚMERO GIGANTE. O placar não é informação, é espetáculo. Número
+      enorme, contornado, com brilho — o resto da tela existe em volta
+      dele.
+   3. COR CHAPADA E SATURADA sobre feltro escuro. Vermelho é foco, azul
+      é virada, ouro é ponto. Cada coisa tem UMA cor e ela nunca muda de
+      dono.
+   4. TIPO PESADO. Sem webfont (o jogo não pode depender de rede), o
+      peso vem de font-weight 900 + contorno preto + sombra dura. É o
+      que separa "letra de interface" de "letra de jogo".
    ═══════════════════════════════════════════════════════════════════ */
 :root{
-  --tinta:#06070d; --fundo2:#0a0d16;
-  --painel:#0e1220; --painel2:#151b2c; --alto:#1d2539; --borda:#26314a;
-  --luz:rgba(255,255,255,.07);
-  --txt:#e9eef8; --txt2:#8d99b1; --txt3:#5b6683;
-  --ouro:#efb54b; --ouro2:#ffdf9a; --ouroE:rgba(239,181,75,.16);
-  --perigo:#ff6a5a; --bom:#66e6a6; --frio:#7fd4ff; --roxo:#a98bff;
+  /* a mesa */
+  --feltro:#0c1c33; --feltro2:#071120; --tinta:#050c18;
+  /* as peças */
+  --placa:#1a2b4a; --placa2:#0f1d33; --alto:#243a60;
+  --traco:#03070f;                      /* o contorno preto de tudo */
+  --luzT:rgba(255,255,255,.18);          /* luz na aresta de cima */
+  --escT:rgba(0,0,0,.55);                /* sombra na aresta de baixo */
+  /* as cores, uma por assunto */
+  --ouro:#ffc23c; --ouro2:#ffe6a3; --ouroE:#9a6c12;
+  --vermelho:#ff4f52; --vermelho2:#ff9a8f;
+  --azul:#4fb8ff; --azul2:#a8e2ff;
+  --verde:#4fe08a; --verde2:#b6f7d2;
+  --roxo:#b478ff; --rosa:#ff6fae;
+  --osso:#f2f6ff; --osso2:#9db0d0; --osso3:#63789e;
   --r:13px;
-  --f:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --f:ui-sans-serif,system-ui,-apple-system,"Segoe UI Variable","Segoe UI",Roboto,
+      "Helvetica Neue",Arial,sans-serif;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none}
 body{
   background:
-    radial-gradient(130% 70% at 50% -8%, #16203a 0%, rgba(22,32,58,0) 58%),
-    radial-gradient(100% 60% at 50% 108%, #10152a 0%, rgba(16,21,42,0) 62%),
-    repeating-linear-gradient(0deg,  rgba(255,255,255,.012) 0 1px, transparent 1px 44px),
-    repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 1px, transparent 1px 44px),
+    radial-gradient(120% 78% at 50% 0%, #16325a 0%, rgba(22,50,90,0) 62%),
+    radial-gradient(120% 70% at 50% 100%, #0d2140 0%, rgba(13,33,64,0) 60%),
     var(--tinta);
-  color:var(--txt); font-family:var(--f); font-size:15px; line-height:1.45;
+  color:var(--osso); font-family:var(--f); font-size:15px; line-height:1.4;
   -webkit-font-smoothing:antialiased;
 }
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
 svg{display:block}
-.gl{width:100%;height:100%;stroke:currentColor;stroke-width:1.8;
+.gl{width:100%;height:100%;stroke:currentColor;stroke-width:2.1;
     stroke-linecap:round;stroke-linejoin:round;fill:none}
-.num{font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* ───────── a letra de jogo ─────────
+   peso 900, contorno preto e sombra dura. É o que faz a palavra parecer
+   estampada na peça em vez de escrita por cima dela. */
+.jg{font-weight:900;letter-spacing:.01em;
+    text-shadow:0 2px 0 rgba(0,0,0,.9), 0 0 12px rgba(0,0,0,.45)}
+.rot{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+     color:var(--osso3);font-weight:900;text-shadow:0 1px 0 rgba(0,0,0,.7)}
+.tit{font-size:clamp(21px,6.2vw,30px);font-weight:900;letter-spacing:-.02em;
+     margin:0;text-wrap:balance;line-height:1.08;
+     text-shadow:0 3px 0 rgba(0,0,0,.7), 0 0 20px rgba(0,0,0,.4)}
+.sub{color:var(--osso2);font-size:13.5px;margin:6px 0 0;font-weight:600}
+.mini{font-size:12px;color:var(--osso2);line-height:1.5;font-weight:600}
+.hr{height:3px;border:0;margin:15px 0;border-radius:3px;
+    background:linear-gradient(90deg,transparent,rgba(0,0,0,.6) 12%,rgba(0,0,0,.6) 88%,transparent);
+    box-shadow:0 1px 0 rgba(255,255,255,.06)}
+/* o placar do fim de run: mesmo tratamento do placar da mesa */
+.placarfim{font-size:clamp(44px,15vw,72px);font-weight:900;line-height:.95;color:#fff;
+  font-variant-numeric:tabular-nums;letter-spacing:-.03em;
+  text-shadow:0 4px 0 rgba(0,0,0,.9), 0 8px 0 rgba(0,0,0,.45),
+              0 0 34px rgba(255,226,163,.65)}
+
+/* ═══════════ A PLACA — a peça de que tudo é feito ═══════════ */
+.placa{position:relative;border-radius:12px;
+  background:linear-gradient(180deg,var(--placa),var(--placa2));
+  border:2px solid var(--traco);
+  box-shadow:inset 0 2px 0 var(--luzT), inset 0 -4px 0 var(--escT),
+             0 4px 0 var(--traco), 0 9px 18px rgba(0,0,0,.55)}
+.placa.cor{
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--c) 34%,var(--placa)),
+    color-mix(in srgb,var(--c) 8%,var(--placa2)));
+  box-shadow:inset 0 2px 0 color-mix(in srgb,var(--c) 55%,transparent),
+             inset 0 -4px 0 var(--escT),
+             0 4px 0 var(--traco), 0 9px 20px color-mix(in srgb,var(--c) 22%,transparent)}
 
 /* ───────── telas ───────── */
 #app{position:fixed;inset:0}
 .tela{position:absolute;inset:0;display:none;flex-direction:column;
-      padding:calc(9px + env(safe-area-inset-top)) 11px calc(9px + env(safe-area-inset-bottom));
+      padding:calc(8px + env(safe-area-inset-top)) 10px calc(8px + env(safe-area-inset-bottom));
       overflow:hidden}
-.tela.on{display:flex;animation:entra .3s cubic-bezier(.2,.8,.3,1) both}
-@keyframes entra{from{opacity:0;transform:translateY(12px) scale(.99)}to{opacity:1;transform:none}}
+.tela.on{display:flex;animation:entra .3s cubic-bezier(.2,.9,.3,1) both}
+@keyframes entra{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
 .rol{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
-     flex:1;min-height:0;padding-right:2px}
-.rol::-webkit-scrollbar{width:4px}
-.rol::-webkit-scrollbar-thumb{background:var(--borda);border-radius:9px}
+     flex:1;min-height:0;padding:2px}
+.rol::-webkit-scrollbar{width:5px}
+.rol::-webkit-scrollbar-thumb{background:var(--alto);border-radius:9px;
+  border:1px solid var(--traco)}
 
-/* ───────── tipografia ───────── */
-.rot{font-size:10px;letter-spacing:.22em;text-transform:uppercase;
-     color:var(--txt3);font-weight:800}
-.tit{font-size:clamp(19px,5.6vw,27px);font-weight:800;letter-spacing:-.015em;
-     margin:0;text-wrap:balance;line-height:1.14}
-.sub{color:var(--txt2);font-size:13.5px;margin:5px 0 0}
-.mini{font-size:12px;color:var(--txt2);line-height:1.55}
-.hr{height:1px;border:0;margin:13px 0;
-    background:linear-gradient(90deg,transparent,var(--borda) 12%,var(--borda) 88%,transparent)}
-
-/* ───────── botões ───────── */
+/* ───────── botões: peça que se aperta ───────── */
 .bt{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:9px;
-    padding:13px 18px;border-radius:12px;font-weight:750;font-size:14.5px;letter-spacing:.03em;
-    background:linear-gradient(180deg,var(--alto),var(--painel2));
-    border:1px solid var(--borda);
-    box-shadow:0 2px 0 #070a12, inset 0 1px 0 var(--luz);
-    transition:transform .1s, filter .16s, box-shadow .1s}
-.bt:active{transform:translateY(2px);box-shadow:0 0 0 #070a12, inset 0 1px 0 var(--luz)}
-.bt .gl{width:18px;height:18px;flex:0 0 18px}
-.bt.p{background:linear-gradient(180deg,#ffe6ab,var(--ouro) 52%,#d0952e);color:#2a1d04;
-      border-color:#ffd98f;text-shadow:0 1px 0 rgba(255,255,255,.28);
-      box-shadow:0 3px 0 #8a6318, 0 10px 24px rgba(239,181,75,.22), inset 0 1px 0 rgba(255,255,255,.5)}
-.bt.p:active{box-shadow:0 1px 0 #8a6318, inset 0 1px 0 rgba(255,255,255,.4)}
+    padding:14px 20px;border-radius:12px;font-weight:900;font-size:15px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--osso);
+    background:linear-gradient(180deg,var(--alto),var(--placa2));
+    border:2px solid var(--traco);
+    text-shadow:0 2px 0 rgba(0,0,0,.8);
+    box-shadow:inset 0 2px 0 var(--luzT), inset 0 -4px 0 var(--escT),
+               0 5px 0 var(--traco), 0 10px 18px rgba(0,0,0,.5);
+    transition:transform .07s, box-shadow .07s}
+.bt:active{transform:translateY(5px);
+  box-shadow:inset 0 2px 0 var(--luzT), inset 0 -2px 0 var(--escT), 0 0 0 var(--traco)}
+.bt .gl{width:19px;height:19px;flex:0 0 19px}
+.bt.p{color:#3a2606;
+  background:linear-gradient(180deg,#ffe9b0,var(--ouro) 48%,#e09a15);
+  text-shadow:0 1px 0 rgba(255,255,255,.5);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.65), inset 0 -4px 0 rgba(120,80,10,.6),
+             0 5px 0 #6d4a08, 0 12px 26px rgba(255,194,60,.3)}
+.bt.p:active{box-shadow:inset 0 2px 0 rgba(255,255,255,.5), 0 0 0 #6d4a08}
 .bt.g{width:100%}
-.bt[disabled]{opacity:.38;pointer-events:none}
-.bt.pq{padding:8px 12px;font-size:12px;border-radius:10px}
-/* brilho que passa uma vez pelo botão principal */
-.bt.p:before{content:'';position:absolute;inset:0;border-radius:inherit;overflow:hidden;
-  background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.55) 50%,transparent 62%);
-  background-size:260% 100%;animation:varre 3.6s ease-in-out infinite;pointer-events:none}
-@keyframes varre{0%,62%{background-position:170% 0}92%,100%{background-position:-70% 0}}
-
-/* ───────── painéis com cantoneira ─────────
-   a marca da casa: quatro cantos marcados, como planta técnica */
-.pn{position:relative;background:linear-gradient(170deg,var(--painel2),var(--painel));
-    border:1px solid var(--borda);border-radius:15px;
-    box-shadow:0 10px 30px rgba(0,0,0,.42), inset 0 1px 0 var(--luz)}
-.pn:before,.pn:after{content:'';position:absolute;width:11px;height:11px;pointer-events:none;
-  border-color:color-mix(in srgb,var(--fc,var(--ouro)) 62%, transparent);opacity:.75}
-.pn:before{left:7px;top:7px;border-left:2px solid;border-top:2px solid;border-radius:4px 0 0 0}
-.pn:after{right:7px;bottom:7px;border-right:2px solid;border-bottom:2px solid;border-radius:0 0 4px 0}
+.bt[disabled]{filter:saturate(.25) brightness(.65);pointer-events:none}
+.bt.pq{padding:9px 13px;font-size:12px;border-radius:10px;
+  box-shadow:inset 0 2px 0 var(--luzT), inset 0 -3px 0 var(--escT), 0 3px 0 var(--traco)}
+.bt.pq:active{transform:translateY(3px)}
+/* o brilho que atravessa o botão principal */
+.bt.p:before{content:'';position:absolute;inset:0;border-radius:9px;overflow:hidden;
+  background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.6) 50%,transparent 62%);
+  background-size:260% 100%;animation:varre 3.4s ease-in-out infinite;pointer-events:none}
+@keyframes varre{0%,60%{background-position:170% 0}90%,100%{background-position:-70% 0}}
 
 /* ═══════════ TÍTULO ═══════════ */
 #t-titulo{justify-content:center;align-items:center;text-align:center}
-.logo{position:relative;font-size:clamp(34px,10.6vw,68px);font-weight:800;letter-spacing:.1em;
-      margin:0 0 0 .1em;line-height:1;max-width:100%;
-      background:linear-gradient(180deg,#fff 6%,var(--ouro2) 42%,#a8792a 100%);
-      -webkit-background-clip:text;background-clip:text;color:transparent;
-      filter:drop-shadow(0 5px 22px rgba(239,181,75,.28))}
-.logo:after{content:'MNEMONIC';position:absolute;inset:0;
-  background:linear-gradient(105deg,transparent 42%,rgba(255,255,255,.9) 50%,transparent 58%);
-  background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
-  animation:varre 5s ease-in-out infinite 1s}
-.lema{color:var(--txt2);font-size:clamp(10px,2.8vw,12px);letter-spacing:.22em;
-      text-transform:uppercase;margin:14px 0 30px;padding:0 4px}
-.lema b{color:var(--ouro);font-weight:800}
-.menu{display:flex;flex-direction:column;gap:9px;width:min(330px,88vw)}
-.creditos{position:absolute;bottom:calc(11px + env(safe-area-inset-bottom));
-          font-size:10.5px;color:var(--txt3);letter-spacing:.08em}
+.logo{position:relative;font-size:clamp(38px,11.5vw,72px);font-weight:900;letter-spacing:.06em;
+      margin:0;line-height:1;max-width:100%;color:var(--ouro2);
+      text-shadow:0 4px 0 var(--ouroE), 0 7px 0 rgba(0,0,0,.85),
+                  0 0 34px rgba(255,194,60,.55)}
+.lema{color:var(--osso2);font-size:clamp(10px,2.9vw,12.5px);letter-spacing:.2em;
+      text-transform:uppercase;margin:16px 0 32px;padding:0 4px;font-weight:800}
+.lema b{color:var(--ouro)}
+.menu{display:flex;flex-direction:column;gap:11px;width:min(330px,90vw)}
+.creditos{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom));
+          font-size:10.5px;color:var(--osso3);letter-spacing:.1em;font-weight:800;
+          text-transform:uppercase}
 #fundo{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
-#fundo i{position:absolute;display:block;border-radius:7px;
-  border:1px solid var(--borda);
-  background:repeating-linear-gradient(45deg,rgba(255,255,255,.022) 0 2px,transparent 2px 6px),
-             linear-gradient(160deg,#151c2c,#0c1119);
+#fundo i{position:absolute;display:block;border-radius:9px;
+  border:2px solid var(--traco);
+  background:repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0 3px,transparent 3px 9px),
+             linear-gradient(160deg,#20355c,#0d182b);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.1);
   animation:cai linear infinite}
-@keyframes cai{from{transform:translateY(-110px) rotate(var(--a))}
-               to{transform:translateY(114vh) rotate(calc(var(--a) + 46deg))}}
+@keyframes cai{from{transform:translateY(-120px) rotate(var(--a))}
+               to{transform:translateY(116vh) rotate(calc(var(--a) + 50deg))}}
 
-/* ═══════════ CABEÇALHO DE COMBATE ═══════════ */
+/* ═══════════ O QUADRO DE COMBATE ═══════════ */
 #topo{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;margin-bottom:7px}
-.chefe{display:flex;align-items:center;gap:7px;padding:5px 11px;border-radius:99px;
-       background:linear-gradient(180deg,rgba(255,106,90,.16),rgba(255,106,90,.06));
-       border:1px solid rgba(255,106,90,.42);font-size:11px;font-weight:750;
-       min-width:0;overflow:hidden;box-shadow:0 0 18px rgba(255,106,90,.14)}
-.chefe .pico{flex:0 0 16px}.chefe .pico .gl{width:16px;height:16px}
-.chefe b{color:var(--perigo)}
-.chefe span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt2)}
-.onde{margin-left:auto;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
-      color:var(--txt3);font-weight:800;white-space:nowrap}
-.ico{width:31px;height:31px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;
-     background:linear-gradient(180deg,var(--alto),var(--painel2));
-     border:1px solid var(--borda);color:var(--txt2);
-     box-shadow:0 2px 0 #070a12, inset 0 1px 0 var(--luz)}
-.ico:active{transform:translateY(1px)}
-.ico .gl{width:16px;height:16px}
+.faixa{display:flex;align-items:center;gap:7px;min-height:26px}
+.chefe{display:flex;align-items:center;gap:7px;padding:4px 11px;border-radius:99px;
+       background:linear-gradient(180deg,var(--vermelho),#c02b2e);
+       border:2px solid var(--traco);color:#fff;font-size:10.5px;font-weight:900;
+       letter-spacing:.05em;text-transform:uppercase;min-width:0;overflow:hidden;
+       text-shadow:0 1px 0 rgba(0,0,0,.5);
+       box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 3px 0 var(--traco)}
+.chefe .pico{flex:0 0 15px}.chefe .pico .gl{width:15px;height:15px}
+.chefe span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  opacity:.9;font-weight:800;text-transform:none;letter-spacing:0}
+.onde{margin-left:auto;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+      color:var(--osso3);font-weight:900;white-space:nowrap}
+.ico{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;
+     background:linear-gradient(180deg,var(--alto),var(--placa2));
+     border:2px solid var(--traco);color:var(--osso2);
+     box-shadow:inset 0 2px 0 var(--luzT), 0 3px 0 var(--traco)}
+.ico:active{transform:translateY(3px);box-shadow:inset 0 2px 0 var(--luzT), 0 0 0 var(--traco)}
+.ico .gl{width:17px;height:17px}
 
-/* placar */
-.placar{display:flex;align-items:baseline;gap:8px;min-width:0}
-.pts{font-size:clamp(28px,8.6vw,38px);font-weight:800;line-height:.95;
-     background:linear-gradient(180deg,#fff,var(--ouro2) 55%,var(--ouro));
-     -webkit-background-clip:text;background-clip:text;color:transparent;
-     filter:drop-shadow(0 2px 10px rgba(239,181,75,.28));transition:filter .2s}
-.pts.up{animation:ptsUp .5s cubic-bezier(.2,1.4,.4,1)}
-@keyframes ptsUp{0%{transform:scale(1)}34%{transform:scale(1.16);filter:drop-shadow(0 2px 22px rgba(255,223,154,.75))}100%{transform:scale(1)}}
-.meta{font-size:12.5px;color:var(--txt3);font-weight:750;white-space:nowrap}
-.barra{height:8px;border-radius:99px;background:#080b13;
-       border:1px solid var(--borda);overflow:hidden;position:relative;
-       box-shadow:inset 0 1px 3px rgba(0,0,0,.6)}
-.barra i{display:block;height:100%;min-width:4px;width:0;border-radius:99px;position:relative;
-  background:linear-gradient(90deg,#a8792a,var(--ouro) 60%,var(--ouro2));
-  box-shadow:0 0 12px rgba(239,181,75,.5);
+/* o QUADRO: o objetivo e o placar, na mesma peça */
+#quadro{display:flex;align-items:stretch;gap:0;padding:9px 12px 11px;overflow:hidden}
+#quadro:before{content:'';position:absolute;inset:0;border-radius:10px;pointer-events:none;
+  background:radial-gradient(80% 120% at 50% 120%, rgba(255,194,60,.14), transparent 62%)}
+.alvo{flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;gap:3px;
+  padding-right:12px;border-right:2px solid rgba(0,0,0,.45);position:relative;z-index:1}
+.alvo .k{font-size:9px;letter-spacing:.19em;text-transform:uppercase;
+  color:var(--osso3);font-weight:900}
+.alvo .v{font-size:23px;font-weight:900;color:var(--ouro2);line-height:1;
+  text-shadow:0 2px 0 var(--ouroE), 0 4px 0 rgba(0,0,0,.7)}
+.placarcx{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-end;
+  justify-content:center;padding-left:12px;position:relative;z-index:1}
+#pts{font-size:clamp(34px,11vw,52px);font-weight:900;line-height:.92;color:#fff;
+  text-shadow:0 3px 0 rgba(0,0,0,.9), 0 6px 0 rgba(0,0,0,.4),
+              0 0 26px rgba(255,226,163,.6)}
+#pts.up{animation:ptsUp .55s cubic-bezier(.2,1.5,.35,1)}
+@keyframes ptsUp{0%{transform:scale(1)}32%{transform:scale(1.2);
+  text-shadow:0 3px 0 rgba(0,0,0,.9), 0 6px 0 rgba(0,0,0,.4), 0 0 48px #ffe6a3}
+  100%{transform:scale(1)}}
+.barra{height:9px;border-radius:99px;background:#050b16;margin-top:5px;
+       border:2px solid var(--traco);overflow:hidden;position:relative;width:100%;
+       box-shadow:inset 0 2px 4px rgba(0,0,0,.8)}
+.barra i{display:block;height:100%;min-width:5px;width:0;border-radius:99px;position:relative;
+  background:linear-gradient(180deg,var(--ouro2),var(--ouro) 55%,#d08d10);
+  box-shadow:0 0 12px rgba(255,194,60,.7), inset 0 1px 0 rgba(255,255,255,.5);
   transition:width .5s cubic-bezier(.2,.9,.25,1)}
-.barra i:after{content:'';position:absolute;inset:0;border-radius:99px;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);
-  background-size:220% 100%;animation:varre 2.4s linear infinite}
-.barra.cheia i{background:linear-gradient(90deg,#2f9e6b,var(--bom) 60%,#cffce6);
-  box-shadow:0 0 18px rgba(102,230,166,.6)}
+.barra.cheia i{background:linear-gradient(180deg,var(--verde2),var(--verde) 55%,#189a52);
+  box-shadow:0 0 16px rgba(79,224,138,.8), inset 0 1px 0 rgba(255,255,255,.5)}
 
-/* medidores */
-.medidores{display:flex;gap:6px;flex-wrap:wrap;align-items:stretch}
-.med{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:10px;
-     background:linear-gradient(180deg,var(--painel2),var(--painel));
-     border:1px solid var(--borda);box-shadow:inset 0 1px 0 var(--luz)}
-.med .i{width:14px;height:14px;flex:0 0 14px;color:var(--txt3)}
-.med .i .gl{width:14px;height:14px;stroke-width:2.1}
-.med .k{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--txt3);
-        font-weight:800;white-space:nowrap}
-.med .v{font-weight:800;font-size:15px}
-.med.al{border-color:rgba(255,106,90,.55);background:linear-gradient(180deg,rgba(255,106,90,.15),rgba(255,106,90,.05));
-        animation:alerta 1.3s ease-in-out infinite}
-.med.al .v,.med.al .i{color:var(--perigo)}
-@keyframes alerta{0%,100%{box-shadow:inset 0 1px 0 var(--luz),0 0 0 rgba(255,106,90,0)}
-                  50%{box-shadow:inset 0 1px 0 var(--luz),0 0 14px rgba(255,106,90,.35)}}
-.focos{display:flex;gap:3px}
-.focos b{width:10px;height:10px;border-radius:50%;display:block;
-  background:radial-gradient(circle at 35% 30%,#ff9d90,var(--perigo));
-  box-shadow:0 0 9px rgba(255,106,90,.6)}
-.focos b.off{background:#222a3c;box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
-.focos b.perdeu{animation:apaga .5s ease both}
-@keyframes apaga{0%{transform:scale(1.5);box-shadow:0 0 20px var(--perigo)}100%{transform:scale(1)}}
+/* a placa do COMBO: a segunda estrela da tela */
+#combo{display:flex;align-items:center;gap:10px;padding:8px 13px;--c:var(--osso3)}
+#combo .cn{flex:1;min-width:0;font-size:12px;font-weight:900;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--osso2);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;text-shadow:0 2px 0 rgba(0,0,0,.7)}
+#combo .cm{font-size:24px;font-weight:900;line-height:1;color:var(--osso2);
+  text-shadow:0 2px 0 rgba(0,0,0,.85)}
+#combo.viva .cn{color:var(--c)}
+#combo.viva .cm{color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.85), 0 0 18px var(--c)}
+#combo.sobe{animation:pulsa .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pulsa{0%{transform:scale(1)}36%{transform:scale(1.07)}100%{transform:scale(1)}}
 
-/* combo */
-.combo{margin-left:auto;display:flex;align-items:center;gap:8px;padding:4px 11px 4px 9px;
-  border-radius:99px;border:1px solid var(--borda);
-  background:linear-gradient(180deg,var(--painel2),var(--painel));
-  transition:border-color .25s, box-shadow .25s, background .25s}
-.combo .n{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--txt3);white-space:nowrap}
-.combo .m{font-size:15px;font-weight:800;color:var(--txt2)}
-.combo.viva{border-color:color-mix(in srgb,var(--cc,var(--ouro)) 60%,transparent);
-  background:linear-gradient(180deg,color-mix(in srgb,var(--cc,var(--ouro)) 18%,var(--painel2)),var(--painel));
-  box-shadow:0 0 16px color-mix(in srgb,var(--cc,var(--ouro)) 26%,transparent)}
-.combo.viva .n{color:var(--cc,var(--ouro))}
-.combo.viva .m{color:#fff}
-.combo.sobe{animation:pulsa .42s cubic-bezier(.2,1.5,.4,1)}
-@keyframes pulsa{0%{transform:scale(1)}38%{transform:scale(1.2)}100%{transform:scale(1)}}
+/* as três placas de recurso */
+.medidores{display:flex;gap:6px}
+.med{flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:7px 9px;--c:var(--osso3)}
+.med .i{width:19px;height:19px;flex:0 0 19px;color:var(--c);
+  filter:drop-shadow(0 1px 0 rgba(0,0,0,.7))}
+.med .i .gl{width:19px;height:19px;stroke-width:2.3}
+.med .cx{min-width:0;display:flex;flex-direction:column;gap:0}
+.med .v{font-size:19px;font-weight:900;line-height:1;color:#fff;
+  text-shadow:0 2px 0 rgba(0,0,0,.85)}
+.med .k{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--osso3);
+  font-weight:900;line-height:1.5}
+.med.al{animation:alerta 1.1s ease-in-out infinite}
+.med.al .v{color:var(--vermelho2)}
+@keyframes alerta{0%,100%{box-shadow:inset 0 2px 0 var(--luzT), inset 0 -4px 0 var(--escT),
+  0 4px 0 var(--traco)}
+  50%{box-shadow:inset 0 2px 0 var(--luzT), inset 0 -4px 0 var(--escT),
+  0 4px 0 var(--traco), 0 0 22px rgba(255,79,82,.7)}}
+.focos{display:flex;gap:3px;padding-top:2px}
+.focos b{width:12px;height:12px;border-radius:50%;display:block;
+  background:radial-gradient(circle at 35% 28%,#ffb0a4,var(--vermelho) 62%,#a8201f);
+  border:1.5px solid var(--traco);
+  box-shadow:0 0 9px rgba(255,79,82,.8), inset 0 1px 0 rgba(255,255,255,.4)}
+.focos b.off{background:#101c30;box-shadow:inset 0 2px 3px rgba(0,0,0,.9)}
+.focos b.perdeu{animation:apaga .55s ease both}
+@keyframes apaga{0%{transform:scale(1.9);box-shadow:0 0 28px var(--vermelho)}100%{transform:scale(1)}}
 
 /* ═══════════ A MESA ═══════════ */
-#area{flex:1;min-height:0;display:grid;place-items:center;position:relative;padding:6px 0}
-/* a superfície: as cartas precisam estar SOBRE alguma coisa */
-#feltro{position:absolute;inset:0;border-radius:20px;pointer-events:none;
+#area{flex:1;min-height:0;display:grid;place-items:center;position:relative;padding:5px 0}
+#feltro{position:absolute;inset:0;border-radius:18px;pointer-events:none;
   background:
-    radial-gradient(120% 100% at 50% 0%, rgba(255,255,255,.035), rgba(255,255,255,0) 62%),
-    linear-gradient(170deg,#101728,#0a0e18);
-  border:1px solid var(--borda);
-  box-shadow:0 22px 50px rgba(0,0,0,.55), inset 0 1px 0 var(--luz),
-             inset 0 0 60px rgba(0,0,0,.5)}
-#feltro:before,#feltro:after{content:'';position:absolute;width:14px;height:14px;
-  border-color:rgba(239,181,75,.4)}
-#feltro:before{left:9px;top:9px;border-left:2px solid;border-top:2px solid;border-radius:5px 0 0 0}
-#feltro:after{right:9px;bottom:9px;border-right:2px solid;border-bottom:2px solid;border-radius:0 0 5px 0}
-#mesa{display:grid;gap:var(--gap,7px);justify-content:center;align-content:center;position:relative;z-index:1}
+    radial-gradient(110% 90% at 50% 0%, rgba(255,255,255,.05), rgba(255,255,255,0) 58%),
+    repeating-linear-gradient(45deg, rgba(0,0,0,.06) 0 3px, transparent 3px 7px),
+    linear-gradient(170deg,var(--feltro),var(--feltro2));
+  border:2px solid var(--traco);
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.07), inset 0 -6px 22px rgba(0,0,0,.7),
+             0 8px 26px rgba(0,0,0,.6)}
+#mesa{display:grid;gap:var(--gap,7px);justify-content:center;align-content:center;
+  position:relative;z-index:1}
 
 /* ───────── a carta ───────── */
-.ct{perspective:800px;position:relative;background:none;border:0;
+.ct{perspective:900px;position:relative;background:none;border:0;
     width:var(--cel);height:calc(var(--cel)*1.34)}
 .fx{position:absolute;inset:0;transform-style:preserve-3d;
-    transition:transform .38s cubic-bezier(.34,1.1,.36,1)}
+    transition:transform .38s cubic-bezier(.34,1.12,.36,1)}
 .ct.ab .fx{transform:rotateY(180deg)}
 .fr,.ff{position:absolute;inset:0;border-radius:var(--r);
         backface-visibility:hidden;-webkit-backface-visibility:hidden;
-        display:grid;place-items:center;overflow:hidden}
-/* verso: relevo de papel com selo */
+        display:grid;place-items:center;overflow:hidden;
+        border:2px solid var(--traco)}
+/* verso: peça grossa com selo */
 .fr{background:
-      repeating-linear-gradient(45deg,rgba(255,255,255,.03) 0 2px,transparent 2px 7px),
-      radial-gradient(120% 90% at 50% 0%, #232d44, #131a28 62%, #0d1220);
-    border:1px solid #2d3852;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.09), inset 0 -8px 18px rgba(0,0,0,.45),
-               0 3px 7px rgba(0,0,0,.5)}
-.fr:before{content:'';position:absolute;inset:5px;border-radius:calc(var(--r) - 4px);
-  border:1px solid rgba(239,181,75,.11)}
-.fr:after{content:'';width:38%;height:38%;border-radius:50%;
-  border:1.5px solid rgba(239,181,75,.22);
-  box-shadow:inset 0 0 0 3px rgba(239,181,75,.07)}
-/* frente: cor da família, moldura clara, glifo grande */
-.ff{transform:rotateY(180deg);color:var(--fc);padding:11%;
+      repeating-linear-gradient(45deg,rgba(255,255,255,.045) 0 3px,transparent 3px 9px),
+      radial-gradient(120% 92% at 50% 0%, #35507f, #1b2c4c 58%, #101c31);
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.16), inset 0 -6px 12px rgba(0,0,0,.55),
+               0 4px 0 rgba(0,0,0,.55)}
+.fr:before{content:'';position:absolute;inset:5px;border-radius:calc(var(--r) - 5px);
+  border:2px solid rgba(255,194,60,.16)}
+.fr:after{content:'';width:36%;height:36%;border-radius:50%;
+  border:2.5px solid rgba(255,194,60,.3);
+  box-shadow:inset 0 0 0 4px rgba(255,194,60,.09), 0 0 10px rgba(255,194,60,.15)}
+/* frente: cor cheia da família */
+.ff{transform:rotateY(180deg);color:#fff;padding:11%;
     background:
-      radial-gradient(115% 85% at 50% 0%, color-mix(in srgb,var(--fc) 22%, #131a2a), #0b1018 72%);
-    border:1.5px solid color-mix(in srgb,var(--fc) 62%, transparent);
-    box-shadow:inset 0 0 26px color-mix(in srgb,var(--fc) 18%, transparent),
-               inset 0 1px 0 rgba(255,255,255,.16), 0 3px 10px rgba(0,0,0,.5)}
-.ff .gl{stroke-width:2;filter:drop-shadow(0 0 7px color-mix(in srgb,var(--fc) 55%,transparent))}
+      radial-gradient(112% 84% at 50% 0%, color-mix(in srgb,var(--fc) 62%, #0d1728),
+                      color-mix(in srgb,var(--fc) 16%, #08111f) 78%);
+    box-shadow:inset 0 3px 0 color-mix(in srgb,var(--fc) 70%,transparent),
+               inset 0 -6px 12px rgba(0,0,0,.5), 0 4px 0 rgba(0,0,0,.55)}
+.ff .gl{stroke-width:2.4;color:#fff;
+  filter:drop-shadow(0 2px 0 rgba(0,0,0,.55)) drop-shadow(0 0 10px var(--fc))}
 
-/* ①  RECONHECIMENTO — as duas se acendem e se seguram um instante.
-      É o momento que faltava: antes, a carta era resolvida pelo motor e a
-      tela apagava as duas antes de a segunda terminar de virar. */
-.ct.par{z-index:6;animation:parPulso .62s cubic-bezier(.25,1.3,.4,1) both}
+/* ① RECONHECER */
+.ct.par{z-index:6;animation:parPulso .62s cubic-bezier(.25,1.35,.4,1) both}
 .ct.par .ff{border-color:#fff;
-  box-shadow:0 0 0 2px color-mix(in srgb,var(--fc) 75%,transparent),
-             0 0 30px color-mix(in srgb,var(--fc) 70%,transparent),
-             inset 0 0 34px color-mix(in srgb,var(--fc) 40%,transparent)}
-.ct.par .ff .gl{stroke-width:2.3;color:#fff;
-  filter:drop-shadow(0 0 12px var(--fc)) drop-shadow(0 0 22px var(--fc))}
-@keyframes parPulso{0%{transform:scale(1)}42%{transform:scale(1.17) translateY(-4px)}
-                    100%{transform:scale(1.08) translateY(-2px)}}
-/* ②  SELADA — o par NÃO some. Fica no lugar, apagado e carimbado.
-      Duas razões: num jogo da memória tirar cartas remexe a grade e
-      embaralha o que o jogador tinha decorado das outras; e ver o
-      tabuleiro se apagando é a única medida honesta do quanto já foi
-      feito. Some do jogo sem sumir da tela. */
+  box-shadow:0 0 0 3px var(--fc), 0 0 34px var(--fc),
+             inset 0 3px 0 rgba(255,255,255,.55), inset 0 0 34px color-mix(in srgb,var(--fc) 55%,transparent)}
+.ct.par .ff .gl{filter:drop-shadow(0 0 14px #fff) drop-shadow(0 0 26px var(--fc))}
+@keyframes parPulso{0%{transform:scale(1)}42%{transform:scale(1.19) translateY(-5px)}
+                    100%{transform:scale(1.09) translateY(-3px)}}
+/* ② SELAR — a peça fica no tabuleiro, carimbada */
 .ct.selando{z-index:5;animation:selar .55s cubic-bezier(.3,1.1,.35,1) both}
-@keyframes selar{0%{transform:scale(1.17) translateY(-4px);filter:brightness(1.9)}
-  38%{transform:scale(.93) translateY(2px);filter:brightness(1.15)}
-  70%{transform:scale(1.04) translateY(-1px)}
+@keyframes selar{0%{transform:scale(1.19) translateY(-5px);filter:brightness(2)}
+  38%{transform:scale(.92) translateY(3px);filter:brightness(1.2)}
+  70%{transform:scale(1.05) translateY(-1px)}
   100%{transform:scale(1);filter:brightness(1)}}
 .ct.feito{pointer-events:none}
-.ct.feito .ff{filter:saturate(.22) brightness(.5);
-  border-color:rgba(239,181,75,.42);
-  box-shadow:inset 0 0 22px rgba(0,0,0,.65), 0 1px 4px rgba(0,0,0,.4)}
-.ct.feito .ff .gl{filter:none;opacity:.55}
+.ct.feito .ff{filter:saturate(.2) brightness(.42);border-color:rgba(255,194,60,.5)}
+.ct.feito .ff .gl{filter:none;opacity:.5}
 .ct.feito .selo{opacity:.3}
-.ct.feito .ok{position:absolute;right:4px;top:4px;width:15px;height:15px;z-index:4;
-  color:var(--ouro);filter:drop-shadow(0 1px 3px rgba(0,0,0,.9))}
-.ct.feito .ok .gl{width:15px;height:15px;stroke-width:2.4}
-/* ③  SAÍDA DE VERDADE — só para o que realmente deixa o tabuleiro:
-      bomba que estoura, chefe que apaga um par. */
+.ct.feito .ok{position:absolute;right:4px;top:4px;width:16px;height:16px;z-index:4;
+  color:var(--ouro);filter:drop-shadow(0 1px 2px #000)}
+.ct.feito .ok .gl{width:16px;height:16px;stroke-width:2.8}
+/* ③ SAIR de verdade */
 .ct.sai{z-index:5;animation:saiCarta .55s cubic-bezier(.4,0,.25,1) both}
-@keyframes saiCarta{
-  0%{transform:scale(1);opacity:1;filter:brightness(1.6)}
-  50%{transform:scale(1.12) rotateZ(-5deg);opacity:.9;filter:brightness(2.2)}
-  100%{transform:scale(.2) rotateZ(22deg);opacity:0;filter:brightness(3)}}
-/* a casa vazia que a carta deixou: a grade não se mexe nunca */
+@keyframes saiCarta{0%{transform:scale(1);opacity:1;filter:brightness(1.7)}
+  50%{transform:scale(1.14) rotateZ(-6deg);opacity:.9;filter:brightness(2.4)}
+  100%{transform:scale(.18) rotateZ(24deg);opacity:0;filter:brightness(3)}}
 .vazio{width:var(--cel);height:calc(var(--cel)*1.34);border-radius:var(--r);
-  border:1px dashed rgba(38,49,74,.75);background:rgba(0,0,0,.18)}
+  border:2px dashed rgba(255,255,255,.09);background:rgba(0,0,0,.25);
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.6)}
 /* erro */
 .ct.nao{z-index:6}
-.ct.nao .ff{border-color:var(--perigo);
-  box-shadow:0 0 0 2px rgba(255,106,90,.85), 0 0 26px rgba(255,106,90,.5)}
+.ct.nao .ff{border-color:#fff;box-shadow:0 0 0 3px var(--vermelho), 0 0 30px rgba(255,79,82,.7)}
 .ct.nao .fx{animation:tremer .5s cubic-bezier(.36,.07,.19,.97)}
 @keyframes tremer{0%,100%{transform:rotateY(180deg) translateX(0)}
-  15%{transform:rotateY(180deg) translateX(-7px)}
-  30%{transform:rotateY(180deg) translateX(7px)}
-  45%{transform:rotateY(180deg) translateX(-5px)}
-  60%{transform:rotateY(180deg) translateX(5px)}
+  15%{transform:rotateY(180deg) translateX(-8px)}
+  30%{transform:rotateY(180deg) translateX(8px)}
+  45%{transform:rotateY(180deg) translateX(-6px)}
+  60%{transform:rotateY(180deg) translateX(6px)}
   80%{transform:rotateY(180deg) translateX(-2px)}}
-/* gelo trincando */
 .ct.trinca .ff{animation:trincar .5s ease}
-@keyframes trincar{0%,100%{filter:none}25%{filter:brightness(2.2) hue-rotate(-16deg)}
-                   50%{filter:brightness(.7)}75%{filter:brightness(1.8)}}
-.ct.marc .fr{border-color:rgba(239,181,75,.75);
-  box-shadow:0 0 0 1px rgba(239,181,75,.5),0 0 16px rgba(239,181,75,.28),
-             inset 0 1px 0 rgba(255,255,255,.09)}
+@keyframes trincar{0%,100%{filter:none}25%{filter:brightness(2.4)}
+                   50%{filter:brightness(.6)}75%{filter:brightness(1.9)}}
+.ct.marc .fr{border-color:var(--ouro);
+  box-shadow:0 0 0 2px rgba(255,194,60,.6), 0 0 18px rgba(255,194,60,.4),
+             inset 0 3px 0 rgba(255,255,255,.16)}
 .ct.pisca .fr{animation:piscaCarta 1.2s ease-in-out 2}
-@keyframes piscaCarta{0%,100%{box-shadow:inset 0 1px 0 rgba(255,255,255,.09)}
-  50%{box-shadow:0 0 0 2px rgba(127,212,255,.85),0 0 20px rgba(127,212,255,.5)}}
-.ct.chega{animation:chega .42s cubic-bezier(.2,1.1,.35,1) both;animation-delay:var(--d,0ms)}
-@keyframes chega{from{opacity:0;transform:translateY(-16px) scale(.85) rotateZ(-6deg)}
+@keyframes piscaCarta{0%,100%{box-shadow:inset 0 3px 0 rgba(255,255,255,.16)}
+  50%{box-shadow:0 0 0 3px var(--azul), 0 0 24px rgba(79,184,255,.7)}}
+.ct.chega{animation:chega .45s cubic-bezier(.2,1.15,.35,1) both;animation-delay:var(--d,0ms)}
+@keyframes chega{from{opacity:0;transform:translateY(-22px) scale(.8) rotateZ(-7deg)}
                  to{opacity:1;transform:none}}
+/* a carta que se pode tocar respira de leve */
+.ct:not(.feito):not(.ab):active{transform:translateY(3px) scale(.97)}
 
-/* selos na carta: o que o jogo já te contou fica escrito nela */
-.selo{position:absolute;z-index:3;font-size:8px;font-weight:800;letter-spacing:.06em;
-      padding:1px 4px;border-radius:5px;line-height:1.4;white-space:nowrap;
-      background:rgba(6,8,14,.92);border:1px solid currentColor;
-      box-shadow:0 1px 4px rgba(0,0,0,.5)}
+/* selos na carta */
+.selo{position:absolute;z-index:3;font-size:8px;font-weight:900;letter-spacing:.05em;
+      padding:1.5px 4px;border-radius:5px;line-height:1.35;white-space:nowrap;
+      background:#04080f;border:1.5px solid currentColor;
+      box-shadow:0 2px 0 rgba(0,0,0,.6)}
 .selo.tp{left:4px;bottom:4px;max-width:calc(100% - 8px);overflow:hidden;text-overflow:ellipsis}
-.selo.pv{right:4px;top:4px;color:var(--perigo)}
-.selo.of{left:4px;top:4px;color:var(--frio)}
-.selo.mi{right:4px;bottom:4px;color:#e05a8a}
+.selo.pv{right:4px;top:4px;color:var(--vermelho)}
+.selo.of{left:4px;top:4px;color:var(--azul)}
+.selo.mi{right:4px;bottom:4px;color:var(--rosa)}
 .selo.eg{right:4px;top:4px;color:var(--ouro)}
 
-/* ───────── efeitos soltos sobre a mesa ───────── */
+/* ───────── efeitos sobre a mesa ───────── */
 .onda{position:absolute;z-index:7;border-radius:50%;pointer-events:none;
-  border:2px solid var(--fc,#fff);animation:onda .66s cubic-bezier(.15,.7,.3,1) both}
-@keyframes onda{from{width:12px;height:12px;opacity:.95;transform:translate(-50%,-50%)}
-  to{width:190px;height:190px;opacity:0;transform:translate(-50%,-50%)}}
-.raio{position:absolute;z-index:7;height:3px;transform-origin:0 50%;pointer-events:none;
-  border-radius:3px;
+  border:3px solid var(--fc,#fff);animation:onda .68s cubic-bezier(.15,.7,.3,1) both}
+@keyframes onda{from{width:14px;height:14px;opacity:1;transform:translate(-50%,-50%)}
+  to{width:210px;height:210px;opacity:0;transform:translate(-50%,-50%)}}
+.raio{position:absolute;z-index:7;height:5px;transform-origin:0 50%;pointer-events:none;
+  border-radius:4px;
   background:linear-gradient(90deg,transparent,var(--fc,#fff),#fff,var(--fc,#fff),transparent);
-  box-shadow:0 0 14px var(--fc,#fff);animation:raio .55s ease-out both}
-@keyframes raio{0%{opacity:0;filter:brightness(2.4);transform:scaleY(.2)}
-  22%{opacity:1;transform:scaleY(1.4)}100%{opacity:0;transform:scaleY(.3)}}
-.faisca{position:absolute;z-index:8;width:5px;height:5px;border-radius:50%;pointer-events:none;
-  background:var(--fc,#fff);box-shadow:0 0 8px var(--fc,#fff);
-  animation:faisca .72s cubic-bezier(.2,.7,.3,1) both}
-@keyframes faisca{0%{transform:translate(-50%,-50%) scale(1.3);opacity:1}
+  box-shadow:0 0 18px var(--fc,#fff);animation:raio .58s ease-out both}
+@keyframes raio{0%{opacity:0;filter:brightness(2.6);transform:scaleY(.2)}
+  22%{opacity:1;transform:scaleY(1.5)}100%{opacity:0;transform:scaleY(.3)}}
+.faisca{position:absolute;z-index:8;width:7px;height:7px;border-radius:50%;pointer-events:none;
+  background:#fff;box-shadow:0 0 12px var(--fc,#fff), 0 0 4px #fff;
+  animation:faisca .78s cubic-bezier(.2,.7,.3,1) both}
+@keyframes faisca{0%{transform:translate(-50%,-50%) scale(1.4);opacity:1}
   100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(0);opacity:0}}
-.voa{position:absolute;z-index:9;font-weight:800;pointer-events:none;text-align:center;
-     animation:voa 1.05s cubic-bezier(.15,.85,.3,1) both;line-height:1.05}
-.voa .g{display:block;font-size:31px;letter-spacing:-.02em;
-  background:linear-gradient(180deg,#fff,var(--ouro2) 60%,var(--ouro));
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 2px 8px rgba(0,0,0,.85)) drop-shadow(0 0 12px rgba(239,181,75,.6))}
-.voa .x{display:block;font-size:12.5px;font-weight:800;color:var(--ouro);letter-spacing:.08em;
-  text-shadow:0 2px 6px rgba(0,0,0,.9)}
-@keyframes voa{0%{transform:translate(-50%,-50%) scale(.5);opacity:0}
-  16%{transform:translate(-50%,-76%) scale(1.2);opacity:1}
-  26%{transform:translate(-50%,-84%) scale(1)}
-  100%{transform:translate(-50%,-215%) scale(.92);opacity:0}}
-.voa.ruim .g{background:linear-gradient(180deg,#ffd7d2,var(--perigo));
-  -webkit-background-clip:text;background-clip:text;
-  filter:drop-shadow(0 2px 8px rgba(0,0,0,.85))}
-.voa.frio .g{background:linear-gradient(180deg,#dff3ff,var(--frio));
-  -webkit-background-clip:text;background-clip:text;font-size:16px}
-.voa.moeda .g{background:linear-gradient(180deg,#fff3cf,#ffc93f);
-  -webkit-background-clip:text;background-clip:text;font-size:18px}
+.voa{position:absolute;z-index:9;font-weight:900;pointer-events:none;text-align:center;
+     animation:voa 1.1s cubic-bezier(.15,.85,.3,1) both;line-height:1}
+.voa .g{display:block;font-size:34px;color:#fff;
+  text-shadow:0 3px 0 rgba(0,0,0,.95), 0 6px 0 rgba(0,0,0,.5), 0 0 22px var(--ouro)}
+.voa .x{display:block;font-size:12px;color:var(--ouro2);letter-spacing:.09em;margin-top:3px;
+  text-transform:uppercase;text-shadow:0 2px 0 rgba(0,0,0,.9)}
+@keyframes voa{0%{transform:translate(-50%,-50%) scale(.4);opacity:0}
+  15%{transform:translate(-50%,-80%) scale(1.25);opacity:1}
+  25%{transform:translate(-50%,-88%) scale(1)}
+  100%{transform:translate(-50%,-225%) scale(.9);opacity:0}}
+.voa.ruim .g{text-shadow:0 3px 0 rgba(0,0,0,.95), 0 0 22px var(--vermelho)}
+.voa.frio .g{font-size:22px;text-shadow:0 3px 0 rgba(0,0,0,.95), 0 0 20px var(--azul)}
+.voa.moeda .g{font-size:26px;text-shadow:0 3px 0 rgba(0,0,0,.95), 0 0 20px var(--ouro)}
 
 /* ═══════════ BARRA DE BAIXO ═══════════ */
 #baixo{flex:0 0 auto;display:flex;gap:7px;align-items:center;margin-top:7px}
-.fer{position:relative;display:flex;align-items:center;gap:9px;padding:10px 13px;border-radius:12px;
-     background:linear-gradient(180deg,var(--alto),var(--painel2));
-     border:1px solid var(--borda);font-weight:750;font-size:13px;flex:1;min-width:0;
-     box-shadow:0 2px 0 #070a12, inset 0 1px 0 var(--luz)}
-.fer:active{transform:translateY(2px);box-shadow:0 0 0 #070a12}
-.fer .fi{width:19px;height:19px;flex:0 0 19px;color:var(--ouro)}
-.fer .fi .gl{width:19px;height:19px}
-.fer .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fer .u{margin-left:auto;font-size:10.5px;color:var(--txt3);font-weight:800;flex:0 0 auto;
+.fer{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:10px 13px;
+     --c:var(--ouro);font-weight:900}
+.fer .fi{width:21px;height:21px;flex:0 0 21px;color:var(--ouro);
+  filter:drop-shadow(0 1px 0 rgba(0,0,0,.8))}
+.fer .fi .gl{width:21px;height:21px}
+.fer .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;
+  letter-spacing:.03em;text-transform:uppercase;text-shadow:0 2px 0 rgba(0,0,0,.8)}
+.fer .u{margin-left:auto;font-size:11px;color:var(--osso3);font-weight:900;flex:0 0 auto;
         letter-spacing:.06em;text-transform:uppercase}
-.fer[disabled]{opacity:.4}
-.fer.pronta{border-color:rgba(239,181,75,.55);box-shadow:0 2px 0 #070a12,
-  inset 0 1px 0 var(--luz), 0 0 16px rgba(239,181,75,.16)}
-.fer.armada{border-color:var(--ouro);animation:alertaOuro 1s ease-in-out infinite}
-@keyframes alertaOuro{0%,100%{box-shadow:0 0 0 rgba(239,181,75,0)}
-                      50%{box-shadow:0 0 20px rgba(239,181,75,.5)}}
-.relq{display:flex;gap:5px;overflow-x:auto;max-width:42%;padding:2px}
+.fer[disabled]{filter:saturate(.2) brightness(.6)}
+.fer:not([disabled]):active{transform:translateY(4px)}
+.fer.armada{animation:alertaOuro .9s ease-in-out infinite}
+@keyframes alertaOuro{0%,100%{box-shadow:inset 0 2px 0 var(--luzT), inset 0 -4px 0 var(--escT),
+  0 4px 0 var(--traco)}
+  50%{box-shadow:inset 0 2px 0 var(--luzT), 0 4px 0 var(--traco), 0 0 26px var(--ouro)}}
+.relq{display:flex;gap:5px;overflow-x:auto;max-width:42%;padding:2px 2px 5px}
 .relq::-webkit-scrollbar{display:none}
-.relq b{flex:0 0 auto;width:33px;height:33px;border-radius:10px;display:grid;place-items:center;
-        background:linear-gradient(180deg,var(--painel2),var(--painel));
-        border:1px solid color-mix(in srgb,currentColor 45%,var(--borda));
-        box-shadow:inset 0 1px 0 var(--luz), 0 0 10px color-mix(in srgb,currentColor 20%,transparent)}
-.relq b .gl{width:17px;height:17px}
+.relq b{flex:0 0 auto;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;
+        background:linear-gradient(180deg,color-mix(in srgb,currentColor 40%,var(--placa)),var(--placa2));
+        border:2px solid var(--traco);
+        box-shadow:inset 0 2px 0 rgba(255,255,255,.25), 0 3px 0 var(--traco)}
+.relq b .gl{width:18px;height:18px;color:#fff;filter:drop-shadow(0 1px 0 rgba(0,0,0,.7))}
+.relq b:active{transform:translateY(3px);box-shadow:inset 0 2px 0 rgba(255,255,255,.25), 0 0 0 var(--traco)}
 .relq b.nova{animation:chega .5s cubic-bezier(.2,1.3,.4,1) both}
 
 /* ═══════════ FICHA ═══════════ */
-.folha{position:fixed;inset:0;z-index:40;display:none;background:rgba(4,6,11,.82);
-       backdrop-filter:blur(5px);padding:13px;overflow-y:auto;overscroll-behavior:contain}
+.folha{position:fixed;inset:0;z-index:40;display:none;background:rgba(3,7,15,.86);
+       backdrop-filter:blur(6px);padding:13px;overflow-y:auto;overscroll-behavior:contain}
 .folha.on{display:block;animation:entra .22s ease both}
-.cartao{max-width:520px;margin:auto;position:relative;
-        background:linear-gradient(170deg,var(--painel2),var(--painel));
-        border:1px solid var(--borda);border-radius:17px;padding:17px;
-        box-shadow:0 26px 70px rgba(0,0,0,.7), inset 0 1px 0 var(--luz)}
-.tag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.11em;
-     text-transform:uppercase;padding:2px 6px;border-radius:6px;vertical-align:1.5px;
-     border:1px solid currentColor;margin-left:6px;opacity:.9}
+.cartao{max-width:520px;margin:auto;position:relative;padding:18px;border-radius:16px;
+        background:linear-gradient(170deg,var(--placa),var(--placa2));
+        border:2px solid var(--traco);
+        box-shadow:inset 0 3px 0 var(--luzT), inset 0 -5px 0 var(--escT),
+                   0 6px 0 var(--traco), 0 26px 60px rgba(0,0,0,.8)}
 
-
-/* ═══════════ VITRINE — tudo que o jogo nomeia é uma PEÇA ═══════════
-   Nada de lista em lugar nenhum. Carta, família, classe, chefe, relíquia,
-   degrau de combo e até as palavras do jogo viram um LADRILHO que se toca,
-   e o texto mora atrás do toque. Uma lista o jogador varre com o olho e
-   esquece; uma vitrine ele percorre com o dedo, e o que ele abriu é o que
-   ele quis saber. */
-.vit{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(103px,1fr))}
+/* ═══════════ VITRINE — a coleção ═══════════ */
+.vit{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
 .lad{position:relative;overflow:hidden;display:flex;flex-direction:column;
-  align-items:center;gap:7px;padding:13px 8px 11px;border-radius:15px;
-  background:linear-gradient(168deg,color-mix(in srgb,var(--fc) 12%,var(--painel2)),var(--painel));
-  border:1px solid color-mix(in srgb,var(--fc) 36%,var(--borda));
-  box-shadow:0 5px 16px rgba(0,0,0,.42), inset 0 1px 0 var(--luz);
-  transition:transform .1s, box-shadow .18s, border-color .18s}
-.lad:active{transform:scale(.955)}
-.lad:before{content:'';position:absolute;left:0;right:0;top:0;height:2px;
-  background:linear-gradient(90deg,transparent,var(--fc),transparent)}
-.lad .ic{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
-  color:var(--fc);flex:0 0 auto;position:relative;z-index:1;
-  background:radial-gradient(92% 82% at 50% 14%,color-mix(in srgb,var(--fc) 28%,transparent),rgba(0,0,0,.3));
-  border:1px solid color-mix(in srgb,var(--fc) 50%,transparent);
-  box-shadow:inset 0 0 18px color-mix(in srgb,var(--fc) 20%,transparent),
-             0 3px 9px rgba(0,0,0,.4)}
-.lad .ic .gl{width:26px;height:26px;stroke-width:1.9;
-  filter:drop-shadow(0 0 7px color-mix(in srgb,var(--fc) 65%,transparent))}
-.lad .nm{font-size:11.5px;font-weight:800;text-align:center;line-height:1.24;
-  letter-spacing:-.005em;position:relative;z-index:1}
-.lad .tg{font-size:8.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--fc);opacity:.92;position:relative;z-index:1;text-align:center;
+  align-items:center;gap:7px;padding:13px 8px 12px;border-radius:14px;--c:var(--fc);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--fc) 30%,var(--placa)),
+                                    color-mix(in srgb,var(--fc) 6%,var(--placa2)));
+  border:2px solid var(--traco);
+  box-shadow:inset 0 2px 0 color-mix(in srgb,var(--fc) 50%,transparent),
+             inset 0 -4px 0 var(--escT), 0 4px 0 var(--traco), 0 8px 18px rgba(0,0,0,.5);
+  transition:transform .08s, box-shadow .08s}
+.lad:active{transform:translateY(4px);
+  box-shadow:inset 0 2px 0 color-mix(in srgb,var(--fc) 50%,transparent), 0 0 0 var(--traco)}
+.lad .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;
+  color:#fff;flex:0 0 auto;position:relative;z-index:1;
+  background:linear-gradient(180deg,var(--fc),color-mix(in srgb,var(--fc) 45%,#000));
+  border:2px solid var(--traco);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.45), 0 3px 0 var(--traco),
+             0 0 18px color-mix(in srgb,var(--fc) 45%,transparent)}
+.lad .ic .gl{width:26px;height:26px;stroke-width:2.3;
+  filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+.lad .nm{font-size:12px;font-weight:900;text-align:center;line-height:1.22;
+  position:relative;z-index:1;text-shadow:0 2px 0 rgba(0,0,0,.8)}
+.lad .tg{font-size:8.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+  color:color-mix(in srgb,var(--fc) 65%,#fff);position:relative;z-index:1;text-align:center;
   line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-  overflow:hidden}
-.lad .agu{position:absolute;right:-18px;bottom:-20px;width:82px;height:82px;opacity:.07;
-  color:var(--fc);pointer-events:none}
-.lad .agu .gl{width:82px;height:82px;stroke-width:1}
-.lad.grande{grid-column:span 2;flex-direction:row;align-items:center;text-align:left;
-  gap:12px;padding:13px}
-.lad.grande .nm{text-align:left;font-size:14px}
-.lad.grande .cx{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
-.lad.grande .ic{width:52px;height:52px}
-.lad.grande .ic .gl{width:29px;height:29px}
-.lad .qt{position:absolute;right:7px;top:7px;font-size:9.5px;font-weight:800;
-  color:var(--txt3);z-index:1}
+  overflow:hidden;text-shadow:0 1px 0 rgba(0,0,0,.8)}
+.lad .agu{position:absolute;right:-20px;bottom:-22px;width:86px;height:86px;opacity:.1;
+  color:#fff;pointer-events:none}
+.lad .agu .gl{width:86px;height:86px;stroke-width:1.4}
+.lad .qt{position:absolute;right:8px;top:7px;font-size:10px;font-weight:900;
+  color:#fff;opacity:.55;z-index:1;text-shadow:0 1px 0 rgba(0,0,0,.8)}
 
-/* ───────── MEDALHAS — número com cara de troféu, nunca linha de tabela ───────── */
-.meds{display:grid;gap:7px;grid-template-columns:repeat(auto-fill,minmax(102px,1fr))}
+/* ───────── MEDALHAS ───────── */
+.meds{display:grid;gap:7px;grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
 .mede{position:relative;display:flex;align-items:center;gap:9px;padding:10px 11px;
-  border-radius:13px;overflow:hidden;
-  background:linear-gradient(170deg,var(--painel2),var(--painel));
-  border:1px solid var(--borda);box-shadow:inset 0 1px 0 var(--luz),0 3px 10px rgba(0,0,0,.3)}
-.mede:before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
-  background:var(--fc,var(--ouro));opacity:.85}
-.mede .ic{width:24px;height:24px;flex:0 0 24px;color:var(--fc,var(--ouro))}
-.mede .ic .gl{width:24px;height:24px;stroke-width:2}
+  border-radius:12px;overflow:hidden;--c:var(--ouro);
+  background:linear-gradient(180deg,var(--placa),var(--placa2));
+  border:2px solid var(--traco);
+  box-shadow:inset 0 2px 0 var(--luzT), inset 0 -3px 0 var(--escT), 0 3px 0 var(--traco)}
+.mede:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.mede .ic{width:22px;height:22px;flex:0 0 22px;color:var(--c);
+  filter:drop-shadow(0 1px 0 rgba(0,0,0,.8))}
+.mede .ic .gl{width:22px;height:22px;stroke-width:2.3}
 .mede .cx{display:flex;flex-direction:column;gap:1px;min-width:0}
-.mede .vl{display:block;font-size:19px;font-weight:800;line-height:1.05;
-  font-variant-numeric:tabular-nums}
+.mede .vl{display:block;font-size:20px;font-weight:900;line-height:1.02;color:#fff;
+  font-variant-numeric:tabular-nums;text-shadow:0 2px 0 rgba(0,0,0,.85)}
 .mede .rt{display:block;font-size:8.5px;letter-spacing:.11em;text-transform:uppercase;
-  color:var(--txt3);font-weight:800;line-height:1.3}
-.mede.forte .vl{background:linear-gradient(180deg,#fff,var(--ouro2) 55%,var(--ouro));
-  -webkit-background-clip:text;background-clip:text;color:transparent}
+  color:var(--osso3);font-weight:900;line-height:1.3}
+.mede.forte .vl{color:var(--ouro2);text-shadow:0 2px 0 var(--ouroE), 0 4px 0 rgba(0,0,0,.7)}
 
-/* ───────── CHIPS — relíquias e coisas curtas que se tocam ───────── */
+/* ───────── CHIPS ───────── */
 .chips{display:flex;gap:7px;flex-wrap:wrap}
-.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 13px 7px 8px;
-  border-radius:99px;font-size:12px;font-weight:750;max-width:100%;
-  background:linear-gradient(180deg,color-mix(in srgb,var(--fc) 15%,var(--painel2)),var(--painel));
-  border:1px solid color-mix(in srgb,var(--fc) 45%,var(--borda));
-  box-shadow:inset 0 1px 0 var(--luz), 0 2px 8px rgba(0,0,0,.3);
-  transition:transform .1s}
-.chip:active{transform:scale(.95)}
-.chip .ic{width:24px;height:24px;flex:0 0 24px;border-radius:8px;display:grid;
-  place-items:center;color:var(--fc);
-  background:rgba(0,0,0,.32);border:1px solid color-mix(in srgb,var(--fc) 40%,transparent)}
-.chip .ic .gl{width:15px;height:15px;stroke-width:2}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 13px 7px 7px;
+  border-radius:99px;font-size:12.5px;font-weight:900;max-width:100%;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--fc) 34%,var(--placa)),var(--placa2));
+  border:2px solid var(--traco);text-shadow:0 1px 0 rgba(0,0,0,.8);
+  box-shadow:inset 0 2px 0 color-mix(in srgb,var(--fc) 45%,transparent), 0 3px 0 var(--traco);
+  transition:transform .08s}
+.chip:active{transform:translateY(3px);box-shadow:0 0 0 var(--traco)}
+.chip .ic{width:26px;height:26px;flex:0 0 26px;border-radius:8px;display:grid;
+  place-items:center;color:#fff;
+  background:linear-gradient(180deg,var(--fc),color-mix(in srgb,var(--fc) 45%,#000));
+  border:1.5px solid var(--traco);box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.chip .ic .gl{width:15px;height:15px;stroke-width:2.4}
 .chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chip.vazio{color:var(--txt3);border-style:dashed;--fc:var(--borda)}
+.chip.vazio{color:var(--osso3);--fc:#26314a}
 
-/* ───────── PÓDIO do ranking ───────── */
+/* ───────── PÓDIO ───────── */
 .podio{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:7px;align-items:end;
-  margin:2px 0 12px}
+  margin:4px 0 13px}
 .pod{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;
-  padding:11px 6px 9px;border-radius:14px;overflow:hidden;
-  background:linear-gradient(170deg,color-mix(in srgb,var(--fc) 16%,var(--painel2)),var(--painel));
-  border:1px solid color-mix(in srgb,var(--fc) 55%,var(--borda));
-  box-shadow:0 6px 20px rgba(0,0,0,.45), inset 0 1px 0 var(--luz)}
-.pod.p1{padding-top:16px;box-shadow:0 8px 28px rgba(0,0,0,.5),
-  0 0 26px color-mix(in srgb,var(--fc) 26%,transparent), inset 0 1px 0 var(--luz)}
-.pod .cor{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
-  font-size:14px;font-weight:800;color:#1a1204;
-  background:linear-gradient(180deg,#fff,var(--fc) 62%);
-  box-shadow:0 3px 10px rgba(0,0,0,.5), inset 0 -2px 5px rgba(0,0,0,.2)}
-.pod.p1 .cor{width:42px;height:42px;font-size:17px}
-.pod .qm{font-size:11.5px;font-weight:800;text-align:center;line-height:1.2;
-  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pod .pt{font-size:14px;font-weight:800;color:var(--fc);font-variant-numeric:tabular-nums}
-.pod .cl{font-size:8px;letter-spacing:.09em;text-transform:uppercase;color:var(--txt3);
-  font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-/* as demais posições: cartão, não linha de tabela */
+  padding:12px 6px 10px;border-radius:14px;overflow:hidden;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--fc) 32%,var(--placa)),var(--placa2));
+  border:2px solid var(--traco);
+  box-shadow:inset 0 2px 0 color-mix(in srgb,var(--fc) 55%,transparent),
+             inset 0 -4px 0 var(--escT), 0 4px 0 var(--traco), 0 8px 20px rgba(0,0,0,.55)}
+.pod.p1{padding-top:18px;box-shadow:inset 0 2px 0 rgba(255,255,255,.5),
+  inset 0 -4px 0 var(--escT), 0 5px 0 var(--traco), 0 0 34px color-mix(in srgb,var(--fc) 40%,transparent)}
+.pod .cor{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
+  font-size:16px;font-weight:900;color:#2a1c04;
+  background:linear-gradient(180deg,#fff,var(--fc) 60%);border:2px solid var(--traco);
+  box-shadow:0 3px 0 var(--traco), inset 0 -3px 6px rgba(0,0,0,.25)}
+.pod.p1 .cor{width:46px;height:46px;font-size:20px}
+.pod .qm{font-size:12px;font-weight:900;text-align:center;line-height:1.2;max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 2px 0 rgba(0,0,0,.8)}
+.pod .pt{font-size:16px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;
+  text-shadow:0 2px 0 rgba(0,0,0,.85)}
+.pod .cl{font-size:8px;letter-spacing:.09em;text-transform:uppercase;color:var(--osso3);
+  font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .fila{display:flex;flex-direction:column;gap:7px}
 .rk{display:flex;align-items:center;gap:10px;padding:9px 12px 9px 9px;border-radius:12px;
-  background:linear-gradient(170deg,var(--painel2),var(--painel));
-  border:1px solid var(--borda);box-shadow:inset 0 1px 0 var(--luz)}
-.rk.eu{border-color:var(--ouro);
-  background:linear-gradient(170deg,rgba(239,181,75,.16),var(--painel));
-  box-shadow:inset 0 1px 0 var(--luz),0 0 18px rgba(239,181,75,.18)}
-.rk .n{width:28px;height:28px;flex:0 0 28px;border-radius:9px;display:grid;place-items:center;
-  font-size:12px;font-weight:800;color:var(--txt2);background:rgba(0,0,0,.35);
-  border:1px solid var(--borda);font-variant-numeric:tabular-nums}
+  background:linear-gradient(180deg,var(--placa),var(--placa2));
+  border:2px solid var(--traco);
+  box-shadow:inset 0 2px 0 var(--luzT), 0 3px 0 var(--traco)}
+.rk.eu{background:linear-gradient(180deg,color-mix(in srgb,var(--ouro) 30%,var(--placa)),var(--placa2));
+  box-shadow:inset 0 2px 0 rgba(255,194,60,.5), 0 3px 0 var(--traco), 0 0 20px rgba(255,194,60,.25)}
+.rk .n{width:30px;height:30px;flex:0 0 30px;border-radius:9px;display:grid;place-items:center;
+  font-size:13px;font-weight:900;color:var(--osso2);background:#0a1424;
+  border:2px solid var(--traco);font-variant-numeric:tabular-nums}
 .rk .cx{flex:1;min-width:0}
-.rk .qm{font-size:13px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rk .sb{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3);
-  font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rk .pt{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ouro2)}
+.rk .qm{font-size:13.5px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk .sb{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--osso3);
+  font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk .pt{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--ouro2);
+  text-shadow:0 2px 0 rgba(0,0,0,.8)}
 
-/* ───────── FICHA aberta: a peça em tamanho grande ───────── */
-.pecao{display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;
+/* ───────── PEÇA ABERTA ───────── */
+.pecao{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
   padding:4px 0 2px}
-.pecao .ic{width:78px;height:78px;border-radius:22px;display:grid;place-items:center;
-  color:var(--fc);
-  background:radial-gradient(92% 82% at 50% 14%,color-mix(in srgb,var(--fc) 30%,transparent),rgba(0,0,0,.32));
-  border:1.5px solid color-mix(in srgb,var(--fc) 55%,transparent);
-  box-shadow:inset 0 0 30px color-mix(in srgb,var(--fc) 24%,transparent),
-             0 8px 24px rgba(0,0,0,.5)}
-.pecao .ic .gl{width:44px;height:44px;stroke-width:1.8;
-  filter:drop-shadow(0 0 10px color-mix(in srgb,var(--fc) 70%,transparent))}
-.pecao h3{margin:0;font-size:21px;font-weight:800;letter-spacing:-.015em;color:var(--fc)}
-.pecao .tx{font-size:14px;color:var(--txt);line-height:1.55;margin:0;max-width:40ch}
-.pecao .nt{font-size:12.5px;color:var(--txt3);font-style:italic;margin:0;max-width:40ch}
+.pecao .ic{width:84px;height:84px;border-radius:24px;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(180deg,var(--fc),color-mix(in srgb,var(--fc) 42%,#000));
+  border:3px solid var(--traco);
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.45), 0 5px 0 var(--traco),
+             0 0 40px color-mix(in srgb,var(--fc) 50%,transparent)}
+.pecao .ic .gl{width:46px;height:46px;stroke-width:2.2;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+.pecao h3{margin:0;font-size:23px;font-weight:900;letter-spacing:-.02em;color:#fff;
+  text-shadow:0 3px 0 rgba(0,0,0,.8), 0 0 22px color-mix(in srgb,var(--fc) 60%,transparent)}
+.pecao .tx{font-size:14.5px;color:var(--osso);line-height:1.55;margin:0;max-width:40ch;
+  font-weight:600}
+.pecao .nt{font-size:12.5px;color:var(--osso3);margin:0;max-width:40ch;font-weight:700}
 
 /* ═══════════ CARTÕES DE ESCOLHA ═══════════ */
-.grade{display:grid;gap:9px;grid-template-columns:repeat(auto-fill,minmax(158px,1fr))}
+.grade{display:grid;gap:9px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
 .grade.um{grid-template-columns:1fr}
-.op{position:relative;overflow:hidden;text-align:left;padding:14px;border-radius:15px;
-    background:linear-gradient(165deg,var(--painel2),var(--painel));
-    border:1px solid var(--borda);display:flex;flex-direction:column;gap:6px;
-    box-shadow:0 6px 20px rgba(0,0,0,.38), inset 0 1px 0 var(--luz);
-    transition:transform .11s, border-color .18s, box-shadow .18s}
-.op:active{transform:scale(.98) translateY(1px)}
-.op.esc{border-color:color-mix(in srgb,var(--fc,var(--ouro)) 70%,transparent);
-  box-shadow:0 8px 26px rgba(0,0,0,.45), 0 0 22px color-mix(in srgb,var(--fc,var(--ouro)) 22%,transparent),
-             inset 0 1px 0 var(--luz)}
-/* faixa de cor no topo: a identidade da opção antes de ler o nome */
-.op.esc:before{content:'';position:absolute;left:0;right:0;top:0;height:3px;
-  background:linear-gradient(90deg,transparent,var(--fc,var(--ouro)),transparent)}
-.op[disabled]{opacity:.42}
-.op h3{margin:0;font-size:15.5px;font-weight:800;letter-spacing:-.01em;padding-right:38px}
-.op .lm{font-size:11.5px;color:var(--txt3);font-style:italic}
-.op p{margin:0;font-size:12.5px;color:var(--txt2);line-height:1.5}
-.op .gf{position:absolute;right:12px;top:12px;width:26px;height:26px;opacity:.95}
-.op .gf .gl{width:26px;height:26px;stroke-width:1.7}
-/* marca-d'água gigante do glifo, no canto */
-.op .agua{position:absolute;right:-24px;bottom:-26px;width:112px;height:112px;opacity:.07;
-  pointer-events:none;color:var(--fc,var(--ouro))}
-.op .agua .gl{width:112px;height:112px;stroke-width:1.1}
-.op .pr{margin-top:auto;font-weight:800;font-size:12.5px;letter-spacing:.05em;
-        text-transform:uppercase;display:flex;align-items:center;gap:6px}
-.op .pr .gl{width:15px;height:15px}
-.op .stats{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
-.op .stats span{font-size:10px;color:var(--txt2);font-weight:800;white-space:nowrap;
-  text-transform:uppercase;letter-spacing:.07em;padding:2px 7px;border-radius:7px;
-  background:rgba(0,0,0,.3);border:1px solid var(--borda)}
-.op .stats b{color:var(--txt);font-weight:800}
-/* brilho de raridade que passa uma vez */
+.op{position:relative;overflow:hidden;text-align:left;padding:15px;border-radius:15px;
+    --c:var(--fc,var(--ouro));display:flex;flex-direction:column;gap:7px;
+    background:linear-gradient(180deg,color-mix(in srgb,var(--fc,var(--ouro)) 26%,var(--placa)),
+                                      color-mix(in srgb,var(--fc,var(--ouro)) 4%,var(--placa2)));
+    border:2px solid var(--traco);
+    box-shadow:inset 0 2px 0 color-mix(in srgb,var(--fc,var(--ouro)) 45%,transparent),
+               inset 0 -4px 0 var(--escT), 0 5px 0 var(--traco), 0 10px 22px rgba(0,0,0,.5);
+    transition:transform .08s, box-shadow .08s}
+.op:active{transform:translateY(5px);
+  box-shadow:inset 0 2px 0 color-mix(in srgb,var(--fc,var(--ouro)) 45%,transparent), 0 0 0 var(--traco)}
+.op[disabled]{filter:saturate(.2) brightness(.6)}
+.op h3{margin:0;font-size:17px;font-weight:900;letter-spacing:-.02em;
+  color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.8)}
+/* cabeçalho do cartão: distintivo e nome lado a lado. Antes o distintivo
+   era absoluto e empurrava o nome para duas linhas ("O / Cronomante"). */
+.op .cab{display:flex;align-items:center;gap:11px;min-width:0}
+.op .cab h3{flex:1;min-width:0}
+.op.larga{flex-direction:column}
+.grade.fila1{grid-template-columns:1fr}
+/* a caixinha da ferramenta: peça dentro da peça, como um bloco de regra
+   de carta. Antes o nome e a explicação disputavam a mesma linha flex e
+   o nome quebrava no meio ("MÃO / LEVE"). */
+.ferc{display:flex;align-items:flex-start;gap:10px;margin-top:2px;
+  padding:10px 12px;border-radius:11px;background:rgba(0,0,0,.34);
+  border:2px solid var(--traco);box-shadow:inset 0 2px 0 rgba(255,255,255,.06)}
+.ferc .ic{width:26px;height:26px;flex:0 0 26px;border-radius:8px;display:grid;
+  place-items:center;color:#fff;
+  background:linear-gradient(180deg,var(--fc),color-mix(in srgb,var(--fc) 45%,#000));
+  border:1.5px solid var(--traco);box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.ferc .ic .gl{width:15px;height:15px;stroke-width:2.4}
+.ferc .tx{flex:1;min-width:0;font-size:12.5px;color:var(--osso2);line-height:1.45;
+  font-weight:600}
+.ferc .tx b{display:block;color:#fff;font-weight:900;font-size:12.5px;letter-spacing:.07em;
+  text-transform:uppercase;margin-bottom:1px;text-shadow:0 2px 0 rgba(0,0,0,.8)}
+.op .lm{font-size:11.5px;color:color-mix(in srgb,var(--fc,var(--ouro)) 60%,#fff);
+  font-weight:800;font-style:italic}
+.op p{margin:0;font-size:13px;color:var(--osso2);line-height:1.5;font-weight:600}
+.op .gf{position:relative;flex:0 0 44px;width:44px;height:44px;border-radius:13px;
+  display:grid;place-items:center;color:#fff;
+  background:linear-gradient(180deg,var(--fc,var(--ouro)),color-mix(in srgb,var(--fc,var(--ouro)) 45%,#000));
+  border:2px solid var(--traco);box-shadow:inset 0 2px 0 rgba(255,255,255,.4), 0 3px 0 var(--traco)}
+.op .gf .gl{width:25px;height:25px;stroke-width:2.3}
+.op .agua{position:absolute;right:-26px;bottom:-28px;width:120px;height:120px;opacity:.09;
+  pointer-events:none;color:#fff}
+.op .agua .gl{width:120px;height:120px;stroke-width:1.3}
+.op .pr{margin-top:auto;font-weight:900;font-size:13px;letter-spacing:.06em;
+        text-transform:uppercase;display:flex;align-items:center;gap:7px;color:#fff;
+        text-shadow:0 2px 0 rgba(0,0,0,.8)}
+.op .pr .gl{width:17px;height:17px}
+.op .stats{display:flex;gap:5px;flex-wrap:wrap;margin-top:2px}
+.op .stats span{font-size:9.5px;color:var(--osso2);font-weight:900;white-space:nowrap;
+  text-transform:uppercase;letter-spacing:.05em;padding:3px 7px;border-radius:7px;
+  background:rgba(0,0,0,.42);border:1.5px solid var(--traco)}
+.op .stats b{color:#fff}
 .op.brilha:after{content:'';position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.16) 50%,transparent 60%);
-  background-size:300% 100%;animation:varre 4.5s ease-in-out infinite}
-.op .fita{position:absolute;left:-30px;top:11px;transform:rotate(-38deg);
-  background:var(--fc,var(--ouro));color:#1b1304;font-size:8.5px;font-weight:800;
-  letter-spacing:.14em;padding:2px 32px;text-transform:uppercase;
-  box-shadow:0 2px 8px rgba(0,0,0,.5)}
+  background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.2) 50%,transparent 60%);
+  background-size:300% 100%;animation:varre 4.2s ease-in-out infinite}
+.op .fita{position:absolute;left:-32px;top:13px;transform:rotate(-38deg);
+  background:linear-gradient(180deg,#fff,var(--fc,var(--ouro)));color:#221703;
+  font-size:9px;font-weight:900;letter-spacing:.14em;padding:3px 34px;text-transform:uppercase;
+  border-top:1.5px solid var(--traco);border-bottom:1.5px solid var(--traco);
+  box-shadow:0 3px 8px rgba(0,0,0,.6)}
 .op .vendido{position:absolute;inset:0;display:grid;place-items:center;
-  background:rgba(6,8,14,.7);font-size:13px;font-weight:800;letter-spacing:.2em;
-  color:var(--txt3);text-transform:uppercase}
+  background:rgba(3,7,15,.78);font-size:14px;font-weight:900;letter-spacing:.22em;
+  color:var(--osso3);text-transform:uppercase}
 
 /* ═══════════ MAPA ═══════════ */
 .trilha{display:flex;align-items:flex-start;padding:6px 0 2px;gap:0}
-.trilha::-webkit-scrollbar{display:none}
 .sala{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:5px;
-      position:relative;opacity:.4;transition:opacity .3s}
-.sala.feito{opacity:.8}
+      position:relative;opacity:.42;transition:opacity .3s}
+.sala.feito{opacity:.85}
 .sala.atual{opacity:1}
-.sala .bl{width:min(42px,11vw);height:min(42px,11vw);border-radius:13px;display:grid;place-items:center;
-          background:linear-gradient(180deg,var(--painel2),var(--painel));
-          border:1px solid var(--borda);position:relative;z-index:1;
-          box-shadow:0 3px 10px rgba(0,0,0,.45), inset 0 1px 0 var(--luz)}
-.sala.atual .bl{border-color:currentColor;
-  background:linear-gradient(180deg,color-mix(in srgb,currentColor 22%,var(--painel2)),var(--painel));
-  animation:respira 2.2s ease-in-out infinite}
-@keyframes respira{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 16%,transparent),0 3px 10px rgba(0,0,0,.45)}
-                   50%{box-shadow:0 0 0 8px color-mix(in srgb,currentColor 6%,transparent),0 0 20px color-mix(in srgb,currentColor 40%,transparent)}}
-.sala.feito .bl{border-color:rgba(102,230,166,.45)}
-.sala.feito .bl:after{content:'';position:absolute;right:-3px;top:-3px;width:14px;height:14px;
-  border-radius:50%;background:var(--bom);border:2px solid var(--tinta);
-  box-shadow:0 0 8px rgba(102,230,166,.7)}
-.sala .bl .gl{width:60%;height:60%}
-.sala .nm{font-size:7.5px;letter-spacing:.04em;text-transform:uppercase;
-          color:var(--txt3);font-weight:800;text-align:center;
-          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
-.sala.atual .nm{color:var(--txt)}
-.sala:not(:last-child):before{content:'';position:absolute;top:min(20px,5.5vw);
-  left:calc(50% + min(21px,5.5vw));width:calc(100% - min(42px,11vw));height:2px;
-  background:var(--borda);border-radius:2px}
-.sala.feito:not(:last-child):before{background:linear-gradient(90deg,rgba(102,230,166,.6),rgba(102,230,166,.25))}
+.sala .bl{width:min(44px,11.5vw);height:min(44px,11.5vw);border-radius:13px;display:grid;
+  place-items:center;position:relative;z-index:1;color:#fff;
+  background:linear-gradient(180deg,color-mix(in srgb,currentColor 38%,var(--placa)),var(--placa2));
+  border:2px solid var(--traco);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.25), 0 3px 0 var(--traco)}
+.sala.atual .bl{background:linear-gradient(180deg,currentColor,color-mix(in srgb,currentColor 45%,#000));
+  animation:respira 2s ease-in-out infinite}
+@keyframes respira{0%,100%{box-shadow:inset 0 2px 0 rgba(255,255,255,.45), 0 3px 0 var(--traco),
+    0 0 0 rgba(255,255,255,0)}
+  50%{box-shadow:inset 0 2px 0 rgba(255,255,255,.45), 0 3px 0 var(--traco),
+    0 0 24px currentColor}}
+.sala.feito .bl:after{content:'';position:absolute;right:-4px;top:-4px;width:16px;height:16px;
+  border-radius:50%;background:var(--verde);border:2px solid var(--traco);
+  box-shadow:0 0 10px rgba(79,224,138,.8)}
+.sala .bl .gl{width:56%;height:56%;filter:drop-shadow(0 1px 0 rgba(0,0,0,.6))}
+.sala .nm{font-size:7.5px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--osso3);font-weight:900;text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.sala.atual .nm{color:#fff}
+.sala:not(:last-child):before{content:'';position:absolute;top:min(21px,5.7vw);
+  left:calc(50% + min(22px,5.7vw));width:calc(100% - min(44px,11.5vw));height:3px;
+  background:#0a1424;border-radius:3px;border-top:1px solid rgba(0,0,0,.6)}
+.sala.feito:not(:last-child):before{background:var(--verde);box-shadow:0 0 8px rgba(79,224,138,.5)}
 
 /* ═══════════ FIM DE RUN ═══════════ */
-.grandao{font-size:clamp(30px,10.5vw,52px);font-weight:800;line-height:1;margin:0;
-         letter-spacing:-.02em}
-.selao{display:inline-flex;align-items:center;gap:8px;padding:7px 15px 7px 10px;
-  border-radius:99px;font-size:11px;font-weight:800;letter-spacing:.15em;
-  text-transform:uppercase;border:1px solid currentColor;
-  background:linear-gradient(180deg,color-mix(in srgb,currentColor 18%,transparent),rgba(0,0,0,.3));
-  box-shadow:0 0 18px color-mix(in srgb,currentColor 22%,transparent), inset 0 1px 0 var(--luz)}
-/* sem isto o ícone herda width:100% de .gl e engole a tela inteira */
-.selao svg{width:17px;height:17px;flex:0 0 17px}
+.grandao{font-size:clamp(32px,11.5vw,56px);font-weight:900;line-height:.98;margin:0;
+         letter-spacing:-.03em;color:#fff;
+         text-shadow:0 4px 0 rgba(0,0,0,.85), 0 0 30px var(--brilho,rgba(255,194,60,.5))}
+.selao{display:inline-flex;align-items:center;gap:8px;padding:8px 16px 8px 11px;
+  border-radius:99px;font-size:11px;font-weight:900;letter-spacing:.15em;
+  text-transform:uppercase;color:#fff;
+  background:linear-gradient(180deg,var(--fc),color-mix(in srgb,var(--fc) 45%,#000));
+  border:2px solid var(--traco);text-shadow:0 1px 0 rgba(0,0,0,.6);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.4), 0 3px 0 var(--traco),
+             0 0 24px color-mix(in srgb,var(--fc) 45%,transparent)}
+.selao svg{width:18px;height:18px;flex:0 0 18px}
 
-/* ═══════════ RANKING ═══════════ */
-.abas{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;margin-bottom:7px;flex:0 0 auto}
+/* ═══════════ ABAS ═══════════ */
+.abas{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;margin-bottom:7px;flex:0 0 auto}
 .abas::-webkit-scrollbar{display:none}
-.abas button{flex:0 0 auto;padding:8px 11px;border-radius:99px;font-size:11.5px;font-weight:800;
-             background:linear-gradient(180deg,var(--painel2),var(--painel));
-             border:1px solid var(--borda);color:var(--txt2);white-space:nowrap;
-             box-shadow:inset 0 1px 0 var(--luz)}
-.abas button.on{background:linear-gradient(180deg,rgba(239,181,75,.24),rgba(239,181,75,.08));
-                border-color:var(--ouro);color:var(--ouro2);
-                box-shadow:0 0 14px rgba(239,181,75,.2), inset 0 1px 0 var(--luz)}
+.abas button{flex:0 0 auto;padding:9px 13px;border-radius:10px;font-size:11.5px;font-weight:900;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--osso2);white-space:nowrap;
+  background:linear-gradient(180deg,var(--alto),var(--placa2));
+  border:2px solid var(--traco);text-shadow:0 1px 0 rgba(0,0,0,.7);
+  box-shadow:inset 0 2px 0 var(--luzT), 0 3px 0 var(--traco)}
+.abas button:active{transform:translateY(3px);box-shadow:0 0 0 var(--traco)}
+.abas button.on{color:#3a2606;
+  background:linear-gradient(180deg,#ffe9b0,var(--ouro) 55%);
+  text-shadow:0 1px 0 rgba(255,255,255,.5);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.6), 0 3px 0 #6d4a08}
 
-/* ═══════════ AVISO NO MEIO DA TELA ═══════════ */
-#aviso{position:fixed;left:50%;top:31%;transform:translate(-50%,-50%);z-index:50;
-  pointer-events:none;text-align:center;display:none;width:92%}
+/* ═══════════ AVISO ═══════════ */
+#aviso{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);z-index:50;
+  pointer-events:none;text-align:center;width:94%;display:none}
 #aviso.on{display:block;animation:avisoIn 1.6s cubic-bezier(.2,.9,.3,1) both}
-#aviso .a1{font-size:clamp(26px,9vw,44px);font-weight:800;letter-spacing:.02em;
-  background:linear-gradient(180deg,#fff,var(--ac,var(--ouro2)) 55%,var(--ac2,var(--ouro)));
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 4px 20px rgba(0,0,0,.9)) drop-shadow(0 0 26px var(--ag,rgba(239,181,75,.5)))}
-#aviso .a2{font-size:12px;color:var(--txt2);font-weight:800;letter-spacing:.18em;
-  text-transform:uppercase;margin-top:4px;text-shadow:0 2px 8px rgba(0,0,0,.9)}
-@keyframes avisoIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.72)}
-  11%{opacity:1;transform:translate(-50%,-50%) scale(1.07)}
-  19%{transform:translate(-50%,-50%) scale(1)}
+#aviso .a1{font-size:clamp(30px,10.5vw,52px);font-weight:900;letter-spacing:-.01em;color:#fff;
+  text-shadow:0 4px 0 rgba(0,0,0,.95), 0 8px 0 rgba(0,0,0,.5),
+              0 0 34px var(--ag,rgba(255,194,60,.8))}
+#aviso .a2{font-size:12px;color:var(--osso2);font-weight:900;letter-spacing:.18em;
+  text-transform:uppercase;margin-top:6px;text-shadow:0 2px 0 rgba(0,0,0,.95)}
+@keyframes avisoIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.65) rotate(-4deg)}
+  10%{opacity:1;transform:translate(-50%,-50%) scale(1.12) rotate(1deg)}
+  18%{transform:translate(-50%,-50%) scale(1) rotate(0)}
   74%{opacity:1;transform:translate(-50%,-50%) scale(1)}
-  100%{opacity:0;transform:translate(-50%,-64%) scale(1.02)}}
-
-/* clarão da tela inteira em momentos grandes */
+  100%{opacity:0;transform:translate(-50%,-66%) scale(1.03)}}
 #clarao{position:fixed;inset:0;z-index:45;pointer-events:none;opacity:0;
-  background:radial-gradient(70% 50% at 50% 42%,var(--cor,rgba(239,181,75,.5)),transparent 72%)}
+  background:radial-gradient(70% 50% at 50% 42%,var(--cor,rgba(255,194,60,.5)),transparent 72%)}
 #clarao.on{animation:clarao .62s ease-out both}
 @keyframes clarao{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
+
+/* ═══════════ O GUIA — ensina apontando ═══════════
+   O jogador reclamou que não entendia o que fazer, e ele tinha razão: o
+   jogo explicava tudo num menu que ninguém abre antes de jogar. Agora a
+   primeira sala ensina apontando para a coisa e falando dela. */
+#guia{position:fixed;inset:0;z-index:60;display:none}
+#guia.on{display:block}
+#guia .furo{position:absolute;border-radius:16px;pointer-events:none;
+  border:3px solid var(--ouro);
+  box-shadow:0 0 0 9999px rgba(3,7,15,.86), 0 0 30px rgba(255,194,60,.7),
+             inset 0 0 24px rgba(255,194,60,.25);
+  transition:all .4s cubic-bezier(.2,.9,.3,1);animation:furoPulsa 1.6s ease-in-out infinite}
+@keyframes furoPulsa{0%,100%{border-color:rgba(255,194,60,.85)}50%{border-color:rgba(255,255,255,.95)}}
+#guia .fala{position:absolute;left:12px;right:12px;padding:16px 17px 15px;border-radius:16px;
+  background:linear-gradient(180deg,var(--placa),var(--placa2));
+  border:2px solid var(--traco);
+  box-shadow:inset 0 3px 0 var(--luzT), 0 5px 0 var(--traco), 0 20px 44px rgba(0,0,0,.75);
+  transition:top .4s cubic-bezier(.2,.9,.3,1), bottom .4s cubic-bezier(.2,.9,.3,1)}
+#guia .fala .passo{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ouro);font-weight:900;margin-bottom:5px}
+#guia .fala h4{margin:0 0 6px;font-size:19px;font-weight:900;color:#fff;letter-spacing:-.02em;
+  text-shadow:0 2px 0 rgba(0,0,0,.8)}
+#guia .fala p{margin:0 0 13px;font-size:13.5px;color:var(--osso2);line-height:1.5;font-weight:600}
+#guia .fala .bts{display:flex;gap:8px}
+#guia .fala .bts .bt{flex:1}
 
 .topo-linha{display:flex;align-items:flex-start;gap:9px;margin-bottom:11px;flex:0 0 auto}
 .topo-linha .bt{flex:0 0 auto;margin-top:2px}
 .cabeca{flex:1;min-width:0}
-.cabeca .tit{font-size:clamp(17px,5vw,24px)}
-.pe{flex:0 0 auto;padding-top:9px;display:flex;flex-direction:column;gap:8px}
+.cabeca .tit{font-size:clamp(18px,5.4vw,26px)}
+.pe{flex:0 0 auto;padding-top:10px;display:flex;flex-direction:column;gap:9px}
 
 @media (prefers-reduced-motion:reduce){
   *,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;
@@ -670,10 +740,10 @@ svg{display:block}
     <h1 class="logo">MNEMONIC</h1>
     <p class="lema">o que você <b>lembra</b> é o que você tem</p>
     <div class="menu">
-      <button class="bt p g" data-ir="classe">NOVA RUN</button>
-      <button class="bt g" data-ir="diario">RUN DIÁRIA</button>
-      <button class="bt g" data-ir="rank">RANKING</button>
-      <button class="bt g" data-ir="livro">COMO SE JOGA</button>
+      <button class="bt p g" data-ir="classe">Jogar</button>
+      <button class="bt g" data-ir="diario">Run diária</button>
+      <button class="bt g" data-ir="rank">Ranking</button>
+      <button class="bt g" data-ir="livro">Coleção</button>
     </div>
     <div class="creditos">roguelike de memória · 48 salas · 6 chefes</div>
   </section>
@@ -683,28 +753,35 @@ svg{display:block}
 
   <section id="t-sala" class="tela">
     <div id="topo">
-      <div class="linha1">
+      <div class="faixa">
         <div id="chefe" class="chefe" hidden></div>
         <div id="onde" class="onde"></div>
-        <button id="bregras" class="ico" aria-label="regras desta sala"></button>
+        <button id="bregras" class="ico" aria-label="o que vale nesta sala"></button>
       </div>
-      <div class="linha1">
-        <div class="placar">
-          <span id="pts" class="pts num">0</span>
-          <span id="meta" class="meta num"></span>
+      <div id="quadro" class="placa">
+        <div class="alvo">
+          <span class="k">faça</span>
+          <span id="meta" class="v num">0</span>
+          <span class="k">pontos</span>
         </div>
-        <div id="combo" class="combo"><span class="n">sem combo</span><span class="m">×1,0</span></div>
+        <div class="placarcx">
+          <span id="pts" class="num">0</span>
+          <div id="barra" class="barra"><i></i></div>
+        </div>
       </div>
-      <div id="barra" class="barra"><i></i></div>
+      <div id="combo" class="placa cor"><span class="cn">sem combo</span><span class="cm num">×1,0</span></div>
       <div class="medidores">
-        <div id="mvir" class="med"><span class="i"></span><span class="k">viradas</span><span class="v num">0</span></div>
-        <div id="mfoc" class="med"><span class="i"></span><span class="k">foco</span><span class="focos"></span></div>
-        <div id="mmoe" class="med"><span class="i"></span><span class="k">moedas</span><span class="v num">0</span></div>
+        <div id="mvir" class="placa med" style="--c:var(--azul)">
+          <span class="i"></span><span class="cx"><span class="v num">0</span><span class="k">viradas</span></span></div>
+        <div id="mfoc" class="placa med" style="--c:var(--vermelho)">
+          <span class="i"></span><span class="cx"><span class="focos"></span><span class="k">foco</span></span></div>
+        <div id="mmoe" class="placa med" style="--c:var(--ouro)">
+          <span class="i"></span><span class="cx"><span class="v num">0</span><span class="k">moedas</span></span></div>
       </div>
     </div>
     <div id="area"><div id="feltro"></div><div id="mesa"></div></div>
     <div id="baixo">
-      <button id="bfer" class="fer"><span class="fi"></span><span class="nm">—</span><span class="u"></span></button>
+      <button id="bfer" class="placa fer"><span class="fi"></span><span class="nm">—</span><span class="u"></span></button>
       <div id="relq" class="relq"></div>
     </div>
   </section>
@@ -720,6 +797,17 @@ svg{display:block}
 <div id="folha" class="folha"><div id="folhac" class="cartao"></div></div>
 <div id="aviso"><div class="a1"></div><div class="a2"></div></div>
 <div id="clarao"></div>
+<div id="guia">
+  <div class="furo"></div>
+  <div class="fala">
+    <div class="passo"></div>
+    <h4></h4><p></p>
+    <div class="bts">
+      <button class="bt pq" id="guiaPular">Pular</button>
+      <button class="bt p pq" id="guiaOk">Entendi</button>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="js/ui/jogo.js"></script>
 </body>
