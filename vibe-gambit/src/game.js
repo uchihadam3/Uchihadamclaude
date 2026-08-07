@@ -418,8 +418,9 @@ function renderHubShop(mount){
       <div class="shop-list">${shopIds.map(cid=>{
         const owned = S.unlockedConditions.includes(cid); const cost = ACADEMY.conditionShop[cid];
         return `<div class="shop-item ${owned?'owned':''}">
-          <div class="si-name">${CONDITIONS[cid].label}</div>
-          ${ owned ? `<span class="si-owned">✓ Adquirido</span>`
+          <span class="si-ic">🎯</span>
+          <span class="si-name">${CONDITIONS[cid].label}</span>
+          ${ owned ? `<span class="si-owned">✓</span>`
                    : `<span class="si-cost">${costHTML(cost)}</span>
                       <button class="small shop-buy" data-id="${cid}" ${canAfford(cost)?'':'disabled'}>Comprar</button>` }
         </div>`;
