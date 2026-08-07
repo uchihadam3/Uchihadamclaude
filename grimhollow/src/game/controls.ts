@@ -4242,13 +4242,17 @@ function injectStyle() {
      O NÚMERO veio de comparar com o celular, que é o enquadramento que já estava
      certo: lá a arma fica a 0,166 altura do centro. O 'right:12%' antigo punha-a
      a 0,675 — quatro vezes mais longe, e é por isso que no monitor ela parecia
-     encostada na borda e o golpe parecia sair do canto. 0,48 fica no meio do
-     caminho: bem mais dentro do quadro, e ainda fora do terço central, que é
-     onde o inimigo aparece e não pode ser tapado.
+     encostada na borda e o golpe parecia sair do canto. 0,57 é o meio termo
+     escolhido olhando o resultado nas duas pontas: bem mais dentro do quadro que
+     os 0,675, e ainda longe do terço central, que é onde o inimigo aparece e não
+     pode ser tapado.
+     A conta é LINEAR no coeficiente — cada 10vh valem 0,10 altura —, então mudar
+     de ideia sobre este número é trocar um algarismo aqui e outro no sprite do
+     golpe, mantendo a diferença de 10,7 entre os dois.
      No retrato do celular o max() devolve os 12% de sempre, porque ali a conta
      dá negativa — o telefone não muda um pixel. */
   #gh-weapon-rig {
-    position:fixed; right:max(12%, calc(50vw - 48vh)); bottom:-4%;
+    position:fixed; right:max(12%, calc(50vw - 58vh)); bottom:-4%;
     height:62vh; max-height:calc(640px * var(--gh-ui,1));
     pointer-events:none; z-index:8;
     transform-origin:72% 90%;
@@ -4273,7 +4277,7 @@ function injectStyle() {
      ao golpear. Puxar os dois pelo mesmo tanto (−0,195) preserva o gesto; puxar
      só um faria a arma pular de lugar no instante do golpe. */
   #gh-weapon-atk {
-    position:fixed; right:max(6%, calc(50vw - 58.7vh)); bottom:-6%;
+    position:fixed; right:max(6%, calc(50vw - 68.7vh)); bottom:-6%;
     height:72vh; max-height:calc(720px * var(--gh-ui,1)); width:auto;
     pointer-events:none; z-index:9; opacity:0;
     transform-origin:82% 86%;
