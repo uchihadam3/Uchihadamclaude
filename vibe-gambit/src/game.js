@@ -288,8 +288,35 @@ function renderHubCenter(mount){
 
 // ================================================================ EDITOR DE GAMBITS (HUD estilo FF XII)
 let ghHero = null;
+let ghPick = null;   // {line, kind} quando o jogador está trocando condição/ação (lista inline)
+// Lista de blocos INLINE (dentro da própria janela de gambits) p/ trocar condição/ação
+function renderGhPicker(mount){
+  const hs = S.heroes.find(h=>h.id===ghHero); const def = HERO_DEFS.find(h=>h.id===hs.id);
+  const { line, kind } = ghPick; const isCond = kind==='condition';
+  const options = isCond ? S.unlockedConditions.map(c=>({id:c,label:CONDITIONS[c].label}))
+                         : def.skills.map(s=>({id:s,label:SKILLS[s].name}));
+  const current = isCond ? hs.gambits[line]?.condition : hs.gambits[line]?.action;
+  const badge = isCond ? 'CONDIÇÃO' : 'AÇÃO';
+  mount.innerHTML = `
+    <div class="gh-pkhead">
+      <button class="gh-back">← Voltar</button>
+      <div class="gh-pktitle">${isCond?'🛡️ Escolha a condição':'⚔️ Escolha a ação'}<small>Linha ${line+1}</small></div>
+    </div>
+    <div class="pk-list">${options.map(o=>`
+      <button class="pk-block ${isCond?'pk-cond':'pk-act'} ${o.id===current?'sel':''}" data-id="${o.id}">
+        <span class="pk-ic">${isCond?'🎯':'✦'}</span>
+        <span class="pk-tx"><small>${badge}</small><b>${o.label}</b></span>
+        ${o.id===current?'<span class="pk-ck">✓</span>':''}</button>`).join('')}</div>`;
+  mount.querySelector('.gh-back').onclick = () => { ghPick=null; renderGambitHUD(mount); };
+  mount.querySelectorAll('.pk-block').forEach(b => b.onclick = () => {
+    const id = b.dataset.id;
+    if(isCond) hs.gambits[line].condition = id; else hs.gambits[line].action = id;
+    save(S); ghPick=null; renderGambitHUD(mount);
+  });
+}
 function openGambitHUD(){
   if(!ghHero || !S.heroes.find(h=>h.id===ghHero)) ghHero = selHero || S.heroes[0].id;
+  ghPick = null;
   $('modal-root').innerHTML = `<div class="modal"><div class="box box-wide gh-box">
     <button class="modal-x" title="Fechar">✕</button>
     <h2>🧠 Editor de Gambits</h2>
@@ -305,6 +332,7 @@ function renderGambitHUD(mount){
   const hs = S.heroes.find(h=>h.id===ghHero); const def = HERO_DEFS.find(h=>h.id===hs.id);
   const condOpts = S.unlockedConditions;
   const rr = () => renderGambitHUD(mount);
+  if(ghPick){ renderGhPicker(mount); return; }   // trocando condição/ação -> mostra a lista inline
   const tabs = S.heroes.map(h=>{ const d = HERO_DEFS.find(x=>x.id===h.id);
     return `<button class="gh-tab ${h.id===ghHero?'on':''}" data-h="${h.id}" style="--acc:${accentOf(h.id)}">
       <img src="assets/${h.id}_face.png" alt=""><span>${d.name}</span></button>`; }).join('');
@@ -346,14 +374,8 @@ function renderGambitHUD(mount){
     <button class="gh-add small primary" ${canAdd?'':'disabled'}>+ Adicionar linha</button>`;
   mount.querySelectorAll('.gh-tab').forEach(b => b.onclick = () => { ghHero=b.dataset.h; rr(); });
   mount.querySelectorAll('.gpick').forEach(btn => btn.onclick = () => {
-    const line = +btn.dataset.line;
-    if(btn.dataset.kind==='condition'){
-      const opts = condOpts.map(c=>({ id:c, label:CONDITIONS[c].label }));
-      openBlockPicker('cond', opts, hs.gambits[line].condition, v => { hs.gambits[line].condition=v; save(S); rr(); });
-    } else {
-      const opts = def.skills.map(s=>({ id:s, label:SKILLS[s].name }));
-      openBlockPicker('act', opts, hs.gambits[line].action, v => { hs.gambits[line].action=v; save(S); rr(); });
-    }
+    ghPick = { line:+btn.dataset.line, kind:btn.dataset.kind };
+    rr();
   });
   mount.querySelectorAll('.gh-rm').forEach(x => x.onclick = () => { hs.gambits.splice(+x.dataset.i,1); save(S); rr(); });
   mount.querySelectorAll('.gh-toggle').forEach(t => t.onclick = () => { const g=hs.gambits[+t.dataset.i]; g.enabled = (g.enabled===false); save(S); rr(); });
@@ -419,25 +441,6 @@ function renderHubShop(mount){
 // ---- MODAIS ----
 function closeModal(){ $('modal-root').innerHTML=''; }
 // Seletor de BLOCOS (substitui o <select> nativo): lista estilizada azul(condição)/vermelho(ação)
-function openBlockPicker(kind, options, currentId, onPick){
-  const isCond = kind==='cond';
-  const title  = isCond ? '🛡️ Escolha a condição' : '⚔️ Escolha a ação';
-  const badge  = isCond ? 'CONDIÇÃO' : 'AÇÃO';
-  const ov = el(`<div class="picker-overlay"><div class="picker-box">
-    <h3 class="pk-title">${title}</h3>
-    <div class="pk-list">${options.map(o=>`
-      <button class="pk-block ${isCond?'pk-cond':'pk-act'} ${o.id===currentId?'sel':''}" data-id="${o.id}">
-        <span class="pk-ic">${isCond?'🎯':'✦'}</span>
-        <span class="pk-tx"><small>${badge}</small><b>${o.label}</b></span>
-        ${o.id===currentId?'<span class="pk-ck">✓</span>':''}
-      </button>`).join('')}</div>
-    <button class="pk-cancel">Cancelar</button>
-  </div></div>`);
-  document.body.appendChild(ov);
-  ov.addEventListener('click', e => { if(e.target===ov) ov.remove(); });
-  ov.querySelector('.pk-cancel').onclick = () => ov.remove();
-  ov.querySelectorAll('.pk-block').forEach(b => b.onclick = () => { const id=b.dataset.id; ov.remove(); onPick(id); });
-}
 // fecha por clique no fundo escuro + botão ✕
 function bindModalDismiss(){
   const m = $('modal-root').querySelector('.modal'); if(!m) return;
