@@ -5,14 +5,14 @@
 //   - Persistência simples em LocalStorage (save/load).
 // =============================================================================
 
-import { HERO_DEFS, RESOURCES_INIT, STAGES, CONDITIONS } from './data.js';
+import { HERO_DEFS, RESOURCES_INIT, STAGES, CONDITIONS, STARTER_INVENTORY } from './data.js';
 
 const SAVE_KEY = 'vibe_gambit_save_v1';
 
 // Cria um jogo novo (estado de fábrica).
 export function newGame(){
   return {
-    version: 1,
+    version: 2,
     resources: { ...RESOURCES_INIT },
     // Condições GLOBAIS desbloqueadas (a loja da Academia adiciona novas).
     unlockedConditions: Object.values(CONDITIONS).filter(c => c.starter).map(c => c.id),
@@ -21,10 +21,22 @@ export function newGame(){
       weaponLevel: h.weaponLevel,
       slots: h.slots,                          // linhas de gambit ativas (2..maxSlots)
       gambits: h.gambits.map(g => ({ ...g })), // cópia editável
+      equip: { weapon:null, armor:null, trinket:null },
     })),
+    inventory: [...STARTER_INVENTORY],          // itens possuídos (não equipados)
     stagesUnlocked: Object.fromEntries(STAGES.map(s => [s.id, s.unlocked])),
     progress: { currentStage: 'mossy_glen', clears: 0 },
   };
+}
+
+// Garante campos novos em saves antigos (migração leve, não-destrutiva).
+export function migrate(state){
+  if(!state) return state;
+  if(!Array.isArray(state.inventory)) state.inventory = [...STARTER_INVENTORY];
+  for(const hs of state.heroes || []){
+    if(!hs.equip) hs.equip = { weapon:null, armor:null, trinket:null };
+  }
+  return state;
 }
 
 // Persistência (silenciosa se LocalStorage indisponível, ex.: node/headless).
@@ -36,5 +48,5 @@ export function load(){
   try { const raw = localStorage.getItem(SAVE_KEY); return raw ? JSON.parse(raw) : null; }
   catch { return null; }
 }
-export function loadOrNew(){ return load() || newGame(); }
+export function loadOrNew(){ const s = load(); return s ? migrate(s) : newGame(); }
 export function wipe(){ try { localStorage.removeItem(SAVE_KEY); } catch {} }

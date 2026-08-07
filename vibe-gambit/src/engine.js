@@ -6,7 +6,7 @@
 //     a 1ª condição verdadeira executa a ação e PARA a busca daquela unidade.
 // =============================================================================
 
-import { SKILLS, HERO_DEFS, ENEMY_DEFS, ENEMY_GAMBITS, FORGE_LEVELS } from './data.js';
+import { SKILLS, HERO_DEFS, ENEMY_DEFS, ENEMY_GAMBITS, FORGE_LEVELS, itemBonuses } from './data.js';
 import { CONDITION_FNS, canPay, execute } from './gambits.js';
 
 // --- RNG determinístico (mulberry32) ----------------------------------------
@@ -24,15 +24,18 @@ export function makeRng(seed = 12345){
 // Unidade = "instância viva" no combate (hp/mp mutáveis + stats já resolvidos).
 export function unitFrom(def, side, opts = {}){
   const b = def.base;
+  const bon = opts.bonus || {};              // bônus de equipamento (atk/def/mag/spd/hp/mp)
+  const maxHp = b.hp + (bon.hp || 0);
+  const maxMp = b.mp + (bon.mp || 0);
   return {
     uid:   opts.uid || def.id,
     id:    def.id,
     name:  def.name,
     sprite:def.sprite,
     side,                                   // 'hero' | 'enemy'
-    maxHp: b.hp, hp: b.hp,
-    maxMp: b.mp, mp: b.mp,
-    stats: { atk: b.atk + (opts.atkBonus || 0), def: b.def, mag: b.mag, spd: b.spd },
+    maxHp, hp: maxHp,
+    maxMp, mp: maxMp,
+    stats: { atk: b.atk + (opts.atkBonus || 0) + (bon.atk || 0), def: b.def + (bon.def || 0), mag: b.mag + (bon.mag || 0), spd: b.spd + (bon.spd || 0) },
     gambits: opts.gambits || def.gambits || [],
     isBoss: !!opts.isBoss,
   };
@@ -53,6 +56,7 @@ export function buildParty(state){
       uid: def.id,
       gambits: hs.gambits,
       atkBonus: forgeAtkBonus(hs.weaponLevel),
+      bonus: itemBonuses(hs.equip),
     });
   });
 }

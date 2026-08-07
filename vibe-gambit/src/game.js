@@ -5,6 +5,7 @@
 
 import {
   SKILLS, CONDITIONS, HERO_DEFS, ENEMY_DEFS, STAGES, FORGE_LEVELS, ACADEMY,
+  ITEMS, ITEM_DROPS, itemBonuses,
 } from './data.js';
 import { loadOrNew, save, newGame } from './state.js';
 import { Combat, buildParty, buildWave, forgeAtkBonus } from './engine.js';
@@ -130,8 +131,10 @@ const EQUIP_SLOTS = [
   { key:'trinket',icon:'💍', label:'Acessório' },
 ];
 function heroEquip(hs){ return hs.equip || (hs.equip = { weapon:null, armor:null, trinket:null }); }
+let selHero = null;   // herói selecionado no painel de detalhes/inventário
 
 function renderBase(){
+  if(!selHero || !S.heroes.find(h=>h.id===selHero)) selHero = S.heroes[0].id;
   $('screen-base').innerHTML = `
     <div class="hub-fit">
       <div class="hub-stage">
@@ -149,10 +152,12 @@ function renderBase(){
           </div>
         </div>
       </div>
-    </div>`;
+    </div>
+    <div class="base-frame detail-frame" id="detail-frame"></div>`;
   renderHubParty($('hub-left'));
   renderHubCenter($('hub-center'));
   renderHubShop($('hub-right'));
+  renderDetail();
   $('screen-base').querySelector('.hub-x').onclick    = () => show('map');
   $('screen-base').querySelector('.hub-gear').onclick = () => openOptions();
   $('hub-cta').onclick = () => show('map');
@@ -170,29 +175,101 @@ function fitBase(){
   fit.style.height = (stage.offsetHeight * s) + 'px';
 }
 
-// ---- PAINEL ESQUERDO: 4 heróis (rosto) + ícones de equipamento ----
+// ---- PAINEL ESQUERDO: 4 heróis (rosto) + resumo de equipamento. Clicar = selecionar ----
 function renderHubParty(mount){
   mount.innerHTML = `<div class="panel-cap">🛡️ Sua Party</div>
     <div class="party-cards">${S.heroes.map(hs=>{
       const def = HERO_DEFS.find(h=>h.id===hs.id);
-      const {atk} = heroRuntimeStats(hs);
+      const {atk, hp} = heroRuntimeStats(hs);
       const eq = heroEquip(hs);
       const slots = EQUIP_SLOTS.map(s=>{
-        const filled = s.key==='weapon';   // arma sempre equipada (Forja)
-        const badge  = s.key==='weapon' ? `<b>+${hs.weaponLevel}</b>` : '';
-        return `<button class="eq-slot ${filled?'on':''}" data-id="${hs.id}" data-slot="${s.key}" title="${s.label}">
-          <span class="eq-ic">${s.icon}</span>${badge}</button>`;
+        const it = s.key==='weapon' ? null : ITEMS[eq[s.key]];
+        const filled = s.key==='weapon' || !!it;
+        const ic = s.key==='weapon' ? s.icon : (it ? it.icon : s.icon);
+        const badge = s.key==='weapon' ? `<b>+${hs.weaponLevel}</b>` : '';
+        return `<span class="eq-slot ${filled?'on':''}" title="${s.label}"><span class="eq-ic" style="${filled?'':'opacity:.4'}">${ic}</span>${badge}</span>`;
       }).join('');
-      return `<div class="party-card" style="--acc:${accentOf(def.id)}">
+      return `<div class="party-card ${hs.id===selHero?'sel':''}" data-id="${hs.id}" style="--acc:${accentOf(def.id)}">
         <div class="pc-face"><img src="assets/${def.id}_face.png" alt=""></div>
         <div class="pc-info">
           <div class="pc-nm">${def.name}</div>
-          <div class="pc-st">⚔️${atk} · ❤️${def.base.hp}</div>
+          <div class="pc-st">⚔️${atk} · ❤️${hp}</div>
           <div class="eq-row">${slots}</div>
         </div>
       </div>`;
     }).join('')}</div>`;
-  mount.querySelectorAll('.eq-slot').forEach(b => b.onclick = () => openEquip(b.dataset.id, b.dataset.slot));
+  mount.querySelectorAll('.party-card').forEach(c => c.onclick = () => {
+    selHero = c.dataset.id; renderHubParty(mount); renderDetail(); fitBase();
+  });
+}
+
+// ---- PAINEL INFERIOR: detalhes do herói selecionado + INVENTÁRIO ----
+function renderDetail(){
+  const frame = $('detail-frame'); if(!frame) return;
+  const hs = S.heroes.find(h=>h.id===selHero) || S.heroes[0];
+  const def = HERO_DEFS.find(h=>h.id===hs.id);
+  const rs = heroRuntimeStats(hs); const eq = heroEquip(hs);
+  const statChip = (ic,v)=>`<span class="d-stat">${ic}<b>${v}</b></span>`;
+  const slotsHTML = EQUIP_SLOTS.map(s=>{
+    if(s.key==='weapon'){
+      return `<button class="d-slot on" data-slot="weapon" style="--acc:${accentOf(hs.id)}">
+        <span class="ds-ic">⚔️</span><span class="ds-tx"><b>Arma</b><small>Nível ${hs.weaponLevel}/5 · Forja</small></span></button>`;
+    }
+    const it = ITEMS[eq[s.key]];
+    return `<button class="d-slot ${it?'on':''}" data-slot="${s.key}" style="--acc:${accentOf(hs.id)}">
+      <span class="ds-ic" style="${it?'':'opacity:.4'}">${it?it.icon:s.icon}</span>
+      <span class="ds-tx"><b>${s.label}</b><small>${it?it.name:'— vazio —'}</small></span>
+      ${it?'<span class="ds-x" title="Desequipar">✕</span>':''}</button>`;
+  }).join('');
+  const inv = S.inventory || [];
+  const invHTML = inv.length ? inv.map((iid,idx)=>{
+    const it = ITEMS[iid]; if(!it) return '';
+    const bon = Object.entries(it.bonus).map(([k,v])=>`+${v} ${k.toUpperCase()}`).join(' · ');
+    return `<button class="inv-item r-${it.rarity}" data-idx="${idx}" title="Equipar em ${def.name}">
+      <span class="ii-ic">${it.icon}</span><span class="ii-nm">${it.name}</span><span class="ii-bo">${bon}</span>
+      <span class="ii-slot">${it.slot==='armor'?'Armadura':'Acessório'}</span></button>`;
+  }).join('') : `<div class="inv-empty">Inventário vazio — itens caem nas expedições.</div>`;
+
+  frame.innerHTML = `
+    <div class="detail-title"><span>Herói & Inventário</span></div>
+    <div class="detail-body">
+      <div class="d-hero" style="--acc:${accentOf(hs.id)}">
+        <div class="d-face"><img src="assets/${def.id}_face.png" alt=""></div>
+        <div class="d-meta">
+          <div class="d-nm">${def.name} <small>${def.klass}</small></div>
+          <div class="d-stats">${statChip('⚔️',rs.atk)}${statChip('❤️',rs.hp)}${statChip('🔮',rs.mag)}${statChip('🛡️',rs.defense)}${statChip('👟',rs.spd)}${statChip('💧',rs.mp)}</div>
+        </div>
+      </div>
+      <div class="d-slots">${slotsHTML}</div>
+      <div class="inv-cap">🎒 Inventário <small>(toque num item p/ equipar em ${def.name})</small></div>
+      <div class="inv-grid">${invHTML}</div>
+    </div>`;
+
+  frame.querySelectorAll('.d-slot').forEach(b => b.onclick = (e) => {
+    const slot = b.dataset.slot;
+    if(slot==='weapon'){ openPanelModal('🔨 Forja', body=>renderForge(body, hs.id)); return; }
+    if(e.target.classList.contains('ds-x') || eq[slot]){ unequipItem(hs.id, slot); }
+  });
+  frame.querySelectorAll('.inv-item').forEach(b => b.onclick = () => equipItem(hs.id, +b.dataset.idx));
+}
+
+function equipItem(heroId, invIdx){
+  const hs = S.heroes.find(h=>h.id===heroId); const eq = heroEquip(hs);
+  const iid = S.inventory[invIdx]; const it = ITEMS[iid]; if(!it) return;
+  S.inventory.splice(invIdx,1);            // tira do inventário
+  if(eq[it.slot]) S.inventory.push(eq[it.slot]);  // devolve o que estava equipado
+  eq[it.slot] = iid;
+  save(S); refreshBase();
+}
+function unequipItem(heroId, slot){
+  const hs = S.heroes.find(h=>h.id===heroId); const eq = heroEquip(hs);
+  if(!eq[slot]) return;
+  S.inventory.push(eq[slot]); eq[slot] = null;
+  save(S); refreshBase();
+}
+function refreshBase(){
+  if($('hub-left')) renderHubParty($('hub-left'));
+  renderDetail(); fitBase();
 }
 
 // ---- COLUNA CENTRAL: ícones de menu (Forja · Academia · Mapa) ----
@@ -245,23 +322,6 @@ function openPanelModal(title, renderFn){
   renderFn($('pm-body'));
   $('pm-close').onclick = closeModal;
 }
-function openEquip(heroId, slot){
-  const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
-  const s  = EQUIP_SLOTS.find(x=>x.key===slot);
-  const body = slot==='weapon'
-    ? `<div class="eq-cur"><span class="eq-ic big">⚔️</span>
-         <div><b>Arma da classe</b><div class="muted tiny">Nível ${hs.weaponLevel}/5 — melhore na Forja (ATK permanente)</div></div></div>
-       <div id="eq-forge"></div>`
-    : `<div class="eq-empty"><span class="eq-ic big" style="opacity:.5">${s.icon}</span>
-         <div><b>Slot de ${s.label}</b><div class="muted tiny">Sem itens ainda — o inventário de ${s.label.toLowerCase()} chega numa próxima atualização.</div></div></div>`;
-  $('modal-root').innerHTML = `<div class="modal"><div class="box box-wide" style="--acc:${accentOf(heroId)}">
-    <h2><img class="mh-face" src="assets/${def.id}_face.png"> ${def.name} · ${s.label}</h2>
-    <div style="text-align:left">${body}</div>
-    <div class="row" style="justify-content:center;margin-top:12px"><button id="eq-close">Fechar</button></div>
-  </div></div>`;
-  if(slot==='weapon'){ renderForge($('eq-forge'), heroId); }
-  $('eq-close').onclick = closeModal;
-}
 function openOptions(){
   $('modal-root').innerHTML = `<div class="modal"><div class="box">
     <h2>⚙️ Opções</h2>
@@ -279,7 +339,14 @@ function openOptions(){
 
 function heroRuntimeStats(hs){
   const def = HERO_DEFS.find(h=>h.id===hs.id);
-  return { def, atk: def.base.atk + forgeAtkBonus(hs.weaponLevel), hp:def.base.hp, mag:def.base.mag, spd:def.base.spd, mp:def.base.mp };
+  const eb = itemBonuses(hs.equip);
+  return { def, eb,
+    atk: def.base.atk + forgeAtkBonus(hs.weaponLevel) + eb.atk,
+    hp:  def.base.hp  + eb.hp,
+    mag: def.base.mag + eb.mag,
+    spd: def.base.spd + eb.spd,
+    mp:  def.base.mp  + eb.mp,
+    defense: def.base.def + eb.def };
 }
 
 function renderForge(body, onlyId){
@@ -481,6 +548,9 @@ function expeditionCleared(){
   let unlockedMsg = '';
   if(next && !S.stagesUnlocked[next.id]){ S.stagesUnlocked[next.id]=true; unlockedMsg = `🔓 ${next.name} desbloqueada!`; }
   S.progress.clears = (S.progress.clears||0)+1;
+  // drop de itens de equipamento
+  expo.runLoot.items = expo.runLoot.items || [];
+  for(const d of ITEM_DROPS){ if(Math.random() < d.chance){ (S.inventory=S.inventory||[]).push(d.item); expo.runLoot.items.push(d.item); } }
   save(S);
   showBanner('win','🏆 VITÓRIA');
   logLine(`<span class="sys">🏆 Fase concluída! ${unlockedMsg}</span>`);
@@ -495,13 +565,15 @@ function expeditionWiped(){
 
 function lootModal(unlockedMsg){
   const L = expo ? expo.runLoot : {gold:0};
-  const items = Object.entries(L).filter(([,v])=>v>0)
+  const items = Object.entries(L).filter(([k,v])=>k!=='items'&&v>0)
     .map(([k,v])=>`<span>${RES_ICON[k]||''} ${v}</span>`).join('') || '<span class="muted">—</span>';
+  const drops = (L.items||[]).map(iid=>{ const it=ITEMS[iid]; return it?`<span class="drop">${it.icon} ${it.name}</span>`:''; }).join('');
   const root = $('modal-root');
   root.innerHTML = `<div class="modal"><div class="box">
     <h2>🏆 Expedição Vitoriosa!</h2>
     <p class="muted">Recompensas coletadas nesta corrida:</p>
     <div class="loot">${items}</div>
+    ${drops?`<p class="muted" style="margin:8px 0 2px">Itens encontrados:</p><div class="loot">${drops}</div>`:''}
     ${unlockedMsg?`<p style="color:var(--gold);font-weight:800;margin-bottom:6px">${unlockedMsg}</p>`:''}
     <div class="row" style="justify-content:center;margin-top:10px">
       <button class="primary" id="m-again">↻ Farmar de novo</button>

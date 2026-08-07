@@ -124,3 +124,34 @@ export const ACADEMY = {
     self_mp_low:     { gold:120, crystals:1 },
   },
 };
+
+// --- ITENS / EQUIPAMENTO -----------------------------------------------------
+// slot: 'armor' | 'trinket' (a "arma" é a arma de classe melhorada na Forja).
+// bonus: somado aos atributos do herói (em combate e na ficha). rarity p/ cor.
+export const ITEMS = {
+  leather_armor:{ id:'leather_armor', name:'Armadura de Couro', slot:'armor',   icon:'🦺', rarity:'comum', bonus:{ hp:20 } },
+  chain_mail:   { id:'chain_mail',    name:'Cota de Malha',     slot:'armor',   icon:'🛡️', rarity:'raro',  bonus:{ hp:35, def:3 } },
+  mage_robe:    { id:'mage_robe',     name:'Manto Arcano',      slot:'armor',   icon:'🥼', rarity:'raro',  bonus:{ hp:12, mag:5 } },
+  power_ring:   { id:'power_ring',    name:'Anel de Força',     slot:'trinket', icon:'💍', rarity:'comum', bonus:{ atk:3 } },
+  swift_boots:  { id:'swift_boots',   name:'Botas Velozes',     slot:'trinket', icon:'🥾', rarity:'comum', bonus:{ spd:2 } },
+  vital_amulet: { id:'vital_amulet',  name:'Amuleto Vital',     slot:'trinket', icon:'📿', rarity:'raro',  bonus:{ hp:18, mp:10 } },
+};
+// Itens que o jogador já começa possuindo (no inventário, não equipados).
+export const STARTER_INVENTORY = ['leather_armor','power_ring','swift_boots','mage_robe'];
+// Tabela de drop de itens ao limpar uma fase (chance por item).
+export const ITEM_DROPS = [
+  { item:'leather_armor', chance:0.20 }, { item:'power_ring', chance:0.16 },
+  { item:'swift_boots', chance:0.16 }, { item:'chain_mail', chance:0.10 },
+  { item:'mage_robe', chance:0.10 }, { item:'vital_amulet', chance:0.08 },
+];
+
+// Soma dos bônus dos itens equipados de um herói (pura).
+export function itemBonuses(equip){
+  const out = { atk:0, def:0, mag:0, spd:0, hp:0, mp:0 };
+  if(!equip) return out;
+  for(const slot of ['weapon','armor','trinket']){
+    const it = ITEMS[equip[slot]];
+    if(it && it.bonus) for(const k in it.bonus) out[k] = (out[k]||0) + it.bonus[k];
+  }
+  return out;
+}
