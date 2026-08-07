@@ -560,9 +560,32 @@ export class Sala {
         this._ultimoErro = null;
         rel.eventos.push({ e:'voltou' }); break;
       }
+      /* MÃO LEVE — força um par entre duas cartas fechadas.
+         Antes ela trocava as duas de LUGAR, e num jogo da memória posição é
+         exatamente o que o jogador decorou: a ferramenta embaralhava a
+         própria cabeça de quem a usava, e não mexia em uma regra sequer. Era
+         a única do jogo que atrapalhava mais do que ajudava.
+
+         Agora ela faz o que o lema promete — se o tabuleiro não ajuda, muda o
+         tabuleiro: as duas cartas escolhidas passam a ser par uma da outra. As
+         duas antigas parceiras não somem, ficam ÓRFÃS, que é a mecânica que o
+         jogo já tem para carta que perdeu a dupla — e órfãs fecham entre si.
+         O tabuleiro continua fechando certinho. */
       case 'trocar': {
-        if(!this.trocarPosicao(arg?.[0], arg?.[1])) return { erro:'cartas inválidas' };
-        rel.eventos.push({ e:'trocou', cartas:arg }); break;
+        const a2 = this.cartas.find(x=>x.id===arg?.[0]);
+        const b2 = this.cartas.find(x=>x.id===arg?.[1]);
+        if(!a2 || !b2 || a2===b2) return { erro:'cartas inválidas' };
+        if(a2.resolvida || b2.resolvida) return { erro:'carta já resolvida' };
+        if(a2.par === b2.par) return { erro:'essas duas já são par' };
+        const sobraA = this.cartas.find(x=>x.par===a2.par && x!==a2 && !x.resolvida);
+        const sobraB = this.cartas.find(x=>x.par===b2.par && x!==b2 && !x.resolvida);
+        /* o par novo herda a cara de uma delas, para o desenho não mentir */
+        b2.par = a2.par; b2.fam = a2.fam; b2.simbolo = a2.simbolo;
+        b2.orfa = false; a2.orfa = false;
+        for(const s2 of [sobraA, sobraB]) if(s2) s2.orfa = true;
+        rel.eventos.push({ e:'emparelhou', cartas:[a2.id, b2.id],
+                           orfas:[sobraA?.id, sobraB?.id].filter(x=>x!=null) });
+        break;
       }
       case 'varrer': {
         const alvos = this.fechadas().filter(c=>c.tipo===arg);

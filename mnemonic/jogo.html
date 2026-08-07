@@ -962,6 +962,20 @@ img.gl{object-fit:contain;stroke:none;
 #bfim b{display:block;font-size:12.5px;letter-spacing:.01em}
 #baixo.passou #bfim{display:block;animation:entra .3s ease both}
 
+.rodape-rank{flex:0 0 auto;padding-top:9px;border-top:1px solid var(--traco);
+  display:flex;gap:10px;align-items:center}
+.rodape-rank .mini{margin:0;flex:1}
+.rodape-rank .bt{flex:0 0 auto;white-space:nowrap}
+
+/* A PLACA TINGIDA. A arte é a dourada, girada de matiz até a cor de quem a
+   usa. O giro mora num pseudo-elemento ATRÁS do conteúdo: aplicado no
+   elemento inteiro, ele giraria o texto, os ícones e o emblema junto. */
+.op.tinge{border-image:none;background:none;isolation:isolate}
+.op.tinge:before{content:'';position:absolute;inset:0;z-index:-1;
+  border:26px solid transparent;
+  border-image:url(arte/ui/placa-ouro.png) 68 fill / 26px / 0 stretch;
+  filter:hue-rotate(var(--giro,0deg)) saturate(1.05)}
+
 /* ═══════════ ABAS ═══════════ */
 .abas{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;margin-bottom:7px;flex:0 0 auto}
 .abas::-webkit-scrollbar{display:none}

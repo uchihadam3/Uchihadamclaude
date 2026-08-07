@@ -160,6 +160,45 @@ function enviar(ev){
   });
 }
 
+/* ---------- diagnóstico ----------
+   "O ranking é global mesmo? Se meu amigo jogar da casa dele, aparece para
+   mim?" — a resposta é sim por construção: os relays são públicos e qualquer
+   aparelho lê o mesmo quadro. Mas isso é uma AFIRMAÇÃO, e afirmação não vale
+   nada quando o jogador está do outro lado da tela.
+
+   Aqui cada relay é testado de verdade, um por um: conecta? aceita pedido?
+   quantos placares devolve? em quanto tempo? Com isso dá para separar as três
+   coisas que parecem a mesma de fora — "não tem ninguém no quadro", "a rede
+   daqui bloqueia" e "aquele relay está fora do ar". */
+export function diagnostico(){
+  const urls = relays();
+  const filtro = { kinds:[KIND], '#t':[ETIQUETA], limit:20 };
+  return Promise.all(urls.map(u => new Promise(resolve=>{
+    const t0 = Date.now();
+    const r = { url:u, abriu:false, respondeu:false, eventos:0, ms:0, erro:null };
+    let ws;
+    try { ws = new WebSocket(u); }
+    catch(e){ r.erro = 'não abriu'; return resolve(r); }
+    const acabar = ()=>{ r.ms = Date.now() - t0; try{ws.close();}catch(e){} resolve(r); };
+    const prazo = setTimeout(()=>{ if(!r.respondeu) r.erro = r.abriu ? 'sem resposta' : 'sem conexão';
+                                   acabar(); }, 6000);
+    ws.onopen = ()=>{ r.abriu = true;
+      try { ws.send(JSON.stringify(['REQ','diag',filtro])); } catch(e){} };
+    ws.onmessage = m=>{
+      try {
+        const d = JSON.parse(m.data);
+        if(d[0]==='EVENT') r.eventos++;
+        if(d[0]==='EOSE' || d[0]==='CLOSED'){ r.respondeu = true;
+          if(d[0]==='CLOSED') r.erro = String(d[2]||'recusado').slice(0,40);
+          clearTimeout(prazo); acabar(); }
+        if(d[0]==='NOTICE' && !r.respondeu) r.erro = String(d[1]||'').slice(0,40);
+      } catch(e){}
+    };
+    ws.onerror = ()=>{ if(!r.erro) r.erro = 'sem conexão'; };
+    ws.onclose = ()=>{ clearTimeout(prazo); if(!r.ms) acabar(); };
+  })));
+}
+
 /* ---------- buscar ----------
    Devolve as linhas CRUAS. Quem chama é que roda `verificar()` — este
    módulo não tem opinião sobre quem é honesto, de propósito: assim é

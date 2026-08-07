@@ -185,6 +185,32 @@ const classePlaca = cor => {
   return c ? (PLACA_CLARA.has(c) ? c+' claro' : c) : '';
 };
 
+/* PLACA TINGIDA — para quando SEIS placas não bastam.
+   As oito classes precisam ser oito coisas diferentes de relance, e o mapa de
+   cores só tem seis placas pintadas: duas classes caíam na mesma verde e
+   quatro na azul padrão. Repintar a folha em oito cores seria arte a mais
+   para manter em sincronia com o código.
+
+   Então a placa é UMA — a dourada, que é clara e neutra — e gira de matiz até
+   a cor da classe. O giro sai da própria cor, então placa e emblema nunca
+   discordam: mudar a cor de uma classe repinta a placa dela sozinha.
+
+   O filtro vai num pseudo-elemento atrás do conteúdo. No elemento inteiro ele
+   giraria o texto e os ícones junto. */
+function matizDe(hex){
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if(!m) return 42;
+  const n = parseInt(m[1], 16);
+  const r = (n>>16 & 255)/255, g = (n>>8 & 255)/255, b = (n & 255)/255;
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b), d = mx - mn;
+  if(!d) return 42;
+  const h = mx===r ? ((g-b)/d + (g<b ? 6 : 0)) : mx===g ? ((b-r)/d + 2) : ((r-g)/d + 4);
+  return h * 60;
+}
+const OURO = 42;                      /* o matiz da placa-ouro, que é a base */
+const placaTingida = cor =>
+  `tinge claro" style="--giro:${(matizDe(cor) - OURO).toFixed(0)}deg;--fc:${cor}`;
+
 /* ═══════════════════════════════════════════ VITRINE
    O jogo não tem uma lista em lugar nenhum. Toda coisa que ele nomeia é um
    LADRILHO que se toca, e o texto abre por cima. Uma lista o jogador varre
@@ -303,7 +329,7 @@ function telaClasse(){
     </div>
     <div class="rol"><div class="grade fila1">
     ${LISTA_CLASSES.map(c=>`
-      <button class="op ${classePlaca(c.cor)}" data-classe="${c.id}" style="--fc:${c.cor}">
+      <button class="op ${placaTingida(c.cor)}" data-classe="${c.id}">
         <span class="agua">${ICO_CLASSE[c.id]||''}</span>
         <span class="cab">
           <span class="gf">${ICO_CLASSE[c.id]||''}</span>
@@ -1025,8 +1051,14 @@ async function aplicarFerramenta(arg){
     if(e.e==='voltou') aviso('DESFEITO', 'o último erro voltou', '#b478ff');
     if(e.e==='transmutou'){ aviso('TRANSMUTADO', 'virou espelho', '#dbe4f5'); onda(e.carta,'#dbe4f5'); }
     if(e.e==='concentrou') aviso('CONCENTRAÇÃO', 'multiplicador dobrado', '#ffc23c');
-    if(e.e==='trocou'){ aviso('TROCADO', 'mudaram de lugar', '#4fe08a');
-      for(const id of (e.cartas||[])) onda(id, '#4fe08a'); }
+    if(e.e==='emparelhou'){
+      aviso('MÃO LEVE', 'estas duas agora são par', '#4fe08a');
+      raio(e.cartas[0], e.cartas[1], '#4fe08a');
+      for(const id of e.cartas){ onda(id, '#4fe08a'); piscar(id); }
+      /* as que perderam a dupla precisam ser APONTADAS. Sem isso o jogador só
+         descobre que uma carta virou órfã quando erra com ela — e aí a
+         ferramenta que veio ajudar parece ter sabotado o tabuleiro. */
+      for(const id of (e.orfas||[])) piscar(id); }
     if(e.e==='acerto'){ SFX.acerto(e.combo);
       const cor = FAMILIAS[salaViva?.cartas.find(c=>c.id===e.cartas[0])?.fam]?.cor || '#fff';
       for(const id of e.cartas){ onda(id, cor); faiscas(id, cor, 8); }
@@ -1382,12 +1414,15 @@ function telaRank(){
     <div class="abas">${ABAS.map(a=>
       `<button data-aba="${a.id}" class="${a.id===abaRank?'on':''}">${a.n}</button>`).join('')}</div>
     <div class="rol" id="rlista"><p class="mini">Procurando nos relays…</p></div>
-    <p class="mini" style="flex:0 0 auto;padding-top:9px;border-top:1px solid var(--traco)">
-      Cada placar vem com a lista de jogadas. Seu aparelho REFAZ a run a
-      partir da semente e só mostra a linha se o número bater.</p>`;
+    <div class="rodape-rank">
+      <p class="mini">Cada placar vem com a lista de jogadas. Seu aparelho REFAZ a
+        run a partir da semente e só mostra a linha se o número bater.</p>
+      <button class="bt pq" id="bdiag">TESTAR CONEXÃO</button>
+    </div>`;
   t.querySelectorAll('[data-aba]').forEach(b=>b.onclick = ()=>{
     SFX.clique(); abaRank = b.dataset.aba; telaRank();
   });
+  $('#bdiag').onclick = ()=>{ SFX.clique(); mostrarDiagnostico(); };
   carregarRank();
 }
 
@@ -1480,6 +1515,56 @@ function gravarCache(aba, bons){
 }
 
 let rankRodada = 0;
+/* O QUADRO É GLOBAL — E DÁ PARA CONFERIR.
+   "Se meu amigo jogar da casa dele, aparece para mim?" A resposta é sim por
+   construção: os relays são públicos e todo aparelho lê o mesmo lugar. Mas
+   isso é uma promessa, e promessa não serve para quem está olhando uma tela
+   vazia. Este painel testa cada relay na frente do jogador e separa as três
+   coisas que de fora parecem a mesma: "ninguém publicou ainda", "esta rede
+   bloqueia" e "aquele relay caiu". */
+async function mostrarDiagnostico(){
+  const meu = (()=>{ try { return RANK.pubDe(RANK.chave()).slice(0,16); }
+                     catch(e){ return '—'; } })();
+  $('#folhac').innerHTML = `
+    <div class="cabeca" style="margin-bottom:11px">
+      <div class="rot">ranking mundial</div>
+      <h2 class="tit">Testando a conexão</h2>
+    </div>
+    <p class="mini" style="margin-bottom:11px">O quadro não tem servidor: cada
+      placar fica em relays públicos, e qualquer aparelho no mundo lê os
+      mesmos. Basta UM relay responder para o ranking funcionar.</p>
+    <div id="diaglista"><p class="mini">Falando com os relays…</p></div>
+    <div class="hr"></div>
+    <p class="mini">seu identificador neste aparelho: <b>${esc(meu)}</b></p>
+    <button class="bt g" data-fechar style="margin-top:11px">FECHAR</button>`;
+  $('#folha').classList.add('on');
+  const rs = await RANK.diagnostico();
+  const alvo = $('#diaglista'); if(!alvo) return;
+  const vivos = rs.filter(r=>r.respondeu).length;
+  const lidos = Math.max(0, ...rs.map(r=>r.eventos));
+  alvo.innerHTML = `
+    <div class="op ${classePlaca(vivos ? '#4fe08a' : '#ff4f52')}"
+         style="--fc:${vivos ? '#4fe08a' : '#ff4f52'};cursor:default;margin-bottom:10px">
+      <h3>${vivos ? `${vivos} de ${rs.length} relays responderam`
+                  : 'nenhum relay respondeu'}</h3>
+      <p>${vivos
+        ? (lidos ? `Há ${lidos >= 20 ? '20 ou mais' : lidos} placar${lidos>1?'es':''} publicado${lidos>1?'s':''} para ler. O ranking está no ar.`
+                 : 'A conexão funciona, mas ainda não há placar publicado. Seja o primeiro.')
+        : 'Pode ser a rede deste aparelho — algumas redes de empresa e escola bloqueiam WebSocket.'}</p>
+    </div>
+    <div class="fila">${rs.map(r=>`
+      <div class="rk">
+        <div class="n" style="color:${r.respondeu?'#4fe08a':'#ff4f52'};font-size:15px">
+          ${r.respondeu?'✓':'✗'}</div>
+        <div class="cx">
+          <div class="qm">${esc(r.url.replace('wss://',''))}</div>
+          <div class="sb">${r.respondeu
+            ? `${r.eventos} placar${r.eventos===1?'':'es'} · ${r.ms}ms`
+            : esc(r.erro || 'não respondeu')}</div>
+        </div>
+      </div>`).join('')}</div>`;
+}
+
 async function carregarRank(){
   const alvo = $('#rlista'); if(!alvo) return;
   const aba = abaRank;

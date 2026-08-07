@@ -500,11 +500,31 @@ secao('10. As ferramentas das classes');
   eq(vo.foco, focoDepois+1, 'Ampulheta devolve o Foco do último erro');
   ok(vo.viradas > viradasDepois, 'e a virada também');
 
+  /* MÃO LEVE — obriga duas cartas fechadas a serem par.
+     Ela trocava as duas de LUGAR, e num jogo da memória posição é o que o
+     jogador decorou: a ferramenta bagunçava a cabeça de quem a usava e não
+     mexia em regra nenhuma. Agora ela força o par, e as duas antigas
+     parceiras viram ÓRFÃS — que é a mecânica que o jogo já tem para carta que
+     perdeu a dupla, e órfãs fecham entre si. O tabuleiro continua solúvel. */
   const tr = comFer({ id:'trocar', usos:2 });
-  const [c1,c2] = tr.fechadas();
-  const p1 = c1.pos, p2 = c2.pos;
-  tr.usarFerramenta([c1.id, c2.id]);
-  ok(c1.pos===p2 && c2.pos===p1, 'Mão Leve troca as duas de lugar');
+  const c1 = tr.fechadas()[0];
+  const c2 = tr.fechadas().find(c=>c.par !== c1.par);
+  const velhaA = tr.cartas.find(x=>x.par===c1.par && x!==c1);
+  const velhaB = tr.cartas.find(x=>x.par===c2.par && x!==c2);
+  const rel = tr.usarFerramenta([c1.id, c2.id]);
+  ok(!rel.erro, 'Mão Leve aceita duas cartas fechadas de pares diferentes');
+  eq(c1.par, c2.par, 'as duas escolhidas viraram par');
+  eq(c2.simbolo, c1.simbolo, 'e mostram o mesmo desenho — a tela não mente');
+  ok(velhaA.orfa && velhaB.orfa, 'as duas antigas parceiras ficaram sem par');
+  /* e o tabuleiro continua fechando: o par novo fecha, as órfãs fecham entre si */
+  tr.virar(c1.id); tr.virar(c2.id);
+  ok(c1.resolvida && c2.resolvida, 'o par forçado fecha de verdade');
+  tr.virar(velhaA.id); tr.virar(velhaB.id);
+  ok(velhaA.resolvida && velhaB.resolvida, 'e as duas órfãs fecham entre si');
+  const tr2 = comFer({ id:'trocar', usos:2 });
+  const g1 = tr2.fechadas()[0];
+  const irmao = tr2.cartas.find(x=>x.par===g1.par && x!==g1);
+  ok(tr2.usarFerramenta([g1.id, irmao.id]).erro, 'não vale gastar em quem já é par');
   ok(tr.usarFerramenta([c1.id, c1.id]).erro, 'e recusa trocar uma carta com ela mesma');
 
   const cu = comFer({ id:'curinga', usos:99, custoEssencia:3 });
