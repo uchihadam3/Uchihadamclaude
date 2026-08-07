@@ -33,7 +33,7 @@
   .logo-emblem{height:36px;width:auto;image-rendering:pixelated;filter:drop-shadow(0 2px 2px #0009);flex:none}
   .ticon{width:20px;height:20px;object-fit:contain;image-rendering:pixelated;vertical-align:-4px;margin-right:4px}
   /* ---------- Base: hub RETRATO (celular em pé) com moldura de ARTE sobre o acampamento ---------- */
-  #screen-base{position:relative;padding:34px 2px 10px;border-radius:16px;
+  #screen-base{position:relative;padding:8px 4px 10px;border-radius:16px;overflow-x:clip;
     background:linear-gradient(rgba(20,26,34,.42),rgba(20,26,34,.60)),url(assets/bg_basecamp.png) center/cover no-repeat;
     box-shadow:0 8px 22px rgba(10,14,20,.45)}
   .base-frame{position:relative;
@@ -42,70 +42,71 @@
     padding:16px 11px 12px;image-rendering:pixelated}
   .base-frame > *{image-rendering:auto}
   /* placa: aspect-ratio real (586x81) pra NÃO esticar/cortar espada+escudo, acima da moldura */
-  .base-title{position:absolute;top:-26px;left:50%;transform:translateX(-50%);z-index:4;
-    width:min(330px,80%);aspect-ratio:586/81;
+  .base-title{position:absolute;top:-24px;left:50%;transform:translateX(-50%);z-index:4;
+    width:min(370px,54%);aspect-ratio:586/81;
     background:url(assets/ribbon.png) center/100% 100% no-repeat;image-rendering:pixelated;
     display:flex;align-items:center;justify-content:center;
     color:#f7ead0;font-size:14px;font-weight:900;letter-spacing:.4px;
     text-shadow:0 1px 0 #2c1a0c,0 0 3px #2c1a0c}
   .base-title span{image-rendering:auto;padding-bottom:2px}
 
-  /* --- hub RETRATO: tudo empilhado numa coluna --- */
-  .hub-grid{display:flex;flex-direction:column;gap:11px;margin-top:16px}
+  /* --- hub: MESMO layout da referência (3 colunas lado a lado), ESCALADO p/ caber no retrato --- */
+  .hub-fit{width:100%;overflow-x:clip}
+  .hub-stage{width:var(--hubw,690px);transform-origin:top left;padding-top:30px}
+  .base-hub{width:100%}
+  .hub-grid{display:grid;grid-template-columns:1.05fr auto 1.15fr;gap:10px;align-items:stretch;margin-top:14px}
   .hub-panel{background:var(--card);border:1px solid var(--line);border-radius:12px;
-    padding:9px;box-shadow:inset 0 0 0 2px #f4ead0,0 2px 6px rgba(30,20,8,.12)}
-  .panel-cap{font-size:13px;font-weight:900;color:var(--ink2);text-align:center;
+    padding:9px;box-shadow:inset 0 0 0 2px #f4ead0,0 2px 6px rgba(30,20,8,.12);min-width:0;display:flex;flex-direction:column}
+  .panel-cap{font-size:14px;font-weight:900;color:var(--ink2);text-align:center;
     padding:2px 0 7px;border-bottom:1px dashed var(--line);margin-bottom:8px;letter-spacing:.3px}
 
-  /* party: grade 2x2 de cards compactos */
-  .party-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .party-card{display:flex;gap:8px;align-items:center;background:#fff8e8;
-    border:1px solid var(--line);border-left:5px solid var(--acc,#8a6a34);border-radius:10px;padding:6px 7px}
-  .pc-face{width:48px;height:48px;flex:none;border-radius:9px;overflow:hidden;
+  /* party: coluna de 4 cards */
+  .party-cards{display:flex;flex-direction:column;gap:8px}
+  .party-card{display:flex;gap:9px;align-items:center;background:#fff8e8;
+    border:1px solid var(--line);border-left:5px solid var(--acc,#8a6a34);border-radius:10px;padding:7px 8px;min-width:0}
+  .pc-face{width:50px;height:50px;flex:none;border-radius:9px;overflow:hidden;
     background:radial-gradient(circle at 50% 35%,#fff,#e9d6ab);border:2px solid var(--acc,#8a6a34)}
   .pc-face img{width:100%;height:100%;object-fit:cover;object-position:50% 16%;image-rendering:pixelated}
   .pc-info{flex:1;min-width:0}
-  .pc-nm{font-weight:900;font-size:13px;color:var(--ink);line-height:1.1}
-  .pc-st{font-size:10.5px;font-weight:800;color:var(--dim);margin:1px 0 5px}
-  .eq-row{display:flex;gap:4px}
-  .eq-slot{display:inline-flex;align-items:center;gap:1px;padding:3px 5px;border-radius:7px;
-    background:var(--inset);border:1px solid var(--line);box-shadow:none;font-size:12px;line-height:1}
+  .pc-nm{font-weight:900;font-size:15px;color:var(--ink);line-height:1.1}
+  .pc-st{font-size:12px;font-weight:800;color:var(--dim);margin:1px 0 5px}
+  .eq-row{display:flex;gap:5px}
+  .eq-slot{display:inline-flex;align-items:center;gap:2px;padding:4px 6px;border-radius:8px;
+    background:var(--inset);border:1px solid var(--line);box-shadow:none;font-size:14px;line-height:1}
   .eq-slot.on{background:#fff3d4;border-color:var(--gold-d)}
-  .eq-slot b{font-size:9px;color:var(--gold-d)}
+  .eq-slot b{font-size:10px;color:var(--gold-d)}
   .eq-ic{filter:saturate(.9)} .eq-ic.big{font-size:26px}
 
-  /* centro: ícones de menu (arte da referência) numa faixa horizontal */
-  .hub-center{display:flex;flex-direction:row;justify-content:space-around;align-items:flex-end;gap:8px;
-    background:linear-gradient(180deg,#f6ecce,#efe0b8);border:1px solid var(--line);border-radius:12px;
-    padding:10px 6px 8px;box-shadow:inset 0 0 0 2px #f4ead0}
-  .hub-ic{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;box-shadow:none;padding:2px;flex:1}
-  .hub-ic img{width:58px;height:58px;object-fit:contain;image-rendering:pixelated;
-    filter:drop-shadow(0 3px 3px rgba(0,0,0,.28));transition:transform .1s}
+  /* centro: coluna de ícones (arte da referência) */
+  .hub-center{display:flex;flex-direction:column;justify-content:center;gap:18px;padding:0 4px}
+  .hub-ic{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;box-shadow:none;padding:2px}
+  .hub-ic img{width:66px;height:66px;object-fit:contain;image-rendering:pixelated;
+    filter:drop-shadow(0 3px 3px rgba(0,0,0,.3));transition:transform .1s}
   .hub-ic:active img{transform:translateY(2px)}
   .hub-ic:hover img{transform:translateY(-3px) scale(1.05)}
-  .hub-ic span{font-size:11px;font-weight:900;color:var(--ink2)}
+  .hub-ic span{font-size:12px;font-weight:900;color:#f3e3bd;text-shadow:0 1px 2px #000,0 0 3px #000}
 
-  /* loja de gambits: NPC + lista */
+  /* direita: NPC + loja de gambits */
   .shop-wrap{display:flex;flex-direction:column;gap:8px}
   .npc-box{display:flex;align-items:center;gap:10px;background:#fff8e8;border:1px solid var(--line);border-radius:10px;padding:6px 10px}
-  .npc-box .npc{width:60px;height:auto;image-rendering:pixelated;flex:none}
-  .npc-say{font-size:12.5px;font-style:italic;color:var(--ink2);font-weight:700}
+  .npc-box .npc{width:64px;height:auto;aspect-ratio:184/260;image-rendering:pixelated;flex:none}
+  .npc-say{font-size:13px;font-style:italic;color:var(--ink2);font-weight:700}
   .shop-list{display:flex;flex-direction:column;gap:6px}
   .shop-item{display:flex;align-items:center;gap:6px;background:#fff8e8;border:1px solid var(--line);
-    border-radius:9px;padding:6px 8px}
+    border-radius:9px;padding:6px 8px;min-width:0}
   .shop-item.owned{opacity:.72}
-  .si-name{flex:1;font-size:12.5px;font-weight:800;color:var(--ink)}
-  .si-cost{font-size:12px} .si-owned{font-size:11px;font-weight:800;color:var(--heal)}
-  .shop-buy{padding:5px 10px;font-size:12px}
+  .si-name{flex:1;font-size:13.5px;font-weight:800;color:var(--ink);min-width:0}
+  .si-cost{font-size:13px;white-space:nowrap} .si-owned{font-size:12px;font-weight:800;color:var(--heal)}
+  .shop-buy{padding:5px 10px;font-size:12.5px;flex:none}
 
   /* rodapé: engrenagem + botão dourado */
-  .hub-foot{display:flex;align-items:center;gap:9px;margin-top:12px}
+  .hub-foot{display:flex;align-items:center;gap:10px;margin-top:12px}
   .hub-foot-spacer{display:none}
-  .hub-gear{flex:none;width:44px;height:44px;padding:0;font-size:18px;border-radius:10px}
+  .hub-gear{flex:none;width:46px;height:46px;padding:0;font-size:20px;border-radius:10px}
   .gold-cta{flex:1;background:linear-gradient(180deg,#ffd76b,#eab032);border:2px solid #c88f20;
-    color:#4a3410;font-size:15px;font-weight:900;text-shadow:0 1px 0 #ffe9a8;
-    box-shadow:0 3px 0 #b07f22,0 5px 12px rgba(120,80,20,.3);padding:12px}
-  .hub-x{position:absolute;top:-13px;right:2px;z-index:5;width:30px;height:30px;padding:0;border-radius:8px;
+    color:#4a3410;font-size:17px;font-weight:900;text-shadow:0 1px 0 #ffe9a8;
+    box-shadow:0 3px 0 #b07f22,0 5px 12px rgba(120,80,20,.3);padding:13px}
+  .hub-x{position:absolute;top:-13px;right:2px;z-index:5;width:32px;height:32px;padding:0;border-radius:8px;
     background:linear-gradient(180deg,#8a95a2,#5f6772);border:2px solid #3f454d;color:#fff;font-weight:900;
     box-shadow:0 2px 0 #3f454d}
 

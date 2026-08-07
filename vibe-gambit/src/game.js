@@ -133,26 +133,41 @@ function heroEquip(hs){ return hs.equip || (hs.equip = { weapon:null, armor:null
 
 function renderBase(){
   $('screen-base').innerHTML = `
-    <div class="base-frame base-hub">
-      <div class="base-title"><span>Acampamento Base</span></div>
-      <button class="hub-x" title="Ir ao Mapa">✕</button>
-      <div class="hub-grid">
-        <div class="hub-panel hub-left" id="hub-left"></div>
-        <div class="hub-center" id="hub-center"></div>
-        <div class="hub-panel hub-right" id="hub-right"></div>
-      </div>
-      <div class="hub-foot">
-        <button class="hub-gear" title="Opções">⚙️</button>
-        <button class="gold-cta" id="hub-cta">⚔️ Partir em Expedição</button>
-        <span class="hub-foot-spacer"></span>
+    <div class="hub-fit">
+      <div class="hub-stage">
+        <div class="base-frame base-hub">
+          <div class="base-title"><span>Acampamento Base</span></div>
+          <button class="hub-x" title="Ir ao Mapa">✕</button>
+          <div class="hub-grid">
+            <div class="hub-panel hub-left" id="hub-left"></div>
+            <div class="hub-center" id="hub-center"></div>
+            <div class="hub-panel hub-right" id="hub-right"></div>
+          </div>
+          <div class="hub-foot">
+            <button class="hub-gear" title="Opções">⚙️</button>
+            <button class="gold-cta" id="hub-cta">⚔️ Partir em Expedição</button>
+          </div>
+        </div>
       </div>
     </div>`;
   renderHubParty($('hub-left'));
   renderHubCenter($('hub-center'));
   renderHubShop($('hub-right'));
-  $('screen-base').querySelector('.hub-x').onclick   = () => show('map');
+  $('screen-base').querySelector('.hub-x').onclick    = () => show('map');
   $('screen-base').querySelector('.hub-gear').onclick = () => openOptions();
   $('hub-cta').onclick = () => show('map');
+  fitBase(); requestAnimationFrame(fitBase); setTimeout(fitBase, 120);
+}
+// escala o hub (largura de design fixa) pra caber na largura do retrato — mantém o layout lado a lado
+function fitBase(){
+  const fit   = $('screen-base').querySelector('.hub-fit');
+  const stage = $('screen-base').querySelector('.hub-stage');
+  if(!fit || !stage) return;
+  const avail = fit.clientWidth;
+  const w = stage.offsetWidth || 690;
+  const s = Math.min(1, avail / w);
+  stage.style.transform = `scale(${s})`;
+  fit.style.height = (stage.offsetHeight * s) + 'px';
 }
 
 // ---- PAINEL ESQUERDO: 4 heróis (rosto) + ícones de equipamento ----
@@ -592,7 +607,10 @@ function placeTorches(){
 // ================================================================ BOOT
 renderHud();
 show('map');
-window.addEventListener('resize', () => { if(screen==='expedition'){ const cv=$('dungeon'); if(cv){ cv.width=cv.clientWidth; cv.height=cv.clientHeight; drawDungeon(cv); placeTorches(); } } });
+window.addEventListener('resize', () => {
+  if(screen==='expedition'){ const cv=$('dungeon'); if(cv){ cv.width=cv.clientWidth; cv.height=cv.clientHeight; drawDungeon(cv); placeTorches(); } }
+  if(screen==='base') fitBase();
+});
 
 // atalho de debug: novo jogo com ?reset
 if(location.search.includes('reset')){ localStorage.removeItem('vibe_gambit_save_v1'); location.href = location.pathname; }
