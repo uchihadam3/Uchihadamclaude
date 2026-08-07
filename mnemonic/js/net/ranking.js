@@ -88,10 +88,37 @@ export function janela(aba){
    `d` é a chave do evento substituível. Uma linha por aparelho no quadro
    geral e uma por dia no diário: assim a run diária de ontem não some
    quando você joga a de hoje. */
+/* ---------- o recorde ----------
+   O placar vai num evento SUBSTITUÍVEL: publicar de novo apaga a linha
+   anterior. É o que impede o quadro de virar uma lista com a mesma pessoa
+   quarenta vezes — e é também uma armadilha, porque uma run pior apagaria a
+   melhor. Quem fez 1.000 e depois fez 500 não pode cair para 500.
+
+   O melhor de cada chave fica guardado no aparelho, e a leitura do quadro
+   corrige esse número quando encontra a própria linha lá em cima — assim
+   trocar de navegador ou limpar o armazenamento não derruba o recorde. */
+export const chaveDoPlacar = p => p.diario ? ETIQUETA+':d:'+p.semente : ETIQUETA;
+/* O recorde pertence à IDENTIDADE que publica, não ao navegador. Guardá-lo só
+   por `d` faria uma chave nova herdar o recorde da antiga — e aí o primeiro
+   placar de uma identidade nova seria recusado por ser menor que o de outra
+   pessoa que usou o mesmo aparelho. */
+const MELHOR = 'mnemonic.melhor.';
+const onde = d => MELHOR + pubDe(chave()).slice(0,16) + '.' + d;
+export function meuMelhor(d){
+  const v = Number(localStorage.getItem(onde(d)));
+  return Number.isFinite(v) ? v : 0;
+}
+export function anotarMelhor(d, pontos){
+  if(pontos > meuMelhor(d)) localStorage.setItem(onde(d), String(pontos));
+}
+
 export async function publicar(pacote, nome){
   const sk = chave();
   const p = pacote.placar;
-  const d = p.diario ? ETIQUETA+':d:'+p.semente : ETIQUETA;
+  const d = chaveDoPlacar(p);
+  /* run pior não sobe: subir apagaria a melhor, que já está no quadro */
+  const melhor = meuMelhor(d);
+  if(p.pontos <= melhor) return { ok:false, por:'menor', melhor, relays:0 };
   const corpo = JSON.stringify({
     nome: String(nome||'anônimo').slice(0,22),
     placar: p, registro: pacote.registro,
@@ -105,6 +132,7 @@ export async function publicar(pacote, nome){
   ];
   const ev = assinar(sk, KIND, tags, corpo);
   const n = await enviar(ev);
+  if(n > 0) anotarMelhor(d, p.pontos);
   return { ok:n>0, relays:n, id:ev.id };
 }
 

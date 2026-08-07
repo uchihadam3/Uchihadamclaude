@@ -384,14 +384,56 @@ secao('8. As famílias fazem o que a família diz');
   ok(2*18 >= 30, 'o menor sorteio de famílias ainda cobre 30 pares distintos');
 }
 
+/* ════════════════════════════════════════════════════════ 8b */
+secao('8b. Cada jogada tem um código só dela no registro');
+{
+  /* Isto existe porque o mesmo erro já custou uma tarde: `e` era a escolha de
+     opção num evento, e o encerramento de sala nasceu com o mesmo código. O
+     replay andava por um caminho e a partida por outro, e o placar deixava de
+     bater no ranking sem que nada acusasse. */
+  const fonte = readFileSync(new URL('../js/engine/run.js', import.meta.url), 'utf8');
+  const codigos = [...fonte.matchAll(/_reg\(\{\s*s:'([a-z]+)'/g)].map(m=>m[1]);
+  ok(codigos.length >= 7, `o registro tem ${codigos.length} tipos de jogada`);
+  eq(new Set(codigos).size, codigos.length,
+     'nenhum código de jogada é usado para duas coisas — ' + codigos.join(' '));
+  /* e o replay conhece todos eles */
+  const tratados = [...fonte.matchAll(/case '([a-z]+)':/g)].map(m=>m[1]);
+  for(const c of new Set(codigos))
+    if(c !== 'sala') ok(tratados.includes(c), `o replay sabe refazer a jogada '${c}'`);
+}
+
 /* ════════════════════════════════════════════════════════ 9 */
 secao('9. Fim de sala');
 {
+  /* A META É PISO. Bater a meta acende `passou` e NÃO fecha a sala: quem quer
+     mais pontos continua virando, e é essa decisão que faz o combo valer. */
   const v = salaTeste({ meta:1, viradas:99 });
   const [a,b] = v.cartas.filter(c=>c.par===0);
   v.virar(a.id); v.virar(b.id);
-  eq(v.fim, 'vitoria', 'bateu a meta, venceu');
+  ok(v.passou, 'bateu a meta: a sala está ganha');
+  eq(v.fim, null, 'mas não acabou — dá para continuar somando');
+  ok(v.emJogo().length > 0, 'e ainda há carta na mesa');
+  /* limpa o resto do tabuleiro: aí sim acaba, e acaba em vitória */
+  for(const c of [...v.cartas]){
+    if(v.fim) break;
+    if(c.resolvida) continue;
+    const par = v.cartas.find(x=>x.par===c.par && x.id!==c.id && !x.resolvida);
+    if(!par) continue;
+    v.virar(c.id); v.virar(par.id);
+  }
+  eq(v.fim, 'vitoria', 'tabuleiro limpo com a meta batida: vitória');
   ok(v.moedas>0, 'e as viradas que sobraram viraram moeda');
+  ok(v.pontos > v.meta, 'e o placar passou bem da meta, que era só o piso');
+
+  /* e o contrário: acabar o tabuleiro SEM a meta continua sendo derrota */
+  const semMeta = salaTeste({ meta:1e9, viradas:999, foco:99, pares:3 });
+  for(const c of [...semMeta.cartas]){
+    if(semMeta.fim) break;
+    if(c.resolvida) continue;
+    const par = semMeta.cartas.find(x=>x.par===c.par && x.id!==c.id && !x.resolvida);
+    if(par){ semMeta.virar(c.id); semMeta.virar(par.id); }
+  }
+  eq(semMeta.fim, 'derrota', 'tabuleiro limpo sem bater a meta: derrota');
 
   const d = salaTeste({ meta:1e9, viradas:2, foco:9 });
   const [x,y] = duasDiferentes(d);
@@ -409,10 +451,34 @@ secao('9. Fim de sala');
     t.virar(i.id); t.virar(j.id); }
   eq(t.fim, 'derrota', 'limpou o tabuleiro sem bater a meta: também é derrota');
 
-  const s = salaTeste({ meta:1, viradas:99 });
+  /* encerrada de verdade — sem viradas — é que não aceita mais jogada. Bater a
+     meta não encerra nada: é justamente o que se pode continuar jogando. */
+  const s = salaTeste({ meta:1, viradas:2, foco:9 });
   const [i,j] = s.cartas.filter(c=>c.par===0);
   s.virar(i.id); s.virar(j.id);
+  ok(s.passou, 'a meta foi batida na primeira tentativa');
+  ok(!s.virar(s.fechadas()[0]?.id).erro, 'e com virada sobrando ainda dá para jogar');
+  const outra = s.fechadas().find(c=>!c.virada);
+  if(outra) s.virar(outra.id);
+  eq(s.fim, 'vitoria', 'acabaram as viradas com a meta batida: vitória');
   ok(s.virar(s.fechadas()[0]?.id).erro, 'sala encerrada não aceita mais jogada');
+
+  /* A ESCOLHA: com a meta garantida, somar mais pontos ou fechar e levar as
+     viradas em moeda. Sem isso, "poder continuar" seria obrigação de jogar
+     até o fim — e virada que sobra vira moeda, então custaria relíquia. */
+  const e = salaTeste({ meta:1e9, viradas:50, foco:9 });
+  ok(e.encerrar().erro, 'sem a meta batida, não dá para encerrar');
+  const e2 = salaTeste({ meta:1, viradas:50, foco:9 });
+  const [m,n] = e2.cartas.filter(c=>c.par===0);
+  e2.virar(m.id); e2.virar(n.id);
+  const moedasAntes = e2.moedas, sobrando = e2.viradas;
+  const rel = e2.encerrar();
+  ok(!rel.erro, 'com a meta batida, dá para encerrar');
+  eq(e2.fim, 'vitoria', 'encerrar é vitória');
+  ok(e2.moedas > moedasAntes, 'e as viradas que sobraram viraram moeda');
+  ok(rel.eventos.some(x=>x.e==='vitoria' && x.sobra===sobrando),
+     'o relatório diz quantas viradas sobraram');
+  ok(e2.encerrar().erro, 'e não dá para encerrar duas vezes');
 }
 
 /* ════════════════════════════════════════════════════════ 10 */

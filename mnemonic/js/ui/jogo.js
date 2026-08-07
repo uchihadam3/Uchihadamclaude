@@ -475,6 +475,13 @@ function medidores(){
   bf.querySelector('.u').textContent = fer.custoEssencia
     ? `${s.essencia}/${fer.custoEssencia} essência` : `${s.usosFer}×`;
 
+  /* com a meta feita, aparece a escolha: continuar somando pontos ou fechar
+     agora e levar as viradas em moeda */
+  $('#baixo').classList.toggle('passou', !!s.passou && !s.fim);
+  const bfim = $('#bfim');
+  bfim.disabled = travado;
+  bfim.innerHTML = 'FECHAR<br><b>+' + nf(Math.max(0, s.viradas)) + ' MOEDAS</b>';
+
   const rq = $('#relq');
   if(rq.children.length !== run.reliquias.length){
     rq.innerHTML = run.reliquias.map((id,i)=>{
@@ -935,9 +942,22 @@ async function animar(rel){
   mostrando.clear();
   mesa(false);
 
+  /* A META BATIDA É NOTÍCIA, NÃO FIM. Ela precisa ser comemorada com a mesma
+     força de antes — era ali que a sala acabava — e precisa deixar claro, na
+     mesma respiração, que dá para continuar. */
+  if(rel.eventos.some(e=>e.e==='meta')){
+    SFX.vitoria(); clarao('rgba(102,230,166,.42)');
+    aviso('META BATIDA', 'a sala está ganha — continue somando', '#4fe08a');
+    medidores();
+    await espera(950);
+  }
   if(rel.eventos.some(e=>e.e==='vitoria')){
+    const m = rel.eventos.find(e=>e.e==='vitoria').motivo;
     SFX.vitoria(); clarao('rgba(102,230,166,.5)');
-    aviso('SALA VENCIDA', 'meta batida', '#4fe08a');
+    aviso('SALA VENCIDA', m==='tabuleiro' ? 'tabuleiro limpo'
+        : m==='foco' ? 'acabou o foco, mas a meta estava feita'
+        : m==='escolha' ? 'você fechou com as viradas na mão'
+        : 'acabaram as viradas', '#4fe08a');
     await espera(900);
   }
   if(rel.eventos.some(e=>e.e==='derrota')){
@@ -967,6 +987,20 @@ $('#mesa').addEventListener('click', e=>{
 });
 
 /* ═══════════════════ ferramenta ═══════════════════ */
+$('#bfim').onclick = async ()=>{
+  if(travado || !run?.sala?.passou) return;
+  SFX.clique();
+  travado = true;
+  const rel = run.encerrarSala();
+  travado = false;
+  if(rel.erro) return;
+  SFX.vitoria(); clarao('rgba(102,230,166,.5)');
+  aviso('SALA FECHADA', `+${nf(rel.eventos[0]?.sobra ?? 0)} moedas pelas viradas`, '#4fe08a');
+  medidores();
+  await espera(950);
+  seguir();
+};
+
 $('#bfer').onclick = async ()=>{
   if(travado || !run?.sala) return;
   salaViva = run.sala;
@@ -1314,9 +1348,20 @@ async function enviarPlacar(bt){
   bt.disabled = true; bt.textContent = 'MANDANDO…';
   try {
     const r = await RANK.publicar(run.pacote(), nome.slice(0,22));
-    bt.textContent = r.ok ? `PUBLICADO EM ${r.relays} RELAYS` : 'NÃO DEU — TENTE DE NOVO';
-    if(r.ok) setTimeout(()=>{ abaRank = run.diario ? 'diario' : 'mundial'; ir('rank'); }, 900);
-    else bt.disabled = false;
+    if(r.ok){
+      bt.textContent = `PUBLICADO EM ${r.relays} RELAYS`;
+      setTimeout(()=>{ abaRank = run.diario ? 'diario' : 'mundial'; ir('rank'); }, 900);
+    } else if(r.por === 'menor'){
+      /* O QUADRO GUARDA O MAIOR, e isso precisa ser DITO. O placar sobe num
+         evento substituível: publicar esta run apagaria a melhor. Um botão que
+         some sem explicar pareceria defeito — e a notícia aqui é boa. */
+      bt.textContent = `SEU RECORDE DE ${nf(r.melhor)} CONTINUA NO QUADRO`;
+      bt.classList.add('bom');
+      setTimeout(()=>{ abaRank = run.diario ? 'diario' : 'mundial'; ir('rank'); }, 1600);
+    } else {
+      bt.textContent = 'NÃO DEU — TENTE DE NOVO';
+      bt.disabled = false;
+    }
   } catch(e){ bt.textContent = 'SEM CONEXÃO'; bt.disabled = false; }
 }
 
@@ -1464,6 +1509,16 @@ async function carregarRank(){
   if(!viva()) return;
   const bons = await conferirLinhas(linhas);
   if(!viva()) return;
+  /* achou a própria linha no quadro com mais pontos do que este aparelho
+     lembra? Então o recorde é aquele — é assim que trocar de navegador ou
+     limpar o armazenamento deixa de derrubar o que já está publicado. */
+  try {
+    const meu = RANK.pubDe(RANK.chave());
+    for(const l of bons){
+      if(l.ev?.pubkey !== meu) continue;
+      RANK.anotarMelhor(RANK.chaveDoPlacar(l.placar), l.placar.pontos);
+    }
+  } catch(e){}
   gravarCache(aba, bons);
   if(!bons.length && linhas.length){
     alvo.innerHTML = semRanking('Ninguém conferido ainda nesta aba.',

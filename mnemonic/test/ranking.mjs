@@ -121,6 +121,44 @@ secao('3. Placar que não bate com as próprias jogadas não entra');
   ok(nomes.some(n=>/^jogador/.test(n)), 'e os honestos continuam no quadro');
 }
 
+/* ---------- 4. o recorde ---------- */
+secao('4. Run pior não derruba o recorde de quem já jogou melhor');
+{
+  const r = await pg.evaluate(async ()=>{
+    const { RANK, Run } = window.MN;
+    /* um aparelho só, duas runs: a boa primeiro, a ruim depois */
+    localStorage.setItem('mnemonic.sk','');
+    localStorage.removeItem('mnemonic.melhor.mnemonic-placar-v1');
+    /* `pares` é quantos fechar antes de encerrar a sala. Encerrar por escolha
+       é o caminho normal desde que a meta virou piso: a sala não fecha
+       sozinha ao bater a meta. */
+    const joga = pares => {
+      const r = new Run({ semente:'recorde', classe:'detetive' });
+      r.entrar();
+      const m = {};
+      for(const c of r.sala.cartas) (m[c.par] ||= []).push(c.id);
+      let n = 0;
+      for(const g of Object.values(m)){
+        if(r.sala?.fim || n >= pares) break;
+        r.virar(g[0]); r.virar(g[1]); n++;
+      }
+      if(r.sala && !r.sala.fim && r.sala.passou) r.encerrarSala();
+      return r;
+    };
+    const boa = joga(99);                        /* limpa a sala inteira */
+    const a = await RANK.publicar(boa.pacote(), 'recordista');
+    const ruim = joga(3);                        /* três pares e fecha */
+    const b = await RANK.publicar(ruim.pacote(), 'recordista');
+    return { boa:boa.pontos, ruim:ruim.pontos, a, b,
+             guardado: RANK.meuMelhor(RANK.chaveDoPlacar(boa.placar())) };
+  });
+  ok(r.boa > r.ruim, `a segunda run valeu menos (${r.boa} depois ${r.ruim})`);
+  ok(r.a.ok, 'a run boa subiu');
+  ok(!r.b.ok && r.b.por === 'menor', 'a run pior NÃO subiu — não apagaria a melhor');
+  ok(r.b.melhor === r.boa, `o jogo diz qual é o recorde que ficou (${r.b.melhor})`);
+  ok(r.guardado === r.boa, 'e o recorde guardado é o maior');
+}
+
 ok(ruim.length === 0, 'sem erro de página — ' + ruim.slice(0,2).join(' | '));
 
 await navegador.close();

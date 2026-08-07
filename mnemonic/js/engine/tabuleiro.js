@@ -138,6 +138,7 @@ export class Sala {
     this.turno = 0;                    // viradas gastas, para pavios e ciclos
     this.abertas = [];                 // ids virados agora (0, 1 ou 2)
     this.fim = null;                   // 'vitoria' | 'derrota'
+    this.passou = false;               // a meta já foi batida? (piso, não fim)
     this.fer = o.ferramenta || null;   // ferramenta da classe
     this.usosFer = o.ferramenta?.usos ?? 0;
     this._novas = [];                  // por virada: a carta era inédita?
@@ -471,20 +472,58 @@ export class Sala {
     if(alvo){ this._mostrar(alvo); rel.eventos.push({ e:'revelou', cartas:[alvo.id] }); }
   }
 
+  /* A META É PISO, NÃO LINHA DE CHEGADA.
+     Antes a sala fechava no instante em que os pontos batiam a meta, e isso
+     tirava do jogo justamente a parte que ele tem de melhor: a decisão de
+     CONTINUAR. Com a sala fechando sozinha, tanto fazia limpar o tabuleiro ou
+     bater a meta na raspa — o resultado era o mesmo, e o combo alto virava
+     enfeite, porque a sala acabava antes de valer.
+
+     Agora a meta só acende o `passou`. A sala termina quando o tabuleiro
+     acaba, quando as viradas acabam ou quando o Foco zera — e o desfecho é
+     vitória se a meta já foi batida, derrota se não. Quem quiser arriscar
+     mais dez pares depois de garantir a passagem, arrisca; quem errar demais
+     tentando, perde uma sala que já estava ganha. Essa escolha é o jogo. */
   _checarFim(rel){
-    if(this.pontos >= this.meta){ this.fim='vitoria';
+    if(this.pontos >= this.meta && !this.passou){
+      this.passou = true;
+      rel.eventos.push({ e:'meta' });          /* a tela comemora aqui */
+    }
+    const semCarta = this.emJogo().length < 2;
+    if(!(this.foco <= 0 || this.viradas <= 0 || semCarta)) return;
+
+    if(this.passou){
+      this.fim = 'vitoria';
       /* virada que sobra vira moeda: recompensa quem lembra, não quem chuta */
       const sobra = Math.max(0, this.viradas);
       this.moedas += sobra * (1 + (this.mods.moedaSobra||0));
-      rel.eventos.push({ e:'vitoria', sobra });
+      rel.eventos.push({ e:'vitoria', sobra,
+        motivo: semCarta ? 'tabuleiro' : this.foco<=0 ? 'foco' : 'viradas' });
       return;
     }
-    const semCarta = this.emJogo().length < 2;
-    if(this.foco <= 0 || this.viradas <= 0 || semCarta){
-      this.fim='derrota';
-      rel.eventos.push({ e:'derrota',
-        motivo: this.foco<=0?'foco' : this.viradas<=0?'viradas':'tabuleiro' });
-    }
+    this.fim = 'derrota';
+    rel.eventos.push({ e:'derrota',
+      motivo: this.foco<=0?'foco' : this.viradas<=0?'viradas':'tabuleiro' });
+  }
+
+  /* ENCERRAR POR VONTADE PRÓPRIA.
+     Com a meta virando piso, quem bateu passou a ser obrigado a jogar até
+     acabar alguma coisa — e virada que sobra vira MOEDA, então jogar até o
+     fim custa relíquia lá na frente. Isso não é escolha, é imposto.
+
+     Aqui está a decisão de verdade da sala: com a meta garantida, ou você
+     continua e soma pontos, ou fecha agora e leva as viradas em moeda. Pontos
+     ganham o ranking; moeda ganha a run. Só funciona depois de `passou` —
+     desistir de uma sala não ganha continua não existindo. */
+  encerrar(){
+    if(this.fim) return { erro:'sala encerrada' };
+    if(!this.passou) return { erro:'a meta ainda não foi batida' };
+    const rel = { tipo:'encerrou', eventos:[] };
+    this.fim = 'vitoria';
+    const sobra = Math.max(0, this.viradas);
+    this.moedas += sobra * (1 + (this.mods.moedaSobra||0));
+    rel.eventos.push({ e:'vitoria', sobra, motivo:'escolha' });
+    return rel;
   }
 
   /* ---------- preview do Palácio da Memória ----------

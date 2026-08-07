@@ -160,6 +160,21 @@ export class Run {
     if(this.sala.fim) this._fecharSala();
     return rel;
   }
+  /* encerrar a sala com a meta já batida. Vai para o registro como qualquer
+     jogada: sem isso o replay do ranking terminaria a sala noutro ponto e o
+     placar não bateria. */
+  encerrarSala(){
+    if(!this.sala || this.sala.fim) return { erro:'sem sala' };
+    const rel = this.sala.encerrar();
+    if(rel.erro) return rel;
+    /* `fim` e não `e`: `e` já era a escolha de opção num evento. Dois códigos
+       iguais no registro fazem o replay andar por um caminho e a partida por
+       outro — e o placar deixa de bater no ranking sem ninguém entender. */
+    this._reg({ s:'fim' });
+    this._gatilhos(rel);
+    this._fecharSala();
+    return rel;
+  }
   usarFerramenta(arg){
     if(!this.sala || this.sala.fim) return { erro:'sem sala' };
     const rel = this.sala.usarFerramenta(arg);
@@ -385,6 +400,11 @@ export function verificar(placar, registro){
       case 'v': {
         const res = r.virar(j.c);
         if(res.erro) return { ok:false, por:'virada inválida: '+res.erro };
+        break;
+      }
+      case 'fim': {
+        const res = r.encerrarSala();
+        if(res.erro) return { ok:false, por:'encerramento inválido: '+res.erro };
         break;
       }
       case 'f': {
