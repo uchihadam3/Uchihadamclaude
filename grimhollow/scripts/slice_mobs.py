@@ -16,7 +16,7 @@ grade fixa teria cortado seis retângulos com bicho pela metade em cada um.
 Agora o script ACHA cada desenho: separa as ilhas de pixels não-magenta e trata
 cada uma como uma peça. A folha pode vir como vier.
 
-AS TRÊS CONTAS:
+AS QUATRO CONTAS:
 
  1. RECORTE por distância ao magenta (R e B altos com G baixo — é o G que separa
     magenta de pele rosada).
@@ -24,7 +24,10 @@ AS TRÊS CONTAS:
     com o fundo. Zerar só o alfa deixa o rosa grudado no contorno, e ele só
     aparece depois, no jogo, contra cenário escuro. Aqui o R e o B de cada pixel
     de borda são puxados de volta ao nível do G.
- 3. ILHAS: dilatação antes de rotular, p/ que respingo de terra e ponta de asa
+ 3. SANGRIA: o transparente é preenchido com a cor do opaco mais próximo, senão
+    o filtro bilinear da placa de vídeo vai buscar cor lá e ressuscita o magenta
+    como franja rosa em volta do desenho — no arquivo não aparece, na tela sim.
+ 4. ILHAS: dilatação antes de rotular, p/ que respingo de terra e ponta de asa
     soltos entrem na mesma peça do bicho a que pertencem.
 
   python3 scripts/slice_mobs.py <folha.png> --nomes a,b,c [--pular 3] [--caixa 512]
@@ -53,7 +56,25 @@ def sem_magenta(rgb: np.ndarray, limiar: float) -> np.ndarray:
     mist = (fundo > 0.02) & (fundo < 0.98)
     R = np.where(mist, np.minimum(R, G + (R - G) * (1 - fundo)), R)
     B = np.where(mist, np.minimum(B, G + (B - G) * (1 - fundo)), B)
-    return np.dstack([R, G, B, alfa]).clip(0, 255).astype(np.uint8)
+    out = np.dstack([R, G, B, alfa]).clip(0, 255).astype(np.uint8)
+
+    # SANGRIA DA COR PARA O TRANSPARENTE — e sem isto o recorte parece certo no
+    # arquivo e sai com FRANJA ROSA no jogo.
+    # O motivo: zerar o alfa não apaga a COR do pixel; o transparente continua
+    # magenta por baixo. Aí a placa de vídeo gera os mipmaps e faz o filtro
+    # bilinear MISTURANDO cor de vizinhos — inclusive a dos transparentes — e o
+    # magenta ressurge na borda do desenho. Medi 0,000% de resíduo no PNG e mesmo
+    # assim as janelas de Vaurstead saíram com contorno rosa na tela.
+    # A correção é encher todo o transparente com a cor do pixel opaco MAIS
+    # PRÓXIMO: o alfa continua zero (nada disso é desenhado), mas quando o filtro
+    # for buscar cor ali, vai achar a do desenho em vez de magenta.
+    op = out[..., 3] > 8
+    if op.any() and not op.all():
+        _, idx = ndimage.distance_transform_edt(~op, return_indices=True)
+        for ch in range(3):
+            canal = out[..., ch]
+            out[..., ch] = np.where(op, canal, canal[idx[0], idx[1]])
+    return out
 
 
 def achar_pecas(rgba: np.ndarray, minimo: float, cola: int):

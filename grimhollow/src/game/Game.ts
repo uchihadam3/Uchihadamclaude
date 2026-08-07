@@ -8065,13 +8065,13 @@ export class Game {
     const a3WallUrl = a3OptUrl("tex_a3wall")
       ?? a2OptUrl("tex_a2wall_clean") ?? A2WALL_PNG[0] ?? texA2WallUrl;
     const rockMat = a3
-      ? this.pbrStone(a3WallUrl, "a3wall", { rough: 0.88, normal: 1.35, tint: 0xf2e8d4, repeat: [1, 2.1] })
+      ? this.pbrStone(a3WallUrl, "a3wall", { rough: 0.88, normal: 1.35 })
       : a2
         ? this.pbrStone(a2CleanUrl ?? a2MossyUrl, "a2clean", { rough: 0.86, normal: 1.5 })
         : this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
     // no Ato III a "variante" é a casa QUEIMADA: a mesma pedra, escurecida de fumaça.
     const rockMatMossy = a3
-      ? this.pbrStone(a3WallUrl, "a3burn", { rough: 0.93, normal: 1.35, tint: 0x7d7871, repeat: [1, 2.1] })
+      ? this.pbrStone(a3WallUrl, "a3burn", { rough: 0.93, normal: 1.35, tint: 0x8c877f })
       : a2 ? this.pbrStone(a2MossyUrl, "a2mossy", { rough: 0.86, normal: 1.5 }) : rockMat;
     // só mistura a musgosa quando a limpa existe (senão tudo musgoso, como antes).
     // No Ato III a queimada aparece MUITO mais (um quarteirão em cada três): a
@@ -8083,7 +8083,12 @@ export class Game {
     // O Ato III usa a mesma calçada — é rua de cidade, é literalmente o que ela é —
     // porém acinzentada de pó, que é o que separa a rua viva da rua morta.
     let floorMat: THREE.Material;
-    if (a3) {
+    const a3FloorUrl = a3OptUrl("tex_a3floor");
+    if (a3 && a3FloorUrl) {
+      // a arte própria da rua (§33.2), já costurada p/ ladrilhar sem listra
+      floorMat = this.pbrStone(a3FloorUrl, "a3floor", { rough: 0.95, normal: 1.0 });
+    } else if (a3) {
+      // reserva enquanto a arte não existe: a calçada da praça, acinzentada
       const cob = tex.cobblestone(11); cob.wrapS = cob.wrapT = THREE.RepeatWrapping;
       const fm = new THREE.MeshStandardMaterial({
         side: THREE.DoubleSide, map: cob, color: 0x9a948a, roughness: 0.95, metalness: 0,
@@ -8171,6 +8176,26 @@ export class Game {
             const wallMat = useMossy(c + dc, r + dr) ? rockMatMossy : rockMat;
             this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, wallMat, 1, 1.2);
             if (illus) this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7);
+            // ATO III: janela quebrada, vão desabado, suporte de lampião vazio e
+            // trepadeira seca entram como DECALQUE sobre a parede LISA — é assim
+            // que a cidade de Grimhollow monta as fachadas dela, e pelo mesmo
+            // motivo: uma janela pintada DENTRO da textura reapareceria idêntica
+            // em cada painel do mapa, e é a repetição que denuncia a caixa.
+            // A ALTURA varia com o sorteio. Sem isso todas nasceriam na mesma
+            // linha e a rua viraria uma fileira de adesivos; com isso a janela
+            // fica na altura de janela e a trepadeira sobe do chão.
+            if (a3 && a3DecMats.length && hash(c, r, dc * 3 + dr) < 0.26) {
+              const q = hash(c + 7, r + 3, dc - dr);
+              const i = Math.min(a3DecMats.length - 1, Math.floor(q * a3DecMats.length));
+              // O RECUO PRECISA SER NEGATIVO AQUI. O addWallDecal soma o recuo na
+              // direção que recebe, e aqui (dc,dr) aponta da rua PARA a parede —
+              // então um recuo positivo enfia o decalque para DENTRO dela. Pior:
+              // a parede da masmorra é feita com RELEVO de até 0,9, então mesmo
+              // rente ela engoliria o desenho. Medido: os 227 decalques existiam
+              // na cena, com textura carregada e visible=true, e nenhum aparecia
+              // na tela. 0,95 à frente da face limpa o relevo inteiro.
+              this.addWallDecal(c, r, dc, dr, a3DecMats[i], 2.6, 2.6, 1.7 + q * 3.6, -0.95);
+            }
           }
           // tocha esporádica em paredes de rocha (ilumina). LIMITE BAIXO: muitas
           // point lights estouram o shader no mobile (cena preta); a tocha do
