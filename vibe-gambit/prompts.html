@@ -136,9 +136,9 @@
   </section>
 
   <section>
-    <div class="eyebrow"><h2>Progressão de Armaduras</h2><span class="rule">3 pesos × 10 tiers · fundo magenta</span><span class="count">30 folhas</span></div>
+    <div class="eyebrow"><h2>Progressão de Armaduras</h2><span class="rule">2 partes × 10 tiers por folha · fundo magenta</span><span class="count">6 folhas</span></div>
     <div class="callout" style="border-left-color:#8ee0a0;border-color:#2f6a45;background:linear-gradient(180deg,#122016,#0e1712);color:#cfebd6">
-      <b>🪜 Escada longa (T1 → T10):</b> cada folha é uma <b>linha com 4 peças</b> — <b>cabeça · peito · mãos · pés</b> — de <b>um peso</b> (Leve/Médio/Pesado) num <b>tier</b>, seguindo uma <b>escada de materiais</b> (ex. Pesado: Ferro → Bronze → Aço → Prata → Cobalto → Mithril → Adamante → Dragão → Rúnico → Divino). Mantenha as 4 peças <b>coesas</b> dentro da folha e o material <b>subindo</b> a cada tier. Fundo <b>magenta</b> (<code>#FF00FF</code>), peças bem espaçadas. Gere na ordem que quiser — eu encaixo por tier conforme chegam.
+      <b>🪜 Escada inteira numa folha só:</b> cada folha é uma <b>grade 2 linhas × 10 colunas</b> = <b>2 partes</b> do set mostradas em <b>TODOS os 10 tiers de uma vez</b> (ex.: <i>Peito</i> em cima e <i>Botas</i> embaixo, T1 → T10 da esquerda p/ direita). Cada <b>coluna</b> é um tier e as duas peças da coluna usam o <b>mesmo material/cor</b> — assim a evolução fica coesa. Segue a <b>escada de materiais</b> (ex. Pesado: Ferro → Bronze → Aço → Prata → Cobalto → Mithril → Adamante → Dragão → Rúnico → Divino). Fundo <b>magenta</b> (<code>#FF00FF</code>) pra recorte, <b>sem texto/números</b>. São só 6 folhas: cada peso tem <i>Cabeça+Peito</i> e <i>Mãos+Pés</i>.
     </div>
     <div class="grid" id="grid-armorsets"></div>
   </section>
@@ -245,57 +245,44 @@
     {emoji:'💍', name:'Itens B — mãos, pés & acessórios (folha · 5)', file:'icons_items_b.png', chip:'Ícones', chipClass:'bonus',
       prompt:"16-bit pixel art RPG equipment ITEM icons, a set of 5 icons arranged in ONE horizontal row, evenly spaced with WIDE empty gaps between them, each roughly square and centered in its own cell. From left to right: (1) a pair of brown LEATHER GLOVES, (2) a spiked steel POWER GAUNTLET, (3) a pair of brown leather BOOTS, (4) a gold RING with a red gem, (5) a glowing blue VITAL AMULET pendant on a chain. Chunky readable pixel art, thin dark outline, bold cohesive colors matching the fantasy RPG character style. On a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow, no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons."},
   ];
-  // ---- Progressão de armaduras: 3 pesos × 10 tiers (cada folha = 4 peças cabeça/peito/mãos/pés) ----
-  const ROW = "a set of 4 icons in ONE horizontal row, evenly spaced with WIDE empty gaps between them, each roughly square and centered in its own cell. From left to right: (1) a HEAD piece, (2) a CHEST/body piece, (3) a pair of GLOVES (hands), (4) a pair of BOOTS (feet).";
-  const BG  = "Chunky readable pixel art, thin dark outline, all 4 pieces clearly the SAME matching set (same material and palette). On a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow (except any glow explicitly described as part of the item), no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons.";
-  const ROM = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
-  // Escadas de material: [nome PT, descrição de material/cor EN, headword, chestword]
+  // ---- Progressão de armaduras: 6 folhas (3 pesos × 2 pares de partes), cada folha = 2 partes × 10 tiers ----
+  // Escadas de material: [nome PT, cor/material curto EN]. Partes com nomes por peso.
   const LADDERS = {
-    light:  { emoji:'🌀', chip:'Leve',   chipClass:'scene', label:'LIGHT (cloth/arcane)', head:'cloth hood/hat', chest:'cloth robe/tunic', mats:[
-      ['Linho',      'plain undyed LINEN cloth, off-white and beige, humble and worn'],
-      ['Lã',         'coarse grey WOOL traveler cloth, simple and sturdy'],
-      ['Seda',       'smooth pale-blue SILK with a light sheen'],
-      ['Encantado',  'royal-blue ENCHANTED cloth with subtle silver trim and faint glyphs'],
-      ['Rúnico',     'indigo RUNIC robes with softly glowing blue runes and small gems'],
-      ['Seda Astral','deep violet ASTRAL silk speckled with tiny glowing stars'],
-      ['Etéreo',     'semi-translucent ETHEREAL teal cloth with a soft inner glow'],
-      ['Arcano',     'dark purple ARCANE vestments with bright cyan energy trim'],
-      ['Celestial',  'white-and-gold CELESTIAL robes with radiant light accents'],
-      ['Divino',     'luminous white-gold DIVINE regalia with a halo-like glow and gems'],
+    light:  { emoji:'🌀', chip:'Leve',   chipClass:'scene', label:'LIGHT cloth/arcane',
+      parts:{ head:'a cloth HOOD/HAT', chest:'a cloth ROBE/TUNIC (chest)', hands:'a pair of cloth GLOVES/wraps', feet:'a pair of cloth SHOES/slippers' }, mats:[
+      ['Linho','off-white plain LINEN'], ['Lã','coarse grey WOOL'], ['Seda','pale-blue SILK with light sheen'],
+      ['Encantado','royal-blue ENCHANTED cloth with silver trim'], ['Rúnico','indigo cloth with glowing blue RUNES'],
+      ['Seda Astral','deep-violet ASTRAL silk with tiny stars'], ['Etéreo','translucent glowing teal ETHEREAL cloth'],
+      ['Arcano','dark-purple ARCANE cloth with cyan energy trim'], ['Celestial','white-and-gold CELESTIAL cloth, radiant'],
+      ['Divino','luminous white-gold DIVINE cloth with gems'],
     ]},
-    medium: { emoji:'🍃', chip:'Médio',  chipClass:'bonus', label:'MEDIUM (leather/hide)', head:'leather cap/hood', chest:'leather vest/jerkin', mats:[
-      ['Couro Cru',      'rough raw tan LEATHER, plain and rugged'],
-      ['Couro Batido',   'worn dark-brown boiled leather'],
-      ['Cravejado',      'brown STUDDED leather with iron rivets'],
-      ['Couro de Fera',  'earthy-brown BEAST-HIDE leather with fur trim'],
-      ['Escamas',        'green SCALE-mail plates over leather, reptilian'],
-      ['Couro Sombrio',  'black SHADOW leather with dark-grey accents'],
-      ['Pele de Wyvern', 'teal WYVERN-HIDE with ridged scales and small bone spikes'],
-      ['Sombra Élfica',  'dark green-and-silver ELVEN shadow leather, elegant and light'],
-      ['Fera Mítica',    'golden-brown MYTHIC beast hide with glowing amber runes'],
-      ['Primordial',     'crimson-and-black PRIMORDIAL hide with glowing red energy veins'],
+    medium: { emoji:'🍃', chip:'Médio',  chipClass:'bonus', label:'MEDIUM leather/hide',
+      parts:{ head:'a leather CAP/HOOD', chest:'a leather VEST/JERKIN (chest)', hands:'a pair of leather GLOVES', feet:'a pair of leather BOOTS' }, mats:[
+      ['Couro Cru','rough tan raw LEATHER'], ['Couro Batido','dark-brown boiled leather'], ['Cravejado','brown STUDDED leather with rivets'],
+      ['Couro de Fera','brown beast-HIDE with fur trim'], ['Escamas','green SCALE plates over leather'],
+      ['Couro Sombrio','black SHADOW leather'], ['Pele de Wyvern','teal WYVERN-hide with spikes'],
+      ['Sombra Élfica','green-and-silver ELVEN leather'], ['Fera Mítica','golden-brown hide with amber RUNES'],
+      ['Primordial','crimson-and-black hide with red ENERGY veins'],
     ]},
-    heavy:  { emoji:'⛰️', chip:'Pesado', chipClass:'hero',  label:'HEAVY (metal plate)', head:'helmet', chest:'breastplate', mats:[
-      ['Ferro',    'dull grey raw IRON plate, simple and heavy'],
-      ['Bronze',   'burnished BRONZE plate, warm brown-gold'],
-      ['Aço',      'polished bright silver STEEL plate with blue-grey shading'],
-      ['Prata',    'gleaming SILVER plate with subtle engraving'],
-      ['Cobalto',  'blue-tinted COBALT steel plate'],
-      ['Mithril',  'pale luminous MITHRIL, silvery-white with a faint glow'],
-      ['Adamante', 'dark near-black matte ADAMANTINE plate, massive'],
-      ['Dragão',   'red-and-black DRAGON-forged plate with scale motifs and glowing embers'],
-      ['Rúnico',   'steel plate etched with bright glowing blue RUNES'],
-      ['Divino',   'ornate GOLD-and-white DIVINE plate with radiant light and gems'],
+    heavy:  { emoji:'⛰️', chip:'Pesado', chipClass:'hero',  label:'HEAVY metal plate',
+      parts:{ head:'a HELMET', chest:'a BREASTPLATE (chest)', hands:'a pair of GAUNTLETS', feet:'a pair of SABATONS (armored boots)' }, mats:[
+      ['Ferro','dull grey IRON'], ['Bronze','warm burnished BRONZE'], ['Aço','bright silver STEEL'], ['Prata','gleaming SILVER'],
+      ['Cobalto','blue COBALT steel'], ['Mithril','glowing silvery-white MITHRIL'], ['Adamante','matte near-black ADAMANTINE'],
+      ['Dragão','red-and-black DRAGON plate with embers'], ['Rúnico','steel with glowing blue RUNES'],
+      ['Divino','gold-and-white DIVINE plate with gems'],
     ]},
   };
-  const armorSheet = (label,desc)=>`16-bit pixel art RPG ARMOR set icons (${label}), ${ROW} ${desc} ${BG}`;
+  const PAIRS = [ ['head','chest','Cabeça & Peito','headchest'], ['hands','feet','Mãos & Pés','handsfeet'] ];
+  function armorSheet(L, pa, pb){
+    const ladder = L.mats.map(([n,c],i)=>`${i+1} ${c}`).join(', ');
+    return `16-bit pixel art RPG ARMOR progression sheet (${L.label}). A clean GRID of 20 item icons arranged as exactly 2 ROWS by 10 COLUMNS, on a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) that completely fills the frame. TOP ROW: ${L.parts[pa]} shown across all 10 tiers, left to right. BOTTOM ROW: ${L.parts[pb]} across all 10 tiers, left to right. Each COLUMN is ONE tier and BOTH pieces in a column share the EXACT same material and color. The material ladder from tier 1 (leftmost, humblest) to tier 10 (rightmost, most majestic) is: ${ladder}. Every icon centered in its own cell with wide even gaps, consistent size, chunky readable pixel art with a thin dark outline, cohesive with the fantasy RPG character style. NO text, NO numbers, NO labels, no gradient, no drop shadow, no vignette. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons.`;
+  }
   const ARMORSETS = [];
   for(const [w,L] of Object.entries(LADDERS)){
-    L.mats.forEach(([mat,mdesc],i)=>{
-      const t=i+1;
-      const desc=`A "${mat}" tier-${t} set — ${mdesc}. All four pieces (a ${L.head}, a ${L.chest}, matching gloves, and matching boots) share this exact material and color.`;
-      ARMORSETS.push({ emoji:L.emoji, name:`${L.chip} ${ROM[i]} — ${mat}`, file:`arm_${w}_t${t}.png`, chip:`${L.chip} T${t}`, chipClass:L.chipClass, prompt:armorSheet(L.label,desc) });
-    });
+    for(const [pa,pb,ptLabel,ptFile] of PAIRS){
+      ARMORSETS.push({ emoji:L.emoji, name:`${L.chip} — ${ptLabel} (T1→T10)`, file:`arm_${w}_${ptFile}.png`,
+        chip:`${L.chip} · ${ptLabel}`, chipClass:L.chipClass, prompt:armorSheet(L,pa,pb) });
+    }
   }
   document.getElementById('grid-menus').innerHTML   = MENUS.map(m=>card({icon:m.emoji,    name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
   document.getElementById('grid-frames').innerHTML  = FRAMES.map(m=>card({icon:m.emoji,   name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
