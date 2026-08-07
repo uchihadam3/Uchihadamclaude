@@ -21,7 +21,7 @@ export function newGame(){
       weaponLevel: h.weaponLevel,
       slots: h.slots,                          // linhas de gambit ativas (2..maxSlots)
       gambits: h.gambits.map(g => ({ ...g })), // cópia editável
-      equip: { weapon:null, armor:null, trinket:null },
+      equip: { head:null, chest:null, hands:null, feet:null, weapon:null, trinket:null },
     })),
     inventory: [...STARTER_INVENTORY],          // itens possuídos (não equipados)
     stagesUnlocked: Object.fromEntries(STAGES.map(s => [s.id, s.unlocked])),
@@ -34,7 +34,10 @@ export function migrate(state){
   if(!state) return state;
   if(!Array.isArray(state.inventory)) state.inventory = [...STARTER_INVENTORY];
   for(const hs of state.heroes || []){
-    if(!hs.equip) hs.equip = { weapon:null, armor:null, trinket:null };
+    const base = { head:null, chest:null, hands:null, feet:null, weapon:null, trinket:null };
+    hs.equip = Object.assign(base, hs.equip || {});
+    // saves antigos usavam 'armor' -> migra p/ 'chest'
+    if(hs.equip.armor){ if(!hs.equip.chest) hs.equip.chest = hs.equip.armor; delete hs.equip.armor; }
   }
   return state;
 }

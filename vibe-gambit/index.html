@@ -20,11 +20,11 @@
     --font:'Lilita One','Trebuchet MS','Segoe UI',sans-serif; --mono:ui-monospace,'Consolas',monospace;
     --appw:460px;
   }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;font-synthesis:none}
   html,body{height:100%}
   body{background:radial-gradient(130% 90% at 50% -10%,#31404f 0%,var(--bg2) 65%);color:var(--ink);
     font-family:var(--font);min-height:100dvh;display:flex;justify-content:center;
-    padding:8px;-webkit-font-smoothing:antialiased}
+    padding:8px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-synthesis:none}
   #app{width:min(var(--appw),100%);display:flex;flex-direction:column;gap:10px}
 
   /* ---------- HUD ---------- */
@@ -140,11 +140,15 @@
   .d-stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .d-stat{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:800;color:var(--ink2);background:var(--inset);border:1px solid var(--line);border-radius:7px;padding:2px 7px}
   .d-stat b{color:var(--ink)}
-  .d-slots{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
-  .d-slot{display:flex;align-items:center;gap:7px;background:#fff8e8;border:1px solid var(--line);border-radius:10px;padding:7px 8px;text-align:left;position:relative;box-shadow:none;min-width:0}
-  .d-slot.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
-  .ds-ic{font-size:22px;flex:none;line-height:1} .ds-tx{min-width:0} .ds-tx b{display:block;font-size:12px;color:var(--ink)} .ds-tx small{font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-  .ds-x{position:absolute;top:3px;right:6px;font-size:11px;color:var(--enemy);font-weight:900}
+  /* 6 slots de equipamento — SÓ ícone, enxuto (arte entra depois) */
+  .d-slots{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .d-slot{position:relative;aspect-ratio:1;display:grid;place-items:center;background:var(--inset);
+    border:1px solid var(--line);border-radius:11px;padding:0;box-shadow:none;min-width:0}
+  .d-slot.on{background:#fff8e8;border-color:var(--acc);box-shadow:inset 0 0 0 1.5px var(--acc)}
+  .ds-ic{font-size:24px;line-height:1}
+  .ds-badge{position:absolute;bottom:1px;right:3px;font-size:9px;font-weight:800;color:#fff;background:var(--acc);border-radius:6px;padding:0 3px;line-height:1.35}
+  .ds-x{position:absolute;top:-4px;right:-4px;width:16px;height:16px;display:grid;place-items:center;font-size:9px;color:#fff;background:var(--enemy);border-radius:50%;font-weight:900;border:1.5px solid #fff}
+  @media(max-width:360px){ .d-slots{grid-template-columns:repeat(6,1fr);gap:4px} .ds-ic{font-size:20px} }
   .inv-cap{font-size:13px;font-weight:900;color:var(--ink2);margin-top:2px} .inv-cap small{font-weight:700;font-size:10px;color:var(--dim)}
   /* inventário: grade COMPACTA de ícones — tudo visível, sem rolagem */
   .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:7px}

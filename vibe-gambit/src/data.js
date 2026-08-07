@@ -126,30 +126,43 @@ export const ACADEMY = {
 };
 
 // --- ITENS / EQUIPAMENTO -----------------------------------------------------
-// slot: 'armor' | 'trinket' (a "arma" é a arma de classe melhorada na Forja).
+// slots do herói: head, chest, hands, feet, weapon, trinket
+//   (a "arma" = arma de classe melhorada na Forja; os demais são itens do inventário)
 // bonus: somado aos atributos do herói (em combate e na ficha). rarity p/ cor.
+export const EQUIP_SLOT_KEYS = ['head','chest','hands','feet','weapon','trinket'];
 export const ITEMS = {
-  leather_armor:{ id:'leather_armor', name:'Armadura de Couro', slot:'armor',   icon:'🦺', rarity:'comum', bonus:{ hp:20 } },
-  chain_mail:   { id:'chain_mail',    name:'Cota de Malha',     slot:'armor',   icon:'🛡️', rarity:'raro',  bonus:{ hp:35, def:3 } },
-  mage_robe:    { id:'mage_robe',     name:'Manto Arcano',      slot:'armor',   icon:'🥼', rarity:'raro',  bonus:{ hp:12, mag:5 } },
-  power_ring:   { id:'power_ring',    name:'Anel de Força',     slot:'trinket', icon:'💍', rarity:'comum', bonus:{ atk:3 } },
-  swift_boots:  { id:'swift_boots',   name:'Botas Velozes',     slot:'trinket', icon:'🥾', rarity:'comum', bonus:{ spd:2 } },
-  vital_amulet: { id:'vital_amulet',  name:'Amuleto Vital',     slot:'trinket', icon:'📿', rarity:'raro',  bonus:{ hp:18, mp:10 } },
+  // cabeça
+  iron_helm:     { id:'iron_helm',     name:'Elmo de Ferro',    slot:'head',    icon:'🪖', rarity:'comum', bonus:{ def:2, hp:8 } },
+  arcane_hat:    { id:'arcane_hat',    name:'Chapéu Arcano',    slot:'head',    icon:'🎩', rarity:'raro',  bonus:{ mag:4 } },
+  // peito
+  leather_armor: { id:'leather_armor', name:'Armadura de Couro',slot:'chest',   icon:'🦺', rarity:'comum', bonus:{ hp:20 } },
+  chain_mail:    { id:'chain_mail',    name:'Cota de Malha',    slot:'chest',   icon:'🛡️', rarity:'raro',  bonus:{ hp:35, def:3 } },
+  mage_robe:     { id:'mage_robe',     name:'Manto Arcano',     slot:'chest',   icon:'🥼', rarity:'raro',  bonus:{ hp:12, mag:5 } },
+  // mãos
+  leather_gloves:{ id:'leather_gloves',name:'Luvas de Couro',   slot:'hands',   icon:'🧤', rarity:'comum', bonus:{ atk:2 } },
+  power_gauntlet:{ id:'power_gauntlet',name:'Manopla de Força', slot:'hands',   icon:'✊', rarity:'raro',  bonus:{ atk:4 } },
+  // pés
+  swift_boots:   { id:'swift_boots',   name:'Botas Velozes',    slot:'feet',    icon:'👢', rarity:'comum', bonus:{ spd:2 } },
+  // acessório
+  power_ring:    { id:'power_ring',    name:'Anel de Força',    slot:'trinket', icon:'💍', rarity:'comum', bonus:{ atk:3 } },
+  vital_amulet:  { id:'vital_amulet',  name:'Amuleto Vital',    slot:'trinket', icon:'📿', rarity:'raro',  bonus:{ hp:18, mp:10 } },
 };
 // Itens que o jogador já começa possuindo (no inventário, não equipados).
-export const STARTER_INVENTORY = ['leather_armor','power_ring','swift_boots','mage_robe'];
+export const STARTER_INVENTORY = ['leather_armor','power_ring','swift_boots','iron_helm','leather_gloves'];
 // Tabela de drop de itens ao limpar uma fase (chance por item).
 export const ITEM_DROPS = [
-  { item:'leather_armor', chance:0.20 }, { item:'power_ring', chance:0.16 },
-  { item:'swift_boots', chance:0.16 }, { item:'chain_mail', chance:0.10 },
-  { item:'mage_robe', chance:0.10 }, { item:'vital_amulet', chance:0.08 },
+  { item:'leather_armor', chance:0.16 }, { item:'power_ring', chance:0.14 },
+  { item:'swift_boots', chance:0.14 }, { item:'iron_helm', chance:0.14 },
+  { item:'leather_gloves', chance:0.14 }, { item:'chain_mail', chance:0.09 },
+  { item:'mage_robe', chance:0.09 }, { item:'arcane_hat', chance:0.08 },
+  { item:'power_gauntlet', chance:0.07 }, { item:'vital_amulet', chance:0.07 },
 ];
 
 // Soma dos bônus dos itens equipados de um herói (pura).
 export function itemBonuses(equip){
   const out = { atk:0, def:0, mag:0, spd:0, hp:0, mp:0 };
   if(!equip) return out;
-  for(const slot of ['weapon','armor','trinket']){
+  for(const slot of EQUIP_SLOT_KEYS){
     const it = ITEMS[equip[slot]];
     if(it && it.bonus) for(const k in it.bonus) out[k] = (out[k]||0) + it.bonus[k];
   }

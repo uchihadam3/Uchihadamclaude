@@ -126,11 +126,18 @@ function showPrep(stageId){
 // ================================================================ BASE (hub deitado — layout da referência)
 // Slots de equipamento por herói (item guardado em hs.equip[slot] = itemId|null)
 const EQUIP_SLOTS = [
+  { key:'head',   icon:'🪖', label:'Cabeça' },
+  { key:'chest',  icon:'👕', label:'Peito' },
+  { key:'hands',  icon:'🧤', label:'Mãos' },
+  { key:'feet',   icon:'👢', label:'Pés' },
   { key:'weapon', icon:'⚔️', label:'Arma' },
-  { key:'armor',  icon:'🛡️', label:'Armadura' },
   { key:'trinket',icon:'💍', label:'Acessório' },
 ];
-function heroEquip(hs){ return hs.equip || (hs.equip = { weapon:null, armor:null, trinket:null }); }
+function heroEquip(hs){
+  if(!hs.equip) hs.equip = {};
+  for(const s of EQUIP_SLOTS) if(!(s.key in hs.equip)) hs.equip[s.key] = null;
+  return hs.equip;
+}
 let selHero = null;   // herói selecionado no painel de detalhes/inventário
 
 function renderBase(){
@@ -181,20 +188,12 @@ function renderHubParty(mount){
     <div class="party-cards">${S.heroes.map(hs=>{
       const def = HERO_DEFS.find(h=>h.id===hs.id);
       const {atk, hp} = heroRuntimeStats(hs);
-      const eq = heroEquip(hs);
-      const slots = EQUIP_SLOTS.map(s=>{
-        const it = s.key==='weapon' ? null : ITEMS[eq[s.key]];
-        const filled = s.key==='weapon' || !!it;
-        const ic = s.key==='weapon' ? s.icon : (it ? it.icon : s.icon);
-        const badge = s.key==='weapon' ? `<b>+${hs.weaponLevel}</b>` : '';
-        return `<span class="eq-slot ${filled?'on':''}" title="${s.label}"><span class="eq-ic" style="${filled?'':'opacity:.4'}">${ic}</span>${badge}</span>`;
-      }).join('');
+      const nEquip = EQUIP_SLOTS.filter(s=>s.key!=='weapon' && ITEMS[heroEquip(hs)[s.key]]).length;
       return `<div class="party-card ${hs.id===selHero?'sel':''}" data-id="${hs.id}" style="--acc:${accentOf(def.id)}">
         <div class="pc-face"><img src="assets/${def.id}_face.png" alt=""></div>
         <div class="pc-info">
           <div class="pc-nm">${def.name}</div>
-          <div class="pc-st">⚔️${atk} · ❤️${hp}</div>
-          <div class="eq-row">${slots}</div>
+          <div class="pc-st">⚔️${atk} · ❤️${hp} · 🎒${nEquip}</div>
         </div>
       </div>`;
     }).join('')}</div>`;
@@ -212,13 +211,12 @@ function renderDetail(){
   const statChip = (ic,v)=>`<span class="d-stat">${ic}<b>${v}</b></span>`;
   const slotsHTML = EQUIP_SLOTS.map(s=>{
     if(s.key==='weapon'){
-      return `<button class="d-slot on" data-slot="weapon" style="--acc:${accentOf(hs.id)}">
-        <span class="ds-ic">⚔️</span><span class="ds-tx"><b>Arma</b><small>Nv ${hs.weaponLevel}/5</small></span></button>`;
+      return `<button class="d-slot on wpn" data-slot="weapon" title="Arma · Forja" style="--acc:${accentOf(hs.id)}">
+        <span class="ds-ic">⚔️</span><span class="ds-badge">+${hs.weaponLevel}</span></button>`;
     }
     const it = ITEMS[eq[s.key]];
-    return `<button class="d-slot ${it?'on':''}" data-slot="${s.key}" style="--acc:${accentOf(hs.id)}">
-      <span class="ds-ic" style="${it?'':'opacity:.4'}">${it?it.icon:s.icon}</span>
-      <span class="ds-tx"><b>${s.label}</b><small>${it?it.name:'vazio'}</small></span>
+    return `<button class="d-slot ${it?'on':''}" data-slot="${s.key}" title="${s.label}${it?' · '+it.name:' (vazio)'}" style="--acc:${accentOf(hs.id)}">
+      <span class="ds-ic" style="${it?'':'opacity:.32'}">${it?it.icon:s.icon}</span>
       ${it?'<span class="ds-x" title="Desequipar">✕</span>':''}</button>`;
   }).join('');
   const inv = S.inventory || [];
