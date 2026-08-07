@@ -40,13 +40,13 @@
     background:linear-gradient(rgba(20,26,34,.42),rgba(20,26,34,.60)),url(assets/bg_basecamp.png) center/cover no-repeat;
     box-shadow:0 8px 22px rgba(10,14,20,.45)}
   .base-frame{position:relative;
-    border:20px solid transparent;border-image:url(assets/frame9.png) 46 round;
+    border:34px solid transparent;border-image:url(assets/frame9.png) 46 round;
     background:var(--panel);background-clip:padding-box;border-radius:10px;
-    padding:16px 11px 12px;image-rendering:pixelated}
+    padding:10px 8px 10px;image-rendering:pixelated}
   .base-frame > *{image-rendering:auto}
   /* placa: aspect-ratio real (586x81) pra NÃO esticar/cortar espada+escudo, acima da moldura */
   /* placa MONTADA na viga superior (encostada na madeira, sem flutuar) */
-  .base-title{position:absolute;top:-10px;left:50%;transform:translate(-50%,-50%);z-index:4;
+  .base-title{position:absolute;top:-17px;left:50%;transform:translate(-50%,-50%);z-index:4;
     width:min(450px,84%);aspect-ratio:559/79;border-radius:8px;overflow:hidden;
     background:url(assets/ribbon.png) center/100% 100% no-repeat;image-rendering:pixelated;
     display:flex;align-items:center;justify-content:center;
@@ -123,10 +123,10 @@
   .party-card.sel{box-shadow:0 0 0 2px var(--acc,#8a6a34),0 2px 6px rgba(30,20,8,.25)}
 
   /* --- painel inferior: DETALHES + INVENTÁRIO (mesma moldura das janelas) --- */
-  .detail-frame{position:relative;margin:6px auto 4px;max-width:460px;
+  .detail-frame{position:relative;margin:-14px auto 4px;max-width:460px;
     border:18px solid transparent;border-image:url(assets/frame9.png) 46 round;
     background:var(--panel);background-clip:padding-box;border-radius:10px;
-    padding:16px 12px 12px;image-rendering:pixelated}
+    padding:14px 12px 12px;image-rendering:pixelated}
   .detail-frame > *{image-rendering:auto}
   .detail-title{position:absolute;top:-9px;left:50%;transform:translate(-50%,-50%);z-index:4;
     width:min(290px,71%);aspect-ratio:559/79;border-radius:8px;overflow:hidden;background:url(assets/ribbon.png) center/100% 100% no-repeat;image-rendering:pixelated;
@@ -188,9 +188,32 @@
   .gh-cline{display:flex;align-items:center;gap:6px;min-width:0}
   .gh-if,.gh-arw{flex:none;font-weight:900;font-size:10px;width:34px;text-align:center;border-radius:6px;padding:3px 0;color:#fff}
   .gh-if{background:#3d7fc4} .gh-arw{background:#c0463c;font-size:12px}
-  .gh-row select{flex:1;width:100%;min-width:0;font-family:var(--font);font-weight:400;font-size:12.5px;border-radius:8px;padding:8px 7px;border:1px solid var(--line);box-shadow:none}
-  .gh-row select.cond{background-color:#e6f0fb;color:#245e94;border-color:#bcd6f0}
-  .gh-row select.act{background-color:#fbeae4;color:#b1483c;border-color:#e6c3b8}
+  /* chip que abre o seletor de blocos (substitui o <select> nativo) */
+  .gpick{flex:1;width:100%;min-width:0;display:flex;align-items:center;gap:4px;text-align:left;
+    font-family:var(--font);font-weight:400;font-size:12.5px;border-radius:8px;padding:8px 8px;border:1px solid var(--line);box-shadow:none;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gpick .gpick-ar{margin-left:auto;flex:none;opacity:.6;font-size:11px}
+  .gpick.cond{background-color:#e6f0fb;color:#245e94;border-color:#bcd6f0}
+  .gpick.act{background-color:#fbeae4;color:#b1483c;border-color:#e6c3b8}
+
+  /* seletor de BLOCOS (overlay) */
+  .picker-overlay{position:fixed;inset:0;background:#000b;display:grid;place-items:center;z-index:40;padding:18px;overflow-y:auto}
+  .picker-box{background:var(--panel);border:16px solid transparent;border-image:url(assets/frame9.png) 46 round;background-clip:padding-box;
+    border-radius:12px;padding:12px 12px 14px;width:100%;max-width:420px;image-rendering:pixelated;margin:auto}
+  .picker-box>*{image-rendering:auto}
+  .pk-title{text-align:center;font-size:16px;color:var(--ink);margin:2px 0 10px}
+  .pk-list{display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow-y:auto;padding:2px}
+  .pk-block{display:flex;align-items:center;gap:10px;text-align:left;border:none;border-radius:12px;padding:9px 11px;color:#fff;
+    box-shadow:0 2px 0 rgba(0,0,0,.18);position:relative}
+  .pk-block.pk-cond{background:linear-gradient(180deg,#4a92d6,#3475b8)}
+  .pk-block.pk-act{background:linear-gradient(180deg,#d75b50,#bd4238)}
+  .pk-block.sel{outline:3px solid var(--gold);outline-offset:1px}
+  .pk-ic{flex:none;width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,.22);font-size:18px}
+  .pk-tx{min-width:0;display:flex;flex-direction:column;line-height:1.15}
+  .pk-tx small{font-size:9px;font-weight:800;letter-spacing:1px;opacity:.85}
+  .pk-tx b{font-size:14px;font-weight:400}
+  .pk-ck{margin-left:auto;flex:none;font-size:16px;font-weight:900}
+  .pk-cancel{width:100%;margin-top:12px}
   .gh-tools{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px}
   .gh-toggle{width:38px;height:21px;padding:0;border-radius:20px;background:#d8c8a4;border:1px solid #c2ad7f;box-shadow:none;position:relative;transition:background .12s}
   .gh-toggle .gh-knob{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35);transition:left .12s}

@@ -310,8 +310,10 @@ function renderGambitHUD(mount){
       <img src="assets/${h.id}_face.png" alt=""><span>${d.name}</span></button>`; }).join('');
   const rows = hs.gambits.map((g,i)=>{
     const on = g.enabled !== false;
-    const cond = `<select class="cond" data-line="${i}" data-kind="condition">${condOpts.map(c=>`<option value="${c}" ${g.condition===c?'selected':''}>${CONDITIONS[c].label}</option>`).join('')}</select>`;
-    const act  = `<select class="act" data-line="${i}" data-kind="action">${def.skills.map(s=>`<option value="${s}" ${g.action===s?'selected':''}>${SKILLS[s].name}</option>`).join('')}</select>`;
+    const cLabel = CONDITIONS[g.condition]?.label || '—';
+    const aLabel = SKILLS[g.action]?.name || '—';
+    const cond = `<button class="gpick cond" data-line="${i}" data-kind="condition">${cLabel}<span class="gpick-ar">▾</span></button>`;
+    const act  = `<button class="gpick act" data-line="${i}" data-kind="action">${aLabel}<span class="gpick-ar">▾</span></button>`;
     return `<div class="gh-row ${on?'':'off'}" data-i="${i}">
       <div class="gh-drag" title="Arraste para reordenar">⠿</div>
       <span class="gh-pri">${i+1}</span>
@@ -343,7 +345,16 @@ function renderGambitHUD(mount){
     <div class="gh-rows">${rows || '<div class="muted tiny" style="text-align:center;padding:8px">Sem linhas — adicione abaixo.</div>'}${locked}</div>
     <button class="gh-add small primary" ${canAdd?'':'disabled'}>+ Adicionar linha</button>`;
   mount.querySelectorAll('.gh-tab').forEach(b => b.onclick = () => { ghHero=b.dataset.h; rr(); });
-  mount.querySelectorAll('select').forEach(sel => sel.onchange = () => { hs.gambits[+sel.dataset.line][sel.dataset.kind]=sel.value; save(S); });
+  mount.querySelectorAll('.gpick').forEach(btn => btn.onclick = () => {
+    const line = +btn.dataset.line;
+    if(btn.dataset.kind==='condition'){
+      const opts = condOpts.map(c=>({ id:c, label:CONDITIONS[c].label }));
+      openBlockPicker('cond', opts, hs.gambits[line].condition, v => { hs.gambits[line].condition=v; save(S); rr(); });
+    } else {
+      const opts = def.skills.map(s=>({ id:s, label:SKILLS[s].name }));
+      openBlockPicker('act', opts, hs.gambits[line].action, v => { hs.gambits[line].action=v; save(S); rr(); });
+    }
+  });
   mount.querySelectorAll('.gh-rm').forEach(x => x.onclick = () => { hs.gambits.splice(+x.dataset.i,1); save(S); rr(); });
   mount.querySelectorAll('.gh-toggle').forEach(t => t.onclick = () => { const g=hs.gambits[+t.dataset.i]; g.enabled = (g.enabled===false); save(S); rr(); });
   mount.querySelectorAll('.gh-unlock').forEach(b => b.onclick = () => { const n=+b.dataset.slot; const cost=ACADEMY.slotCosts[n]; if(!canAfford(cost))return; spend(cost); hs.slots++; save(S); bumpRes(); rr(); });
@@ -407,6 +418,26 @@ function renderHubShop(mount){
 
 // ---- MODAIS ----
 function closeModal(){ $('modal-root').innerHTML=''; }
+// Seletor de BLOCOS (substitui o <select> nativo): lista estilizada azul(condição)/vermelho(ação)
+function openBlockPicker(kind, options, currentId, onPick){
+  const isCond = kind==='cond';
+  const title  = isCond ? '🛡️ Escolha a condição' : '⚔️ Escolha a ação';
+  const badge  = isCond ? 'CONDIÇÃO' : 'AÇÃO';
+  const ov = el(`<div class="picker-overlay"><div class="picker-box">
+    <h3 class="pk-title">${title}</h3>
+    <div class="pk-list">${options.map(o=>`
+      <button class="pk-block ${isCond?'pk-cond':'pk-act'} ${o.id===currentId?'sel':''}" data-id="${o.id}">
+        <span class="pk-ic">${isCond?'🎯':'✦'}</span>
+        <span class="pk-tx"><small>${badge}</small><b>${o.label}</b></span>
+        ${o.id===currentId?'<span class="pk-ck">✓</span>':''}
+      </button>`).join('')}</div>
+    <button class="pk-cancel">Cancelar</button>
+  </div></div>`);
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if(e.target===ov) ov.remove(); });
+  ov.querySelector('.pk-cancel').onclick = () => ov.remove();
+  ov.querySelectorAll('.pk-block').forEach(b => b.onclick = () => { const id=b.dataset.id; ov.remove(); onPick(id); });
+}
 // fecha por clique no fundo escuro + botão ✕
 function bindModalDismiss(){
   const m = $('modal-root').querySelector('.modal'); if(!m) return;
