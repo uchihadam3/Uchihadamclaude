@@ -3,6 +3,7 @@
 //  'T' pinheiro (bloqueia)    'b' arbusto (bloqueia)      'r' rocha (bloqueia)
 //  'f' folhagem/samambaia (decoração no chão, andável)
 //  'k' pilha de caveiras (decoração no chão, andável)
+//  'm' ponto de inimigo (andável)   'C' baú (andável até ser aberto)
 //  's' placa de boas-vindas   'j' placa direcional (encruzilhada)
 //  'N'/'E'/'W' marcos das trilhas futuras (montanhas / charco / ruínas)
 //  '#' mata densa da borda (bloqueia)
@@ -14,10 +15,19 @@
 // a parede de pedra da masmorra. Nada de campo aberto: você anda entre troncos,
 // vira a esquina e não sabe o que vem.
 //
-// O labirinto é TRANÇADO (a maioria dos becos sem saída virou atalho), então há
-// vários caminhos e explorar não vira sofrimento. A TRILHA DE TERRA ('=') é o fio
-// condutor: sai da entrada ao sul, passa pela ENCRUZILHADA e segue até os três
-// marcos — norte (Planície de Arden), leste (Charco) e oeste (Ruínas).
+// O labirinto é TRANÇADO em parte (um terço dos becos sem saída vira atalho),
+// então há vários caminhos e explorar não vira sofrimento — mas os becos que
+// SOBRAM têm baú ou ossada no fim. Beco vazio ensina o jogador a não entrar em
+// beco nenhum, e aí o labirinto inteiro vira um corredor só.
+//
+// A TRILHA DE TERRA ('=') é o fio condutor: sai da entrada ao sul, passa pela
+// ENCRUZILHADA e segue até os três marcos — norte (Planície de Arden), leste
+// (Charco) e oeste (Vaurstead).
+//
+// ONDE MORA O PERIGO. Quase todo bicho está FORA da trilha, na grama; na trilha
+// são poucos, e nenhum nas dez primeiras células. Assim quem só quer atravessar
+// atravessa, e sair do caminho passa a ser uma decisão com preço e prêmio — em
+// vez de um imposto cobrado de quem só queria chegar do outro lado.
 //
 // Gerado por `scripts/gen_outdoor.py` (semente fixa), que valida por BFS que a
 // entrada, o portão, a encruzilhada e os três marcos continuam alcançáveis.
@@ -26,52 +36,52 @@ import { dentroDaGrade } from "./config";
 export const FOREST: string[] = [
   "###################################",
   "#################N#################",
-  "##........f.f..bT=======TT.f...f.##",
-  "##.brTrTbTT.Tb.TT.TTTTT=TT.TTTTT.##",
+  "##........f.m..bT=======TT.f...f.##",
+  "##.brTrTbTT.Tb.TTkTTTTT=TT.TTTTT.##",
   "##.rTTTTTTT.TT.Tb.TTTbT=TT.TTbTT.##",
-  "##fTT.TT....TT....bT====TT....rT.##",
-  "##kTT.TT.TTbTTTTTTTb=TTTTTbTT.Tb.##",
-  "##.TT.TT.TTbTbTTTTTb=TTTTrTTT.TT.##",
-  "##.k..br.........k===TT....TTf...##",
-  "##TrT.TTTTT.TTTTT==TTTT.TT.rTTTT.##",
-  "##TTT.TbTTTfrTTTT=TTTTT.TT.bTbTr.##",
-  "##.TT.f..TTf..kbT=.......rf......##",
-  "##.TTTTT.bTTTT.rT=TbTrT..TTTTTTT.##",
-  "##.rTTTb.TTrTT.bT=TrTTTbTrbTTTTT.##",
-  "##f......TT....TT=TT====TT....TT.##",
-  "##.TTbTT.TT.TTrTT=TT=TT=TT.TT.TT.##",
-  "##.TTTbT.TT.bTTTT=TT=Tr=bT.TT.TT.##",
-  "##....TT.TT.TT====TT=TT=.b.bT.bT=E#",
-  "##.TT.Tr.TT.TT=TTTTb=Tb=.T.TT.TT=##",
-  "##.TT.bT.TT.TT=TTTrT=Tb=TT.bT.TT=##",
-  "##.TT.f..TT.TT=======Tb=TT....TT=##",
-  "##.TTTbTTTT.bT.TTTbTTTT=Tb.TTTTb=##",
-  "##.TTbTTTbT.TT.TbTrbTTT=TT.TTbTT=##",
-  "##..f.......TT.bb=jT====TT=======##",
-  "##.rTTbTrTTTTT.TT=TT=TbrbT=TTTTTT##",
-  "##.TbTTbTTTTTT.bT=TT=TTrTT=TTTTTT##",
-  "##...........f.TT=TT=======TT....##",
-  "##.TT.fTTrTTTTTTT=TT=rTTrT.TT.TT.##",
-  "##.TTTbTTTTTTTTbr=Tb=TTTTT.bT.TT.##",
-  "#W=======Tb=======.T====TT.bT.TT.##",
-  "##rTTTTT=bb=TTTTT..TTTT=TT.TT.rT.##",
-  "##TTrTTT=rT=bTTTTTTTTTb=TT.Tr.TT.##",
-  "##====bT====TT=======TT=TT.bT....##",
-  "##=TT=TbTTT=TT=TbTTT=TT=Tb.TTTTT.##",
-  "##=Tb=TTTTT=TT=TTTTb=TT=TT.TTTTT.##",
-  "##=TT=======Tr====TT====.T....TT.##",
-  "##=TTTTTTTTTTTTTb=bTbTT..bTTT.TT.##",
-  "##=TTTTTbTTTTTTTT=TTTbb.TTTTT.TT.##",
-  "##=======TT====TT====TT.TT...fTT.##",
-  "##TTT..b=TT=TT=TTTTT=TT.TT.fT.TT.##",
-  "##TTT.TT=TT=TT=bTTbT=TT.TT.TTfTT.##",
-  "##....TT=Tb=rT====.T=TT....TT...f##",
-  "##.TTTTT=Tb=bTTTT=.T=rT.TTTTTTbT.##",
-  "##.TTrTT=Tb=TTTTb=TT=bT.rTTTbTbT.##",
-  "##.TT====.T=TT...=rT=TTf....f.k..##",
-  "##.TT=TT..T=Tb.TT=sT=TrTTTTTTTTT.##",
-  "##.Tr=TTrTT=rT.TT=TT=bTTTTTTTTTT.##",
-  "##...=======TT...P===TT.....f.f.f##",
+  "##fTTkTT.m..TT...mbT====TT...kmTk##",
+  "##kTT.TT.TTbTTTTTTTb=TTTTTbTTm.bT##",
+  "##.TT.TT.TTbTbTTTTTb=TTTTrTTT.TTT##",
+  "##.k.k.r..k==========TT====CT..km##",
+  "##TTT.mTTTT=TTTrT=.TTTT=TT=CTTTT.##",
+  "##TTT.TTTrT=TTTTT=TTTTb=TT=TTrTT.##",
+  "##kTT....TT====Tb======mmb=======##",
+  "##krTTTT.TTTTT=TTkTbTTTkmTTbrTTr=##",
+  "##.TTbbT.TTTTb=TT.TTrTTbTrTTTTTT=##",
+  "##.......TT====TbmTT....bT....Tb=##",
+  "##frbTTT.TT=TTTTT.TT.TT.TT.TT.TT=##",
+  "##.TTTTT.TT=bTTTT.TT.rT.TT.TT.TT=##",
+  "##....TT.TTmbTkf.k.T.TT.TT.bT.TT=E#",
+  "##.TT.TT.TT=TTTTT.mT.TT.bTbTT.TTk##",
+  "##.rT.TT.TT=TTTTTbTb.TT.TTTTT.TT.##",
+  "##.TT....TT=Tr.......TT.Tr...fTT.##",
+  "##TTTTTbTTb=TT.TTTTTTbT.TT.bTTTT.##",
+  "##bTTTTTbTT=TT.bTjTTbTT.bT.TTTTb.##",
+  "##==========rb..m=kT.m..TT..f..m.##",
+  "##=bTrTTTbbTTT.rT=.b.rTTTT.TTTTTT##",
+  "##=brbTTTTTTTT.bT=Tb.TTTTT.bTTTTT##",
+  "##=.ffm.....m..TT=bT.TTCf..TT....##",
+  "##=TTTTTTTTTTrTTT=TT.TTTrT.rTmTT.##",
+  "##=TTTbTTTbTTTTTT=TT.rTbTT.TT.bT.##",
+  "#W=======TT=======TT..f.TT.TT.TT.##",
+  "##TTTTTb=bT=TTTTTbTTTTT.TT.Tr.TT.##",
+  "##rTTTrT=bT=TTTTTTTTbTTmTr.TT.bT.##",
+  "##====TT====TTf..m...rT.Tb.TT..m.##",
+  "##=TT=TTTTb=TT.TTTTT.TT.TTfTTTTT.##",
+  "##=TT=TTTTT=TT.TTTTr.TT.rT.TTTTT.##",
+  "##mTT=======mT....TTm...mT....TTk##",
+  "##=TTTTTTTTkmTTTTfTTTTTf.bTTT.TT.##",
+  "##=TTTTTTTTTTTTTT.TTTbTTTTTbT.TT.##",
+  "##=TTC...TT===mTTf...TTCTTC..mTT.##",
+  "##=bT.mT.TT=TT=TTTTT.TT.Tb.mT.rT.##",
+  "##=TT.TT.bT=Tr=TTTTTfTTfTb.TT.TT.##",
+  "##=...TTmTT=Tb====.T.TT....bT..f.##",
+  "##=TTbTb.TT=TbTbT=.T.TT.TTTTTrTT.##",
+  "##=TTTTTfTT=rTTTT=TT.TT.bTTTTTrT.##",
+  "##=TT....Tb=TT...=rTkrT...m....f.##",
+  "##mTT.TTTTT=TTfTr=sT.TT.TTTTTTTTf##",
+  "##=Tr.TTTTb=TT.TT=TT.TT.TTTTTTTT.##",
+  "##==========TT...P...TT..........##",
   "#################=#################",
   "#################V#################",
 ];
@@ -90,7 +100,9 @@ export type ForestCell =
   | "sign"
   | "edge"
   | "gate"
-  | "spawn";
+  | "spawn"
+  | "enemy"
+  | "chest";
 
 export function forestCell(col: number, row: number): ForestCell {
   if (!dentroDaGrade(col, row, FOREST_COLS, FOREST_ROWS)) return "edge";
@@ -109,6 +121,12 @@ export function forestCell(col: number, row: number): ForestCell {
       return "foliage";
     case "k":
       return "skull";
+    // 'm' e não 'E': o 'E' aqui já é o MARCO DO LESTE, e trocar o marco
+    // quebraria a placa que já está escrita no forestSignText.
+    case "m":
+      return "enemy";
+    case "C":
+      return "chest";
     case "s":
     case "j":
     case "N":
@@ -135,8 +153,21 @@ export function forestWalkable(col: number, row: number): boolean {
     k === "foliage" ||
     k === "skull" ||
     k === "gate" ||
-    k === "spawn"
+    k === "spawn" ||
+    k === "enemy" ||
+    // o baú é ANDÁVEL no mapa e quem bloqueia a célula é o Game (como na
+    // masmorra): assim abrir o baú é liberar a passagem, sem mexer no mapa
+    k === "chest"
   );
+}
+
+/** todas as células de um caractere (ex.: todos os 'm' de inimigo). */
+export function forestAll(ch: string): { col: number; row: number }[] {
+  const out: { col: number; row: number }[] = [];
+  for (let r = 0; r < FOREST_ROWS; r++)
+    for (let c = 0; c < FOREST_COLS; c++)
+      if (FOREST[r][c] === ch) out.push({ col: c, row: r });
+  return out;
 }
 
 // texto de cada placa/marco, conforme o caractere na célula

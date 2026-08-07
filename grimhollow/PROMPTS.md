@@ -2234,3 +2234,48 @@ Full body front view of an ancient human sealer standing perfectly upright and c
 > **Ordem de prioridade, se for gerar aos poucos:** `boss_a3` primeiro (é o único
 > que o jogador para p/ olhar), depois `enemy_cinzento` (é o que mais aparece),
 > depois `tex_a3wall`, e o resto conforme der. O ato roda inteiro sem nenhum deles.
+
+---
+
+## 34 · A MATA SUSSURRANTE — o roster de fora — 🟡 arte pendente
+
+A mata era o único lugar do jogo **sem um único inimigo**: dez minutos de
+labirinto sem nada acontecer, e por isso ela virou só um corredor de passagem.
+Agora tem 34 bichos, 6 baús e 20 ossadas — e o roster já está no jogo com arte
+emprestada e tingida. Estas seis peças são as definitivas.
+
+**Uma folha só, com os seis.** Foi o pedido, e é o certo: são criaturas do mesmo
+lugar, e gerar juntas garante que elas tenham a mesma luz, a mesma paleta e o
+mesmo peso de traço. Seis artes soltas voltam com seis estilos.
+
+**FUNDO MAGENTA CHAPADO**, e não transparência. O gerador quase sempre entrega
+"transparente" com um quadriculado pintado por dentro, ou com uma aura larga que
+estraga o recorte — foi o que aconteceu com a aberração do Ato II. Magenta puro
+(`#FF00FF`) não existe em nada que a gente desenha (nem em pele, nem em pelo, nem
+em metal), então o recorte vira uma conta de distância de cor, sem heurística e
+sem chute.
+
+### 34.1 — `mobs_mata.png` — grade 3×2
+
+**1536×1536**, três colunas por duas linhas, células de **512×768**. Cada bicho
+INTEIRO dentro da sua célula, com folga em volta.
+
+| | 1 | 2 | 3 |
+|---|---|---|---|
+| **A** | lobo | javali | salteador |
+| **B** | besteiro | corvo carniceiro | RAIZ PODRE |
+
+```
+A single flat sprite sheet of 6 grim dark medieval fantasy forest creatures arranged in a strict 3 by 2 grid, 1536x1536, each creature fully centered inside its own 512x768 cell with generous empty padding around it, nothing touching or overlapping between cells, SOLID PURE MAGENTA BACKGROUND #FF00FF filling every pixel that is not the creature, absolutely flat magenta with no gradient, no vignette, no shadow cast on the background, no ground, no grass, no cell borders, no frames, no grid lines, no text, no letters, no numbers, no watermark. Row 1 left to right: (1) a gaunt grey timber wolf in full side profile, ribs showing, lips pulled back over teeth, low stalking stance; (2) a wild boar in three-quarter view, coarse dark bristles, curved yellow tusks, head lowered to charge, mud on its flanks; (3) a human highway robber standing facing the viewer, filthy hooded cloak over patched leather, a heavy nailed wooden club in one hand, face half hidden in shadow under the hood. Row 2: (4) a human crossbowman crouching behind cover, ragged brown gambeson, hood, loaded crossbow raised and aimed at the viewer, quiver of bolts at the hip; (5) a large carrion crow with a wingspan half spread, ragged black feathers, one pale blind eye, beak open; (6) a ROTTEN ROOT WALKER: a hunched creature made of a dead tree's root system torn out of the ground, thick woody limbs caked in black wet rot, pale fungus growing along the cracks, no face, walking on knuckles of root, still trailing loose soil. Consistent style across all six: full body, feet visible, painterly realistic, high detail, grim dark medieval fantasy game enemy sprite, cold overcast forest daylight from above, muted desaturated palette of grey green and brown, all six at the same visual weight, no glow, no coloured aura, no magic effects
+```
+
+> **Como fatiar quando ela chegar:**
+> `python3 scripts/slice_mobs.py mobs_mata.png` — o script corta a grade, apaga o
+> magenta por distância de cor e ainda **tira a franja**: os pixels da borda que
+> saem misturados com o fundo têm a parte magenta descontada, senão cada bicho
+> fica com um contorno rosa que só aparece contra o cenário escuro.
+>
+> Os arquivos saem como `enemy_lobo.png`, `enemy_javali.png`, `enemy_salteador.png`,
+> `enemy_besteiro.png`, `enemy_corvo.png` e `enemy_raiz.png` em `src/assets/env/`,
+> e o jogo os adota sozinho — a única linha a mudar depois é apagar o `tint` de
+> cada perfil em `ENEMY_TYPES`.

@@ -39,6 +39,7 @@ import {
   forestCell,
   forestWalkable,
   forestFind,
+  forestAll,
   forestSignText,
   FOREST,
 } from "./forest";
@@ -323,6 +324,34 @@ const ENEMY_TYPES: Record<string, {
   // ARTE PENDENTE (§29 do PROMPTS.md): por ora usa a folha do Leviatã tingida de
   // pálido/dourado, p/ não parecer o mesmo bicho.
   guardiao:  { art: enemyBossA2Url,   hp: 2900, atk: 62, xp: 1800, gold: 760, vision: 14, h: 4.35, lvl: 12, ai: "relentless", spd: 720, tier: "boss", wide: 1.3, tint: 0xe8d9a8 },
+  // ===== A MATA SUSSURRANTE — o roster de FORA (herói ~nv1-4) =====
+  // A mata é alcançável no primeiro minuto de jogo, pelo portão sul do vilarejo,
+  // e não tem porta nem chefe travando a entrada. Por isso a faixa dela é a MESMA
+  // do 1º andar da mina, e não mais: quem sair a passear no nível 1 tem de poder
+  // voltar. E como aqui fora o enemyScale() não aplica profundidade nenhuma
+  // (`depth` só existe na masmorra), os números abaixo são os finais.
+  //
+  // ARTE PENDENTE (§34 do PROMPTS.md): por ora cada um usa a folha do bicho de
+  // papel mais próximo, tingida. Entram sozinhos quando o PNG existir.
+  //
+  // corvo: o mais fraco do jogo, e é de propósito — a mata é alcançável no
+  // primeiro minuto e precisa ter algo que um herói de nível 1 vença. Foge com
+  // pouca vida, então também ensina a perseguir.
+  corvo:     { art: enemyRatoUrl,     hp: 34, atk: 8,  xp: 16, gold: 3,  vision: 7, h: 1.5, lvl: 1, ai: "flee_low", spd: 470, tint: 0x6a6a72 },
+  // lobo: rápido. É ele que ensina que na mata não dá p/ recuar andando.
+  lobo:      { art: enemyRatoUrl,     hp: 46, atk: 9,  xp: 20, gold: 5,  vision: 6, h: 1.9, lvl: 1, ai: "chase", spd: 520, tint: 0x9aa0a6 },
+  // javali: avança e não desiste. Pouca visão — é o jogador que esbarra nele.
+  javali:    { art: enemyCarnicalUrl, hp: 88, atk: 14, xp: 30, gold: 7,  vision: 4, h: 1.8, lvl: 2, ai: "relentless", spd: 760, tint: 0x8d7358 },
+  // salteador: gente. Carrega moeda, que é o motivo de estar na estrada.
+  salteador: { art: enemyCultistaUrl, hp: 72, atk: 13, xp: 32, gold: 16, vision: 5, h: 2.6, lvl: 2, ai: "chase", spd: 800, tint: 0xa08a63 },
+  // besteiro: o parceiro dele, atirando de longe de trás de uma árvore.
+  besteiro:  { art: enemyArqueiroUrl, hp: 64, atk: 15, xp: 38, gold: 18, vision: 7, h: 2.5, lvl: 3, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1150, tint: 0x9c8f74 },
+  // RAIZ PODRE: o mini-elite, e o único aqui que não é bicho de mata nenhuma.
+  // O Corvin avisa na cidade que as árvores da encosta OESTE adoecem do pé p/
+  // cima — e é só na metade oeste do mapa que estas nascem. O jogador vê a pista
+  // muito antes de ter como entendê-la: o apodrecimento sobe de baixo, e o que
+  // está lá embaixo é o assunto do jogo inteiro.
+  raiz:      { art: enemyAberracaoUrl, hp: 150, atk: 20, xp: 60, gold: 12, vision: 4, h: 2.9, lvl: 4, ai: "relentless", spd: 980, tier: "mini", tint: 0x7d6a4a },
   // ===== ATO III — Vaurstead, a cidade que não segurou (andares 7-9; herói ~nv10-15)
   // ARTE PENDENTE (§33 do PROMPTS.md). Enquanto ela não vem, cada um destes usa a
   // folha de um bicho já existente TINGIDA DE CINZA-OSSO. Não é disfarce: o Ato III
@@ -10276,7 +10305,35 @@ export class Game {
     this.buildForestBackdrop();
     this.buildForestVillageBackdrop();
     this.fecharLotes(); // toda a vegetação vira InstancedMesh de uma vez
+    this.povoarMata();
     void MAP;
+  }
+
+  /**
+   * Os bichos e os baús da Mata Sussurrante.
+   *
+   * A MATA ERA O ÚNICO LUGAR DO JOGO SEM UM INIMIGO SEQUER — dez minutos de
+   * labirinto sem nada acontecer, e por isso ela virou só um corredor de
+   * passagem entre o vilarejo e o resto do mundo.
+   *
+   * QUAL BICHO NASCE ONDE não é sorteio puro: a metade OESTE do mapa recebe as
+   * RAÍZES PODRES, porque o Corvin já avisa na cidade que as árvores da encosta
+   * oeste adoecem do pé p/ cima. O jogador encontra a evidência antes de a
+   * história explicar — e o oeste é, não por acaso, a direção de Vaurstead.
+   */
+  private povoarMata(): void {
+    const meio = FOREST_COLS / 2;
+    // pool do LESTE (a mata comum) e do OESTE (a mata que está adoecendo)
+    const leste = ["corvo", "lobo", "javali", "salteador", "besteiro", "lobo", "corvo", "javali"];
+    const oeste = ["lobo", "javali", "raiz", "corvo", "salteador", "raiz", "besteiro", "lobo"];
+    forestAll("m").forEach((p, i) => {
+      const pool = p.col < meio ? oeste : leste;
+      this.buildDungeonEnemy(p.col, p.row, pool[(i + p.row) % pool.length]);
+    });
+    for (const b of forestAll("C")) {
+      this.buildChestBillboard(b.col * CELL, b.row * CELL, b.col, b.row);
+      this.blocked.add(`${b.col},${b.row}`); // some ao abrir, como na masmorra
+    }
   }
 
   /** Uma célula de PAREDE que dá de frente p/ um corredor (é o que o herói vê). */

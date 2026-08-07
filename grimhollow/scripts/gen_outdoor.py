@@ -65,6 +65,107 @@ F_COLS = list(range(2, 33, 3))   # 11 células: 2,5,...,32 (o 17 é a entrada)
 F_ROWS = list(range(2, 48, 3))   # 16 células: 2,5,...,47 (o 47 é o 'P')
 
 
+# ------------------------------------------------------------ povoar a mata
+# A mata era o único lugar do jogo SEM UM ÚNICO INIMIGO: dava p/ atravessar dez
+# minutos de labirinto sem nada acontecer, e o resultado é que ela virou só um
+# corredor de passagem entre o vilarejo e o resto.
+#
+# TRÊS REGRAS, e todas são de desenho, não de código:
+#
+#  1. A TRILHA DE TERRA É QUASE SEGURA. Ela é o fio condutor — quem só quer
+#     chegar na encruzilhada consegue com pouca briga. O perigo mora FORA dela,
+#     na grama, e é isso que transforma explorar numa decisão em vez de um
+#     imposto. Poucos bichos na trilha, e nenhum nas dez primeiras células.
+#  2. BECO SEM SAÍDA TEM PRÊMIO. Depois da tranca reduzida sobram becos de
+#     verdade; cada um que for fundo o bastante ganha um baú ou uma ossada. Beco
+#     vazio ensina o jogador a não entrar em beco nenhum.
+#  3. O APODRECIMENTO VEM DO OESTE. O Corvin, o lenhador, já diz na cidade:
+#     "corto na encosta oeste, e de uns tempos p/ cá as árvores de lá adoecem do
+#     PÉ p/ cima — a copa ainda verde e a raiz podre". As Raízes Podres nascem só
+#     na metade oeste do mapa, que é a direção de Vaurstead. O jogador vê a
+#     pista antes de ter como entendê-la.
+#
+#  'm' inimigo   'C' baú   ('E' aqui é o MARCO do leste, não inimigo — por isso
+#  o bicho usa 'm'; trocar o marco quebraria a placa que já está escrita)
+def povoa_mata(g, rnd, clareiras):
+    def livre(c, r):
+        return 0 <= c < FW and 0 <= r < FH and g[r][c] in ".fk"
+
+    entrada = (17, FH - 3)
+    longe_da_entrada = lambda c, r: abs(c - entrada[0]) + abs(r - entrada[1]) > 10
+
+    # O BAÚ BLOQUEIA A CÉLULA (é assim na masmorra e continua sendo aqui), então
+    # ele pode TAPAR UM CORREDOR — e esse defeito não aparece olhando o mapa: só
+    # aparece com o jogador encurralado do outro lado. A primeira versão disto
+    # ilhou 53 células e foi a validação que avisou.
+    # Por isso cada baú é posto EM TESTE: com ele como parede, o mapa inteiro
+    # ainda tem de ser alcançável a partir da entrada. Não sendo, ele vira ossada
+    # (que é decoração e não bloqueia) e a clareira continua tendo o que mostrar.
+    def cabe_bau(c, r):
+        antes = g[r][c]
+        g[r][c] = "C"
+        anda = lambda cc, rr: 0 <= cc < FW and 0 <= rr < FH and g[rr][cc] in ".=fkmVP"
+        alc = bfs(entrada, anda, FW, FH)
+        total = sum(1 for rr in range(FH) for cc in range(FW) if anda(cc, rr))
+        if len(alc) >= total:
+            return True
+        g[r][c] = antes
+        return False
+
+    # --- becos sem saída: célula livre com um único vizinho livre ---
+    becos = []
+    for r in range(2, FH - 2):
+        for c in range(2, FW - 2):
+            if g[r][c] != "." or not longe_da_entrada(c, r):
+                continue
+            viz = sum(1 for dc, dr in ((0, -1), (1, 0), (0, 1), (-1, 0)) if livre(c + dc, r + dr))
+            if viz == 1:
+                becos.append((c, r))
+    rnd.shuffle(becos)
+    for i, (c, r) in enumerate(becos[:14]):
+        if i % 3 == 0 and cabe_bau(c, r):
+            continue
+        g[r][c] = "k"
+
+    # --- clareiras: baú / acampamento / bicho grande, em rodízio ---
+    for i, (c, r) in enumerate(clareiras):
+        if not longe_da_entrada(c, r):
+            continue
+        vaos = [(c + dc, r + dr) for dc in (0, 1) for dr in (0, 1) if livre(c + dc, r + dr)]
+        if len(vaos) < 3:
+            continue
+        if i % 3 == 0:
+            if not cabe_bau(*vaos[0]):
+                g[vaos[0][1]][vaos[0][0]] = "k"
+            g[vaos[-1][1]][vaos[-1][0]] = "m"
+        elif i % 3 == 1:
+            g[vaos[0][1]][vaos[0][0]] = "k"
+            for cc, rr in vaos[1:3]:
+                g[rr][cc] = "m"
+        else:
+            g[vaos[len(vaos) // 2][1]][vaos[len(vaos) // 2][0]] = "m"
+
+    # --- o resto dos bichos: MUITOS na grama, POUCOS na trilha ---
+    grama = [(c, r) for r in range(2, FH - 2) for c in range(2, FW - 2)
+             if g[r][c] in ".f" and longe_da_entrada(c, r)]
+    trilha = [(c, r) for r in range(2, FH - 2) for c in range(2, FW - 2)
+              if g[r][c] == "=" and longe_da_entrada(c, r)]
+    rnd.shuffle(grama)
+    rnd.shuffle(trilha)
+    postos = []
+    for lista, quantos, gap in ((grama, 18, 5), (trilha, 5, 9)):
+        for c, r in lista:
+            # espaçamento mínimo: dois bichos colados viram uma parede de dano,
+            # e numa trilha de UMA célula de largura não há como contorná-los
+            if all(abs(c - pc) + abs(r - pr) >= gap for pc, pr in postos):
+                postos.append((c, r))
+                g[r][c] = "m"
+                quantos -= 1
+                if quantos == 0:
+                    break
+    return postos
+
+
 def gera_floresta(semente=20260803):
     rnd = random.Random(semente)
     nc, nr = len(F_COLS), len(F_ROWS)
@@ -98,7 +199,7 @@ def gera_floresta(semente=20260803):
     for j in range(nr):
         for i in range(nc):
             grau = sum(1 for d in ((0, -1), (1, 0), (0, 1), (-1, 0)) if ((i, j), (i + d[0], j + d[1])) in ligado)
-            if grau <= 1 and rnd.random() < 0.62:
+            if grau <= 1 and rnd.random() < 0.35:
                 cand = [
                     (i + di, j + dj)
                     for di, dj in ((0, -1), (1, 0), (0, 1), (-1, 0))
@@ -136,19 +237,25 @@ def gera_floresta(semente=20260803):
                 g[r][c] = "."
 
     # --- clareiras: alarga algumas células p/ quebrar a monotonia do corredor ---
-    for _ in range(10):
+    # Elas nasceram só como alargamento e ficavam VAZIAS. Agora cada uma tem um
+    # motivo p/ existir, alternado: baú, acampamento (ossada + dois bichos) ou um
+    # bicho grande sozinho. Um vão de 2x2 numa curva sem nada dentro é uma promessa
+    # que o mapa não cumpre.
+    clareiras = []
+    for _ in range(12):
         i, j = rnd.randrange(1, nc - 1), rnd.randrange(1, nr - 1)
         c, r = cel(i, j)
         for dc in (0, 1):
             for dr in (0, 1):
                 g[r + dr][c + dc] = "."
+        clareiras.append((c, r))
 
     # --- marcos ---
     pc, pr = F_COLS[F_COLS.index(17)], F_ROWS[-1]   # (17,47) — o mesmo ponto de sempre
     g[FH - 2][17] = "="                      # trecho do portão
     g[FH - 1][17] = "V"
 
-    andavel = lambda c, r: 0 <= c < FW and 0 <= r < FH and g[r][c] in ".=VPsjNEW"
+    andavel = lambda c, r: 0 <= c < FW and 0 <= r < FH and g[r][c] in ".=VPsjNEWmC"
     dist = bfs((pc, pr), andavel, FW, FH)
 
     # pontas das trilhas — posições FIXAS (o mapa muda, os marcos não): norte no
@@ -196,13 +303,19 @@ def gera_floresta(semente=20260803):
                 elif x < 0.09:
                     g[r][c] = "k"
 
+    povoa_mata(g, rnd, clareiras)
+
     linhas = ["".join(l) for l in g]
 
     # --- validação: tudo que importa continua alcançável a partir do 'P' ---
     # as placas (s/j/N/E/W) BLOQUEIAM: o que precisa ser alcançável é a célula
     # de trilha à frente delas, não a placa em si.
     def anda(c, r):
-        return 0 <= c < FW and 0 <= r < FH and linhas[r][c] in ".=fkVP"
+        # o BAÚ conta como PAREDE aqui de propósito: no jogo ele bloqueia a
+        # célula (é assim na masmorra e continua sendo aqui), então validar com
+        # ele andável deixaria passar um baú tapando um corredor — e o defeito só
+        # apareceria com o jogador encurralado do outro lado.
+        return 0 <= c < FW and 0 <= r < FH and linhas[r][c] in ".=fkVPm"
 
     d2 = bfs((pc, pr), anda, FW, FH)
     for nome, alvo in (("portão", (17, FH - 2)), ("norte", n_cel), ("leste", e_cel),
