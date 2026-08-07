@@ -5,34 +5,46 @@
    enquanto ela está no tabuleiro, e o sorteio da sala escolhe duas ou três.
    É o que faz duas salas do mesmo tamanho jogarem diferente.
 
-   Os símbolos são caracteres desenháveis em qualquer fonte, não emoji: em
-   Android, dentro de uma fonte serifada, metade dos emoji vira um risquinho
-   cinza — já apanhamos disso em outro jogo desta mesma casa.
+   OS SÍMBOLOS SÃO DESENHADOS, NÃO DIGITADOS. Runa, hieróglifo e símbolo
+   alquímico existem em Unicode e quase nenhum existe na fonte de um celular
+   comum — no Android metade vira retângulo vazio. Num jogo da memória isso
+   não é feiúra, é quebra de regra: duas cartas diferentes viram a mesma
+   carta na tela. Então `s` guarda ÍNDICES e `js/arte/glifos.js` desenha cada
+   um em SVG, a partir da gramática da família.
+
+   A identidade de uma carta é o par (família, índice). O índice sozinho se
+   repete de família para família de propósito: o desenho é outro.
+
+   `traco` é a silhueta da família em três palavras — é como o jogador lê o
+   tabuleiro de longe, antes de reconhecer o desenho exato.
    ===================================================================== */
+import { POR_FAMILIA } from '../arte/glifos.js';
+const IDX = [...Array(POR_FAMILIA).keys()];
+
 export const FAMILIAS = {
-  runas:      { id:'runas', nome:'Runas', cor:'#c9a227',
-                s:['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚻ','ᚾ','ᛁ','ᛃ','ᛇ','ᛈ','ᛉ','ᛊ','ᛏ','ᛒ'],
+  runas:      { id:'runas', nome:'Runas', cor:'#c9a227', s:IDX,
+                traco:'retas e ângulos',
                 regra:'Cada par de Runa dá +0,1 de multiplicador permanente na sala.' },
-  espaco:     { id:'espaco', nome:'Espaço', cor:'#6ba8ff',
-                s:['☉','☽','☿','♀','♁','♂','♃','♄','♅','♆','★','✦','✧','☄','◐','◑','◒','◓'],
+  espaco:     { id:'espaco', nome:'Espaço', cor:'#6ba8ff', s:IDX,
+                traco:'círculos e órbitas',
                 regra:'Cartas de Espaço trocam de lugar entre si a cada 6 viradas.' },
-  alquimia:   { id:'alquimia', nome:'Alquimia', cor:'#8ad46a',
-                s:['🜁','🜂','🜃','🜄','🜅','🜆','🜇','🜈','🜉','🜊','🜋','🜌','🜍','🜎','🜏','🜐','🜑','🜒'],
+  alquimia:   { id:'alquimia', nome:'Alquimia', cor:'#8ad46a', s:IDX,
+                traco:'triângulos com barras',
                 regra:'Todo par de Alquimia devolve 1 virada.' },
-  xadrez:     { id:'xadrez', nome:'Xadrez', cor:'#d8d8e8',
-                s:['♔','♕','♖','♗','♘','♙','♚','♛','♜','♝','♞','♟','⯀','⯁','⯂','⯃','⯄','⯅'],
+  xadrez:     { id:'xadrez', nome:'Xadrez', cor:'#d8d8e8', s:IDX,
+                traco:'polígonos cheios',
                 regra:'Os dois primeiros pares de Xadrez da sala valem dobrado.' },
-  mitologia:  { id:'mitologia', nome:'Mitologia', cor:'#b06bff',
-                s:['⚱','⚲','⚳','⚴','⚵','⚶','⚷','⚸','⚹','⚺','⚻','⚼','⯰','⯱','⯲','⯳','⯴','⯵'],
+  mitologia:  { id:'mitologia', nome:'Mitologia', cor:'#b06bff', s:IDX,
+                traco:'arcos concêntricos',
                 regra:'Errar contra Mitologia não zera o combo — só o corta pela metade.' },
-  tecnologia: { id:'tecnologia', nome:'Tecnologia', cor:'#7fd4ff',
-                s:['⌁','⌂','⌆','⌘','⌗','⌬','⍟','⎔','⎈','⏣','▤','▥','▦','▧','▨','▩','◧','◨'],
+  tecnologia: { id:'tecnologia', nome:'Tecnologia', cor:'#7fd4ff', s:IDX,
+                traco:'caixas com marca',
                 regra:'A cada 3 pares de Tecnologia, revela uma carta fechada ao acaso.' },
-  dragoes:    { id:'dragoes', nome:'Dragões', cor:'#ff6a5a',
-                s:['🜲','🜳','🜴','🜵','🜶','🜷','🜸','🜹','🜺','🜻','🜼','🜽','🜾','🜿','⯑','⯒','⯓','⯔'],
+  dragoes:    { id:'dragoes', nome:'Dragões', cor:'#ff6a5a', s:IDX,
+                traco:'garras curvas',
                 regra:'Cartas de Dragão valem +50% de pontos, mas cada erro custa 1 moeda.' },
-  egito:      { id:'egito', nome:'Egito', cor:'#f0c14b',
-                s:['𓂀','𓃭','𓆑','𓇋','𓈖','𓉐','𓊃','𓋴','𓌳','𓍿','𓎡','𓏏','𓐍','𓁿','𓂭','𓃀','𓄿','𓅓'],
+  egito:      { id:'egito', nome:'Egito', cor:'#f0c14b', s:IDX,
+                traco:'hastes e travessas',
                 regra:'A cada par de Egito, uma carta fechada fica MARCADA — e carta marcada nunca é esquecida pela tela.' },
 };
 export const LISTA_FAMILIAS = Object.values(FAMILIAS);
@@ -40,6 +52,6 @@ export const LISTA_FAMILIAS = Object.values(FAMILIAS);
 /* quantas famílias a sala usa: mais famílias = mais fácil de distinguir os
    desenhos, então o número CAI conforme a run avança */
 export function sortearFamilias(rng, dificuldade=0){
-  const n = dificuldade < 0.3 ? 3 : dificuldade < 0.7 ? 2 : 2;
+  const n = dificuldade < 0.35 ? 3 : 2;
   return rng.sample(LISTA_FAMILIAS, n);
 }

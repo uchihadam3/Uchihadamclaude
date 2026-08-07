@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>folha de glifos</title>
+<style>
+ body{background:#0b0d12;color:#e8ecf4;font:13px/1.4 system-ui,sans-serif;margin:0;padding:18px}
+ h2{font:600 12px/1 system-ui;letter-spacing:.18em;text-transform:uppercase;
+    color:#8d97a8;margin:20px 0 8px}
+ .fila{display:grid;grid-template-columns:repeat(18,1fr);gap:6px}
+ .c{aspect-ratio:1;display:grid;place-items:center;border-radius:8px;
+    background:#161a23;border:1px solid #232936}
+ svg{width:76%;height:76%;stroke:currentColor;stroke-width:1.7;
+     stroke-linecap:round;stroke-linejoin:round}
+</style><div id=o></div>
+<script type="module">
+import { LISTA_FAMILIAS } from '/mnemonic/js/data/familias.js';
+import { svgGlifo } from '/mnemonic/js/arte/glifos.js';
+o.innerHTML = LISTA_FAMILIAS.map(f=>
+  `<h2>${f.nome} — ${f.traco}</h2><div class="fila">`
+  + f.s.map(i=>`<div class="c" style="color:${f.cor}">${svgGlifo(f.id,i)}</div>`).join('')
+  + '</div>').join('');
+</script>

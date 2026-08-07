@@ -23,6 +23,8 @@ import { CLASSES, LISTA_CLASSES } from '../js/data/classes.js';
 import { RELIQUIAS, POR_ID, sortearReliquias } from '../js/data/reliquias.js';
 import { BOSSES, LISTA_BOSSES, BOSS_DO_MUNDO } from '../js/data/bosses.js';
 import { EVENTOS } from '../js/data/eventos.js';
+import { glifo, POR_FAMILIA } from '../js/arte/glifos.js';
+import { ICO, ICO_CLASSE, ICO_CHEFE } from '../js/ui/icones.js';
 import { Sala, COMBOS, degrauCombo, pontosPerfeitos, colunasPara } from '../js/engine/tabuleiro.js';
 import { Run, verificar, planoDaSala, SALAS, MUNDOS, COMBATE, MAX_JOGADAS } from '../js/engine/run.js';
 import { jogarRun } from './bot.mjs';
@@ -349,10 +351,15 @@ secao('8. As famílias fazem o que a família diz');
   ok(marcada.vista, 'e carta marcada não é esquecida pela tela');
 
   ok(LISTA_FAMILIAS.every(f=>f.s.length>=18), 'toda família tem ao menos 18 símbolos');
-  ok(LISTA_FAMILIAS.every(f=>new Set(f.s).size===f.s.length), 'sem símbolo repetido dentro da família');
-  const todos = LISTA_FAMILIAS.flatMap(f=>f.s);
-  eq(new Set(todos).size, todos.length, 'sem símbolo repetido ENTRE famílias');
-  ok(LISTA_FAMILIAS.every(f=>f.regra && f.nome && f.cor), 'toda família tem nome, cor e regra escrita');
+  ok(LISTA_FAMILIAS.every(f=>new Set(f.s).size===f.s.length), 'sem índice repetido dentro da família');
+  /* o que não pode repetir é o DESENHO: se duas cartas de pares diferentes
+     saírem iguais na tela, o jogador acerta "errado" e tem razão de reclamar */
+  const desenhos = LISTA_FAMILIAS.flatMap(f=>f.s.map(i=>glifo(f.id, i)));
+  eq(new Set(desenhos).size, desenhos.length,
+     `os ${desenhos.length} desenhos são todos diferentes entre si`);
+  ok(desenhos.every(d=>d.includes('<path')), 'todo desenho tem traço de verdade');
+  ok(LISTA_FAMILIAS.every(f=>f.regra && f.nome && f.cor && f.traco),
+     'toda família tem nome, cor, silhueta e regra escrita');
   for(let d=0; d<=1; d+=0.25){
     const n = sortearFamilias(makeRNG('ff'+d), d).length;
     ok(n>=2, `sorteio de famílias devolve ao menos 2 (dif ${d})`);
@@ -667,6 +674,30 @@ secao('16. Os dados: nada meio escrito');
     eq(t.length, p, `sorteio de tipos devolve ${p} entradas (dif ${d})`);
     ok(t.every(x=>TIPOS[x]), 'e todas são tipos que existem');
   }
+}
+
+/* ════════════════════════════════════════════════════════ 16b */
+secao('16b. Todo nome do jogo tem um desenho');
+{
+  /* a regra da casa: nunca um glifo mudo, e nunca um emoji. Se uma coisa tem
+     nome no jogo, ela tem um desenho próprio — na carta, na ficha e no
+     como-se-joga, sempre o mesmo. Este teste é o que impede alguém (eu, mês
+     que vem) de acrescentar uma carta e esquecer o ícone dela. */
+  for(const t of LISTA_TIPOS) ok(!!ICO[t.id], `o tipo ${t.id} tem ícone desenhado`);
+  for(const c of LISTA_CLASSES) ok(!!ICO_CLASSE[c.id], `a classe ${c.id} tem ícone desenhado`);
+  for(const b of LISTA_BOSSES) ok(!!ICO_CHEFE[b.id], `o chefe ${b.id} tem ícone desenhado`);
+  const VOCAB = ['meta','virada','foco','combo','vista','conhecida','orfa',
+                 'semente','prova','recusa','reliquia'];
+  for(const v of VOCAB) ok(!!ICO[v], `a palavra "${v}" tem ícone desenhado`);
+  const SALA_ICO = ['combate','elite','chefe','loja','evento','fogueira','tesouro'];
+  for(const v of SALA_ICO) ok(!!ICO[v], `o tipo de sala "${v}" tem ícone desenhado`);
+
+  const todos = [...Object.values(ICO), ...Object.values(ICO_CLASSE), ...Object.values(ICO_CHEFE)];
+  ok(todos.every(s=>s.startsWith('<svg') && s.includes('viewBox="0 0 24 24"')),
+     'todo ícone é svg no mesmo viewBox');
+  ok(todos.every(s=>!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(s)),
+     'nenhum ícone é emoji disfarçado');
+  eq(new Set(todos).size, todos.length, 'nenhum ícone é cópia de outro');
 }
 
 /* ════════════════════════════════════════════════════════ 17 */
