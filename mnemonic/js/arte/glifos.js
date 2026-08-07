@@ -90,13 +90,16 @@ function xadrez(i){
 function mitologia(i){
   const n = 1 + (i % 3), giro = [0,120,240][Math.floor(i/3) % 3];
   const ponto = Math.floor(i/9) % 2;
+  /* a linha de base é 17, não 13: os arcos crescem só para CIMA, e com a
+     base no meio da caixa o desenho inteiro ficava encostado no topo da
+     carta. Com 17 o conjunto fica centrado na face. */
   const out = [];
   for(let k=0;k<n;k++){
     const r = 4 + k*3.2;
-    out.push(P(`M${(12-r).toFixed(2)} 13 A${r} ${r} 0 0 1 ${(12+r).toFixed(2)} 13`,
+    out.push(P(`M${(12-r).toFixed(2)} 17 A${r} ${r} 0 0 1 ${(12+r).toFixed(2)} 17`,
                { rot:giro }));
   }
-  if(ponto) out.push(F('M12 13 A1.7 1.7 0 1 0 12.01 13', { rot:giro }));
+  if(ponto) out.push(F('M12 17 A1.7 1.7 0 1 0 12.01 17', { rot:giro }));
   return out;
 }
 

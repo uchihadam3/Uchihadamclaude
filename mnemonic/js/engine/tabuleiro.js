@@ -73,11 +73,24 @@ export function pontosEsperados(pares){
   return Math.round(s * BASE_MEDIA);
 }
 
-/* a grade: colunas mais largas que altas, com a última fila podendo ficar
-   incompleta — centralizar uma fila torta é problema de CSS, não motivo
-   para proibir número de pares. */
+/* A GRADE é em pé, não deitada.
+
+   A conta óbvia (colunas ≈ √n, grade quadrada) devolve 4 colunas para 12
+   cartas e 9 para 60 — e numa tela de celular, que é alta e estreita, isso
+   espreme cada carta na largura e desperdiça a altura toda. Com 60 cartas a
+   diferença é grosseira: a grade quadrada dá carta de 37px, a grade em pé dá
+   49px.
+
+   O 0,74 não é chute: a tela útil de um celular é de razão ~0,55 e a carta
+   é 1:1,34, então colunas/filas ideal = 0,55 × 1,34 ≈ 0,74, e colunas =
+   √(n × 0,74). Errei isso na primeira tentativa usando 0,62, e um tabuleiro
+   de 32 cartas saía em 4 colunas com carta de 61px quando cabiam 5 colunas
+   com carta de 70px.
+
+   A última fila pode ficar incompleta — centralizar uma fila torta é
+   problema de CSS, não motivo para proibir número de pares. */
 export function colunasPara(n){
-  return Math.max(4, Math.min(12, Math.round(Math.sqrt(n*1.45))));
+  return Math.max(3, Math.min(10, Math.round(Math.sqrt(n*0.74))));
 }
 
 export class Sala {
