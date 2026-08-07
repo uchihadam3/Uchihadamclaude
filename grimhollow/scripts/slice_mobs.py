@@ -3,122 +3,180 @@
 Fatia uma FOLHA DE CRIATURAS de fundo MAGENTA em PNGs nomeados e transparentes.
 
 POR QUE MAGENTA E NÃO "FUNDO TRANSPARENTE". Pedir transparência ao gerador quase
-nunca dá transparência: vem o quadriculado PINTADO por dentro da imagem, ou vem
-uma aura larga em volta do bicho que nenhuma heurística de croma separa direito
-— foi o que estragou a aberração do Ato II. Magenta puro não existe em pele, em
-pelo, em couro nem em metal, então o recorte deixa de ser adivinhação e vira uma
-conta de distância de cor.
+nunca dá transparência: vem o quadriculado PINTADO por dentro da imagem, ou uma
+aura larga em volta do bicho que nenhuma heurística de croma separa direito — foi
+o que estragou a aberração do Ato II. Magenta puro não existe em pele, pelo,
+couro nem metal, então o recorte deixa de ser adivinhação e vira uma conta de
+distância de cor.
 
-AS DUAS CONTAS QUE O SCRIPT FAZ:
+POR QUE NÃO CORTA POR GRADE. A primeira versão cortava em 3x2, como o prompt
+pedia. A folha que chegou veio com as peças em posições IRREGULARES e ainda com
+um pedaço solto — um busto de besteiro que o gerador começou e não terminou. Uma
+grade fixa teria cortado seis retângulos com bicho pela metade em cada um.
+Agora o script ACHA cada desenho: separa as ilhas de pixels não-magenta e trata
+cada uma como uma peça. A folha pode vir como vier.
 
- 1. RECORTE por distância ao magenta. Tudo que está perto de #FF00FF vira alfa 0.
-    O limiar é generoso porque o gerador nunca entrega o magenta exato — ele
-    entrega uma nuvem em volta dele.
+AS TRÊS CONTAS:
 
- 2. FRANJA, que é a parte que quase todo mundo esquece. O pixel da BORDA do
-    desenho sai MISTURADO com o fundo: meio pelo, meio magenta. Zerar só o alfa
-    deixa esse rosa grudado no contorno, e ele só aparece depois, no jogo, contra
-    um cenário escuro. Aqui o vermelho e o azul de cada pixel de borda são
-    puxados de volta para o nível do verde (que o magenta não contamina, porque
-    magenta é R e B sem G), e o alfa recebe o quanto de desenho havia ali.
+ 1. RECORTE por distância ao magenta (R e B altos com G baixo — é o G que separa
+    magenta de pele rosada).
+ 2. FRANJA, a parte que quase todo mundo esquece: o pixel da BORDA sai MISTURADO
+    com o fundo. Zerar só o alfa deixa o rosa grudado no contorno, e ele só
+    aparece depois, no jogo, contra cenário escuro. Aqui o R e o B de cada pixel
+    de borda são puxados de volta ao nível do G.
+ 3. ILHAS: dilatação antes de rotular, p/ que respingo de terra e ponta de asa
+    soltos entrem na mesma peça do bicho a que pertencem.
 
-  python3 scripts/slice_mobs.py <folha.png> [--grade 3x2] [--limiar 90] [--caixa 512]
+  python3 scripts/slice_mobs.py <folha.png> --nomes a,b,c [--pular 3] [--caixa 512]
+  python3 scripts/slice_mobs.py <folha.png> --listar     # só mostra o que achou
 """
 import os
 import sys
 
 import numpy as np
 from PIL import Image
+from scipy import ndimage
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAIDA = os.path.join(RAIZ, "src", "assets", "env")
 
-# Ordem de leitura da folha (esquerda→direita, linha a linha), igual à tabela do
-# PROMPTS.md §34. Mudar um nome aqui sem mudar o prompt desalinha tudo.
-NOMES = [
-    "enemy_lobo", "enemy_javali", "enemy_salteador",
-    "enemy_besteiro", "enemy_corvo", "enemy_raiz",
-]
 
-
-def sem_magenta(cel: np.ndarray, limiar: float) -> np.ndarray:
-    """RGBA da célula com o fundo magenta removido e a franja limpa."""
-    rgb = cel[..., :3].astype(np.float32)
+def sem_magenta(rgb: np.ndarray, limiar: float) -> np.ndarray:
+    """RGBA com o fundo magenta removido e a franja descontada."""
+    rgb = rgb.astype(np.float32)
     R, G, B = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-
-    # "quanto isto é magenta": R e B altos, G baixo. Um pixel de desenho pode ter
-    # R e B altos (pele rosada), mas então G também sobe — é o G que separa.
+    # "quanto isto é magenta": R e B altos, G baixo. Pele rosada tem R e B altos
+    # TAMBÉM, mas aí o G sobe junto — é o G que separa.
     magenta = np.minimum(R, B) - G
-    alfa = np.clip(magenta / limiar, 0.0, 1.0)      # 1 = fundo puro, 0 = desenho
-    saida_alfa = (1.0 - alfa) * 255.0
-
-    # DESCONTA A FRANJA: onde havia mistura, R e B carregam magenta emprestado.
-    # Puxá-los de volta ao nível do G devolve a cor que o desenho tinha ali.
-    mist = (alfa > 0.02) & (alfa < 0.98)
-    R = np.where(mist, np.minimum(R, G + (R - G) * (1 - alfa)), R)
-    B = np.where(mist, np.minimum(B, G + (B - G) * (1 - alfa)), B)
-
-    out = np.dstack([R, G, B, saida_alfa]).clip(0, 255).astype(np.uint8)
-    return out
+    fundo = np.clip(magenta / limiar, 0.0, 1.0)      # 1 = fundo puro, 0 = desenho
+    alfa = (1.0 - fundo) * 255.0
+    mist = (fundo > 0.02) & (fundo < 0.98)
+    R = np.where(mist, np.minimum(R, G + (R - G) * (1 - fundo)), R)
+    B = np.where(mist, np.minimum(B, G + (B - G) * (1 - fundo)), B)
+    return np.dstack([R, G, B, alfa]).clip(0, 255).astype(np.uint8)
 
 
-def apara(im: Image.Image) -> Image.Image | None:
-    """Corta o ar em volta pelo alfa. None = célula sem desenho nenhum."""
-    a = np.array(im)[..., 3]
-    ys, xs = np.nonzero(a > 10)
-    if not len(ys):
-        return None
-    return im.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+def achar_pecas(rgba: np.ndarray, minimo: float, cola: int):
+    """
+    As ilhas de desenho, em ORDEM DE LEITURA (linha a linha, esquerda→direita).
+
+    `cola` é uma dilatação aplicada só p/ AGRUPAR: os respingos de terra sob a
+    Raiz Podre e a ponta de uma asa solta são ilhas próprias, e sem ela virariam
+    peças separadas (ou seriam descartadas pelo tamanho, deixando o bicho
+    incompleto). A dilatação não entra no recorte — serve só p/ decidir quem é
+    do mesmo bicho.
+    """
+    solido = rgba[..., 3] > 24
+    junto = ndimage.binary_dilation(solido, iterations=cola)
+    ilhas, n = ndimage.label(junto)
+    if n == 0:
+        return []
+    areas = ndimage.sum(solido, ilhas, range(1, n + 1))
+    corte = areas.max() * minimo
+    caixas = ndimage.find_objects(ilhas)
+    achar_pecas.ilhas = ilhas          # p/ o recorte mascarar pela ILHA, não pela caixa
+    pecas = []
+    for i, (ys, xs) in enumerate(caixas):
+        if areas[i] < corte:
+            continue
+        pecas.append({
+            "x0": xs.start, "x1": xs.stop, "y0": ys.start, "y1": ys.stop,
+            "area": int(areas[i]), "rot": i + 1,
+        })
+    # ordem de LEITURA, por faixas horizontais. A faixa sai do CENTRO vertical de
+    # cada peça, e o corte entre uma faixa e a seguinte é meia altura MEDIANA —
+    # a mediana porque numa folha de bichos as alturas variam muito (um corvo
+    # deitado ao lado de um salteador em pé), e usar a altura de cada peça
+    # embaralhava as fileiras.
+    if not pecas:
+        return []
+    alt = float(np.median([p["y1"] - p["y0"] for p in pecas]))
+    pecas.sort(key=lambda p: (p["y0"] + p["y1"]) / 2)
+    faixas, atual, base = [], [], None
+    for p in pecas:
+        cy = (p["y0"] + p["y1"]) / 2
+        if base is None or cy - base <= alt * 0.5:
+            atual.append(p)
+            base = cy if base is None else base
+        else:
+            faixas.append(atual); atual = [p]; base = cy
+    if atual:
+        faixas.append(atual)
+    saida = []
+    for faixa in faixas:
+        saida.extend(sorted(faixa, key=lambda p: p["x0"]))
+    return saida
 
 
-def na_caixa(im: Image.Image, lado: int) -> Image.Image:
-    """Encaixa numa caixa quadrada, centrado embaixo e sem distorcer.
-    Centrado EMBAIXO e não no meio: o jogo apoia o sprite pelo pé, então o que
-    tem de ficar previsível é a linha do chão, não o miolo do desenho."""
+def limita(im: Image.Image, lado: int) -> Image.Image:
+    """
+    Reduz p/ caber em `lado`, SEM encaixar em quadrado — e isso importa.
+
+    A primeira versão colava cada bicho numa tela quadrada, como o fatiador de
+    ÍCONES faz. Ícone precisa disso (uma fileira de botões com símbolos de
+    alturas diferentes parece quebrada); sprite de criatura, não: o jogo já
+    dimensiona o plano pela PROPORÇÃO DA ARTE (`worldH * asp` por `worldH`).
+    Num quadrado a proporção vira 1, e um lobo — que é largo e baixo — passaria a
+    ocupar só metade da altura do plano. O resultado é um bicho que aparece
+    menor do que o número declarado no perfil, e sem que o número esteja errado.
+    """
     w, h = im.size
+    if max(w, h) <= lado:
+        return im
     escala = lado / max(w, h)
-    novo = im.resize((max(1, round(w * escala)), max(1, round(h * escala))), Image.LANCZOS)
-    tela = Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
-    tela.paste(novo, ((lado - novo.width) // 2, lado - novo.height))
-    return tela
+    return im.resize((max(1, round(w * escala)), max(1, round(h * escala))), Image.LANCZOS)
 
 
 def main() -> None:
     if len(sys.argv) < 2:
         raise SystemExit(__doc__)
     ent = sys.argv[1]
-    arg = lambda nome, padrao: (
-        sys.argv[sys.argv.index(nome) + 1] if nome in sys.argv else padrao
-    )
-    cols, linhas = (int(x) for x in str(arg("--grade", "3x2")).split("x"))
+    arg = lambda k, p: (sys.argv[sys.argv.index(k) + 1] if k in sys.argv else p)
     limiar = float(arg("--limiar", 90))
     lado = int(arg("--caixa", 512))
+    minimo = float(arg("--minimo", 0.02))    # % da maior peça abaixo da qual é lixo
+    cola = int(arg("--cola", 6))
+    pular = {int(x) for x in str(arg("--pular", "")).split(",") if x.strip()}
+    nomes = [x for x in str(arg("--nomes", "")).split(",") if x.strip()]
 
-    if len(NOMES) != cols * linhas:
-        raise SystemExit(f"mapa de nomes: {len(NOMES)} p/ {cols * linhas} células")
+    rgba = sem_magenta(np.array(Image.open(ent).convert("RGB")), limiar)
+    pecas = achar_pecas(rgba, minimo, cola)
+    ilhas = achar_pecas.ilhas
+    usadas = [p for i, p in enumerate(pecas) if i not in pular]
 
-    im = np.array(Image.open(ent).convert("RGB"))
-    ch, cw = im.shape[0] / linhas, im.shape[1] / cols
+    print(f"{len(pecas)} peça(s) na folha ({len(pular)} pulada(s)):")
+    for i, p in enumerate(pecas):
+        marca = "  PULADA" if i in pular else ""
+        alvo = ""
+        if i not in pular and nomes:
+            j = usadas.index(p)
+            alvo = f" -> {nomes[j]}" if j < len(nomes) else " -> (sem nome)"
+        print(f"  [{i}] {p['x1']-p['x0']:4d}x{p['y1']-p['y0']:4d} em "
+              f"({p['x0']},{p['y0']})  area {p['area']:7d}{alvo}{marca}")
+
+    if "--listar" in sys.argv or not nomes:
+        return
+    if len(nomes) != len(usadas):
+        raise SystemExit(f"{len(nomes)} nome(s) p/ {len(usadas)} peça(s) — confira --pular")
+
     os.makedirs(SAIDA, exist_ok=True)
-
-    vazias = []
-    for i, nome in enumerate(NOMES):
-        c, r = i % cols, i // cols
-        cel = im[round(r * ch):round((r + 1) * ch), round(c * cw):round((c + 1) * cw)]
-        rec = Image.fromarray(sem_magenta(cel, limiar))
-        cortado = apara(rec)
-        # célula vazia é bicho que o gerador não desenhou — avisa em vez de gravar
-        # um PNG transparente, que só se descobre no jogo, com o inimigo invisível
-        if cortado is None or cortado.width < cw * 0.15 or cortado.height < ch * 0.15:
-            vazias.append(nome)
-            continue
-        na_caixa(cortado, lado).save(os.path.join(SAIDA, f"{nome}.png"))
-        print(f"  {nome}.png  ({cortado.width}x{cortado.height} → {lado}x{lado})")
-
-    print(f"\n{len(NOMES) - len(vazias)}/{len(NOMES)} em {SAIDA}")
-    if vazias:
-        print("CÉLULAS VAZIAS (regerar a folha):", ", ".join(vazias))
-    print("Agora é só apagar o `tint` de cada perfil em ENEMY_TYPES (Game.ts).")
+    for nome, p in zip(nomes, usadas):
+        # recorta pelo retângulo E APAGA O QUE FOR DE OUTRA ILHA dentro dele: duas
+        # peças vizinhas dividem faixas de pixels sem se tocarem, e recortar só
+        # pelo retângulo traria a asa da vizinha junto. A máscara é a ilha, não a
+        # caixa. Depois disso o alfa é reaparado, porque tirar o intruso pode ter
+        # deixado ar sobrando na borda.
+        rec = rgba[p["y0"]:p["y1"], p["x0"]:p["x1"]].copy()
+        so_ela = ilhas[p["y0"]:p["y1"], p["x0"]:p["x1"]] == p["rot"]
+        rec[..., 3] = np.where(so_ela, rec[..., 3], 0)
+        im = Image.fromarray(rec)
+        a = np.array(im)[..., 3]
+        ys, xs = np.nonzero(a > 10)
+        if len(ys):
+            im = im.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+        limita(im, lado).save(os.path.join(SAIDA, f"{nome}.png"))
+        print(f"  gravado {nome}.png")
+    print(f"\n{len(nomes)} em {SAIDA}")
 
 
 if __name__ == "__main__":

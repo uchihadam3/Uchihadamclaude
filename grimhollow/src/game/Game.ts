@@ -331,27 +331,26 @@ const ENEMY_TYPES: Record<string, {
   // voltar. E como aqui fora o enemyScale() não aplica profundidade nenhuma
   // (`depth` só existe na masmorra), os números abaixo são os finais.
   //
-  // ARTE PENDENTE (§34 do PROMPTS.md): por ora cada um usa a folha do bicho de
-  // papel mais próximo, tingida. Entram sozinhos quando o PNG existir.
+  // ARTE: §34 do PROMPTS.md — a folha única de fundo magenta, já no jogo.
   //
   // corvo: o mais fraco do jogo, e é de propósito — a mata é alcançável no
   // primeiro minuto e precisa ter algo que um herói de nível 1 vença. Foge com
   // pouca vida, então também ensina a perseguir.
-  corvo:     { art: enemyRatoUrl,     hp: 34, atk: 8,  xp: 16, gold: 3,  vision: 7, h: 1.5, lvl: 1, ai: "flee_low", spd: 470, tint: 0x6a6a72 },
+  corvo:     { art: enemyRatoUrl,     hp: 34, atk: 8,  xp: 16, gold: 3,  vision: 7, h: 1.35, lvl: 1, ai: "flee_low", spd: 470 },
   // lobo: rápido. É ele que ensina que na mata não dá p/ recuar andando.
-  lobo:      { art: enemyRatoUrl,     hp: 46, atk: 9,  xp: 20, gold: 5,  vision: 6, h: 1.9, lvl: 1, ai: "chase", spd: 520, tint: 0x9aa0a6 },
+  lobo:      { art: enemyRatoUrl,     hp: 46, atk: 9,  xp: 20, gold: 5,  vision: 6, h: 1.65, lvl: 1, ai: "chase", spd: 520 },
   // javali: avança e não desiste. Pouca visão — é o jogador que esbarra nele.
-  javali:    { art: enemyCarnicalUrl, hp: 88, atk: 14, xp: 30, gold: 7,  vision: 4, h: 1.8, lvl: 2, ai: "relentless", spd: 760, tint: 0x8d7358 },
+  javali:    { art: enemyCarnicalUrl, hp: 88, atk: 14, xp: 30, gold: 7,  vision: 4, h: 1.7, lvl: 2, ai: "relentless", spd: 760 },
   // salteador: gente. Carrega moeda, que é o motivo de estar na estrada.
-  salteador: { art: enemyCultistaUrl, hp: 72, atk: 13, xp: 32, gold: 16, vision: 5, h: 2.6, lvl: 2, ai: "chase", spd: 800, tint: 0xa08a63 },
+  salteador: { art: enemyCultistaUrl, hp: 72, atk: 13, xp: 32, gold: 16, vision: 5, h: 2.7, lvl: 2, ai: "chase", spd: 800 },
   // besteiro: o parceiro dele, atirando de longe de trás de uma árvore.
-  besteiro:  { art: enemyArqueiroUrl, hp: 64, atk: 15, xp: 38, gold: 18, vision: 7, h: 2.5, lvl: 3, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1150, tint: 0x9c8f74 },
+  besteiro:  { art: enemyArqueiroUrl, hp: 64, atk: 15, xp: 38, gold: 18, vision: 7, h: 2.2, lvl: 3, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1150 },
   // RAIZ PODRE: o mini-elite, e o único aqui que não é bicho de mata nenhuma.
   // O Corvin avisa na cidade que as árvores da encosta OESTE adoecem do pé p/
   // cima — e é só na metade oeste do mapa que estas nascem. O jogador vê a pista
   // muito antes de ter como entendê-la: o apodrecimento sobe de baixo, e o que
   // está lá embaixo é o assunto do jogo inteiro.
-  raiz:      { art: enemyAberracaoUrl, hp: 150, atk: 20, xp: 60, gold: 12, vision: 4, h: 2.9, lvl: 4, ai: "relentless", spd: 980, tier: "mini", tint: 0x7d6a4a },
+  raiz:      { art: enemyAberracaoUrl, hp: 150, atk: 20, xp: 60, gold: 12, vision: 4, h: 3.0, lvl: 4, ai: "relentless", spd: 980, tier: "mini" },
   // ===== ATO III — Vaurstead, a cidade que não segurou (andares 7-9; herói ~nv10-15)
   // ARTE PENDENTE (§33 do PROMPTS.md). Enquanto ela não vem, cada um destes usa a
   // folha de um bicho já existente TINGIDA DE CINZA-OSSO. Não é disfarce: o Ato III
@@ -4224,6 +4223,17 @@ export class Game {
       // A tinta some no dia em que a arte própria entrar — e ela entra sozinha,
       // pelo artDoInimigo, sem passar por aqui.
       ...(T.tint ? { color: new THREE.Color(T.tint) } : {}),
+      // O BICHO É UM BILLBOARD, e isso quebra a iluminação difusa: o plano gira
+      // p/ encarar a câmera, então a normal dele é sempre HORIZONTAL — e o sol da
+      // mata vem de cima. MEDIDO na tela: o salteador saía a 62% do brilho da
+      // própria arte, virando silhueta a poucas células de distância.
+      // A correção não é subir a luz da cena (isso estouraria a grama e as
+      // árvores, que estão certas): é devolver ao sprite uma fração dele MESMO.
+      // Com emissiveMap (ligado no loadArt) a devolução é PROPORCIONAL ao
+      // desenho — o que é escuro na arte continua escuro, e só o que já tinha luz
+      // recupera. Um emissive liso, sem mapa, chapava o bicho e matava o volume.
+      emissive: new THREE.Color(0xffffff),
+      emissiveIntensity: 0.18,
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(worldH * 0.47 * larg, worldH), mat);
     mesh.position.set(c * CELL, worldH / 2, r * CELL);
@@ -4309,6 +4319,7 @@ export class Game {
       mesh.geometry = new THREE.PlaneGeometry(worldH * asp * larg, worldH);
       mesh.position.y = worldH / 2;
       mat.map = t;
+      mat.emissiveMap = t;     // a devolução de luz acompanha o desenho
       mat.opacity = 1;
       mat.needsUpdate = true;
     });
