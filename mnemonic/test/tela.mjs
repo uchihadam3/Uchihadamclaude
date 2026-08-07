@@ -27,6 +27,11 @@
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 
 const BASE = process.env.MNEMONIC_URL || 'http://localhost:8123/mnemonic/jogo.html';
+/* o índice do chefe sai do próprio mapa, e não de um número escrito à mão:
+   quando a sala do Tesouro entrou, o boss andou de 7 para 8 e todo teste que
+   apontava para "sala 7" passou a entrar num descanso */
+const { SALAS } = await import('../js/engine/run.js');
+const CHEFE = SALAS.indexOf('boss');
 let passou = 0, falhou = 0; const erros = [];
 const ok = (c, m) => c ? passou++ : (falhou++, erros.push(m));
 const secao = n => console.log('\n\x1b[36m── '+n+'\x1b[0m');
@@ -59,7 +64,7 @@ const navegador = await chromium.launch();
 
 /* ════════════════════════════════════════════════════════ 1 */
 secao('1. A mesa é uma grade — em toda sala, inclusive a do chefe');
-for(const [nome, mundo, indice] of [['combate',0,0], ['chefe',3,7], ['chefe',0,7]]){
+for(const [nome, mundo, indice] of [['combate',0,0], ['chefe',3,CHEFE], ['chefe',0,CHEFE]]){
   const { pg, ruim } = await entrarNaSala(navegador, mundo, indice);
   const m = await pg.evaluate(()=>{
     const e = document.getElementById('mesa'); const cs = getComputedStyle(e);
@@ -77,7 +82,7 @@ for(const [nome, mundo, indice] of [['combate',0,0], ['chefe',3,7], ['chefe',0,7
   ok(m.overflow === 'visible' || parseFloat(m.raio) < 40,
      `${nome}: a mesa não recorta as próprias cartas`);
   ok(m.cartas > 0, `${nome}: a mesa tem cartas (${m.cartas})`);
-  if(indice === 7) ok(m.chefe, `${nome}: a sala é mesmo de chefe`);
+  if(indice === CHEFE) ok(m.chefe, `${nome}: a sala é mesmo de chefe`);
   ok(ruim.length === 0, `${nome}: sem erro de console nem 404 — ${ruim.slice(0,2).join(' | ')}`);
   await pg.close();
 }
@@ -85,7 +90,7 @@ for(const [nome, mundo, indice] of [['combate',0,0], ['chefe',3,7], ['chefe',0,7
 /* ════════════════════════════════════════════════════════ 2 */
 secao('2. Ninguém pinta por cima do tabuleiro');
 {
-  const { pg } = await entrarNaSala(navegador, 3, 7);
+  const { pg } = await entrarNaSala(navegador, 3, CHEFE);
   /* erra de propósito: é no erro que o Caos mexe no tabuleiro */
   const [a,b] = await pg.evaluate(()=>{
     const s = window.MN.run.sala;
@@ -114,7 +119,7 @@ secao('2. Ninguém pinta por cima do tabuleiro');
 
 /* ════════════════════════════════════════════════════════ 3 */
 secao('3. Todo toque numa carta fechada é aceito e vira aquela carta');
-for(const [nome, mundo, indice] of [['combate',0,0], ['chefe',3,7], ['chefe',2,7], ['chefe',4,7]]){
+for(const [nome, mundo, indice] of [['combate',0,0], ['chefe',3,CHEFE], ['chefe',2,CHEFE], ['chefe',4,CHEFE]]){
   const { pg } = await entrarNaSala(navegador, mundo, indice);
   let tentados = 0;
   for(let k=0;k<8;k++){

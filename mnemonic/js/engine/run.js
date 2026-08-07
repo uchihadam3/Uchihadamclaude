@@ -39,7 +39,10 @@ import { EVENTOS, EVENTO_POR_ID } from '../data/eventos.js';
    qualquer taxa de acerto realista virar zero. 97% de sobrevivência por sala
    em 30 combates dá 40% de runs completas; em 72, dá 11%. O tamanho da run é
    parte do balanceamento, não uma decisão de conteúdo. */
-export const SALAS = ['combate','evento','combate','elite','loja',
+/* O TESOURO existia inteiro no código — premiação, oferta, replay — e nunca
+   aparecia, porque não estava nesta lista. Entrou depois da Elite: é ali que
+   a run acabou de cobrar caro e é ali que compensa devolver. */
+export const SALAS = ['combate','evento','combate','elite','tesouro','loja',
                       'combate','descanso','boss'];
 export const MUNDOS = 6;
 export const COMBATE = new Set(['combate','elite','boss']);
@@ -104,6 +107,12 @@ export class Run {
     this.estatisticas = { acertos:0, erros:0, maiorCombo:0, salas:0,
                           viradasSobrando:0, moedasGanhas:0 };
     if(this.C.reliquiaExtra) this._darReliquia();
+    /* relíquia que cobra na entrada (a Bolsa Furada dá moeda por par de Ouro
+       e tira da bolsa inicial) — só vale para as que a run já começa tendo */
+    for(const id of this.reliquias){
+      const m = POR_ID[id]?.moedasIniciais;
+      if(m) this.moedas = Math.max(0, this.moedas + m);
+    }
   }
   _reg(j){ if(!this.replay) this.registro.push(j); }
 
@@ -144,8 +153,17 @@ export class Run {
     if(this.C.veTipos) m.veTipos = true;
     for(const id of this.reliquias){
       const r = POR_ID[id]; if(!r?.mods) continue;
-      for(const [k,v] of Object.entries(r.mods))
-        m[k] = typeof v==='number' ? (m[k]||0)+v : v;
+      for(const [k,v] of Object.entries(r.mods)){
+        /* número soma, mapa FUNDE, o resto substitui. Sem a fusão, duas
+           relíquias que mexem no mesmo mapa (multTipo, multFam) se apagariam
+           uma à outra e a segunda pareceria não fazer nada. */
+        if(typeof v === 'number') m[k] = (m[k]||0) + v;
+        else if(v && typeof v === 'object' && !Array.isArray(v)){
+          m[k] = { ...(m[k]||{}) };
+          for(const [kk,vv] of Object.entries(v)) m[k][kk] = (m[k][kk] ?? 1) * vv;
+        }
+        else m[k] = v;
+      }
     }
     return m;
   }
@@ -184,6 +202,18 @@ export class Run {
     if(this.sala.fim) this._fecharSala();
     return rel;
   }
+  /* OS GANCHOS DAS RELÍQUIAS.
+     Uma relíquia que só sabe reagir a ACERTO acaba sempre virando "+N por
+     acerto", e vinte delas assim são a mesma relíquia vinte vezes. O que abre
+     espaço para efeito de verdade é ter onde pendurar: errar, virar, fechar a
+     sala, entrar num mundo novo. Cada gancho aqui vale por uma dúzia de
+     relíquias que não precisam de código próprio no motor. */
+  _chamar(qual, ...args){
+    for(const id of this.reliquias){
+      const f = POR_ID[id]?.ao?.[qual];
+      if(f) try { f(this.sala, ...args, this); } catch(e){}
+    }
+  }
   _gatilhos(rel){
     if(rel.eventos?.some(e=>e.e==='acerto')){
       this.estatisticas.acertos++;
@@ -195,7 +225,12 @@ export class Run {
     if(rel.eventos?.some(e=>e.e==='erro')){
       this.estatisticas.erros++;
       if(this.C.erroRende) this.sala.mods.multCombo=(this.sala.mods.multCombo||0)+this.C.erroRende;
+      this._chamar('erro', this.estatisticas.erros, rel);
     }
+    /* uma tentativa inteira, tenha dado no que tiver dado */
+    if(rel.eventos?.some(e=>e.e==='acerto'||e.e==='erro'))
+      this._chamar('tentativa', rel);
+    if(rel.eventos?.some(e=>e.e==='meta')) this._chamar('meta', rel);
   }
 
   _fecharSala(){
@@ -206,7 +241,10 @@ export class Run {
       let p = s.pontos;
       if(this.C.dobraTudo) p*=2;
       if(s.mods.dobra) p*=2;
-      if(s.mods.moedaVale) p = Math.round(p * (1 + Math.floor(s.moedas/3)*0.1));
+      /* moeda vira ponto. O passo é de 3 moedas por padrão e de 2 com a Pedra
+         Filosofal, que é o que faz uma build de moeda deixar de ser só compra */
+      if(s.mods.moedaVale)
+        p = Math.round(p * (1 + Math.floor(s.moedas/(s.mods.moedaValePasso||3))*0.1));
       this.pontos += Math.round(p);
       this.moedas += s.moedas;
       this.estatisticas.moedasGanhas += s.moedas;
@@ -216,6 +254,7 @@ export class Run {
       this.moedas += extra;
       this.estatisticas.moedasGanhas += extra;
       this.ultimaSala = { fim:'vitoria', pontos:s.pontos, sobra:s.viradas, extra };
+      this._chamar('salaVencida', this.tipoSala());
       this.sala = null;
       this.tentativa = 0;
       /* NÃO avança sozinho: a sala vencida ainda deve uma recompensa, e é o
@@ -247,6 +286,10 @@ export class Run {
     if(this.indice >= SALAS.length){
       this.indice = 0; this.mundo++;
       if(this.mundo >= MUNDOS) this.venceu = true;
+      else for(const id of this.reliquias){
+        const f = POR_ID[id]?.ao?.mundoNovo;
+        if(f) try { f(this, this.mundo); } catch(e){}
+      }
     }
   }
 
@@ -258,13 +301,26 @@ export class Run {
     const chave = this.mundo+':'+this.indice;
     if(this._premChave !== chave){
       this._premChave = chave;
-      this._prem = sortearReliquias(this._sem('p'), n, this.reliquias);
+      /* a Sacola de Feira alarga a oferta. Escolher entre quatro não é o mesmo
+         que escolher entre três: a chance de a build achar a peça que falta
+         sobe, e é isso que ela vende. */
+      const mods = this._mods();
+      const extra = Number(mods.premioExtra || 0);
+      this._prem = sortearReliquias(this._sem('p'), n + extra, this.reliquias);
       this._premGasto = false;
     }
     return this._prem;
   }
-  _darReliquia(){
-    const [r] = sortearReliquias(this.rng, 1, this.reliquias);
+  /* uma relíquia de graça. Com `raridade`, só daquele degrau — é o que a Bolso
+     Secreto promete, e prometer "uma relíquia" e entregar lendária seria outra
+     relíquia completamente diferente. */
+  _darReliquia(raridade=null){
+    const pool = raridade
+      ? RELIQUIAS.filter(r=>r.r===raridade && !this.reliquias.includes(r.id))
+      : null;
+    const r = pool
+      ? (pool.length ? this.rng.pick(pool) : null)
+      : sortearReliquias(this.rng, 1, this.reliquias)[0];
     if(r) this.reliquias.push(r.id);
     return r || null;
   }
@@ -292,8 +348,12 @@ export class Run {
     if(this._lojaChave !== chave){
       this._lojaChave = chave;
       const rng = this._sem('l');
-      const itens = sortearReliquias(rng, 3, this.reliquias).map(r=>({
-        id:r.id, nome:r.nome, r:r.r, d:r.d, preco:this.PRECO[r.r] }));
+      const mods = this._mods();
+      const desconto = Number(mods.desconto || 1);
+      const quantos = 3 + Number(mods.lojaExtra || 0);
+      const itens = sortearReliquias(rng, quantos, this.reliquias).map(r=>({
+        id:r.id, nome:r.nome, r:r.r, d:r.d,
+        preco: Math.max(5, Math.round(this.PRECO[r.r] * desconto)) }));
       itens.push({ id:'__foco', nome:'Hora de Silêncio', r:'servico',
         d:'+1 de Foco máximo pelo resto da run.', preco:55 });
       itens.push({ id:'__viradas', nome:'Mapa da Sala', r:'servico',

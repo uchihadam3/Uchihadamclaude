@@ -554,7 +554,16 @@ function cartaHTML(c, pequena){
   const f = FAMILIAS[c.fam], t = TIPOS[c.tipo];
   const cor = f ? f.cor : '#cfd6e4';
   const curinga = !!t.curinga;
+  /* VER O TIPO ANTES DE VIRAR. A Hacker promete isso na descrição da classe e
+     a Agulha de Bússola promete de novo, e nenhuma das duas cumpria: o motor
+     gravava `mods.veTipos` e ninguém lia. Aqui a carta FECHADA mostra a marca
+     do tipo dela — só quando o tipo diz alguma coisa, porque um verso cheio de
+     selos de "Normal" seria ruído em vez de informação. */
+  const s0 = run?.sala || salaViva;
+  const espia = !!s0?.mods?.veTipos && !c.resolvida && !faceAberta(c) && c.tipo !== 'normal';
   const selos = [];
+  if(espia) selos.push(`<span class="selo tipo" style="color:${TIPOS[c.tipo].cor}">`
+    + `${ICO[c.tipo] || ''}</span>`);
   /* o que o jogo JÁ te contou fica escrito na carta — nada de adivinhar */
   if(c.orfa)     selos.push('<span class="selo of">SEM PAR</span>');
   if(c.revelado) selos.push('<span class="selo mi">FALSA</span>');

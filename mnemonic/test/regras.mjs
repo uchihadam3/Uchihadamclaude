@@ -402,6 +402,47 @@ secao('8b. Cada jogada tem um código só dela no registro');
     if(c !== 'sala') ok(tratados.includes(c), `o replay sabe refazer a jogada '${c}'`);
 }
 
+/* ════════════════════════════════════════════════════════ 8c */
+secao('8c. Relíquia que promete tem de fazer');
+{
+  /* O PIOR TIPO DE RELÍQUIA é a que existe na lista e não existe no motor: o
+     jogador escolhe, monta a build em volta dela e não acontece nada. Não dá
+     para provar o efeito de cada uma aqui — algumas dependem de tabuleiro,
+     chefe e sorte — mas dá para provar que o motor pelo menos CONHECE cada
+     coisa que elas mexem. Um `mods` que ninguém lê é uma promessa quebrada. */
+  const motor = readFileSync(new URL('../js/engine/tabuleiro.js', import.meta.url), 'utf8')
+              + readFileSync(new URL('../js/engine/run.js', import.meta.url), 'utf8');
+  /* o mod pode ser lido no motor OU na tela — `veTipos` desenha um selo no
+     verso da carta e não muda conta nenhuma */
+  const tela = readFileSync(new URL('../js/ui/jogo.js', import.meta.url), 'utf8');
+  const onde = motor + tela;
+  const usados = new Set([...onde.matchAll(/mods\??[.?\[]+\.?([a-zA-Zç]+)/g)].map(m=>m[1]));
+  const declarados = new Set();
+  for(const r of RELIQUIAS) for(const k of Object.keys(r.mods||{})) declarados.add(k);
+  for(const k of declarados)
+    ok(usados.has(k), `o motor lê o mod "${k}" que alguma relíquia declara`);
+
+  /* e todo gancho que uma relíquia usa tem de ser chamado por alguém */
+  const ganchos = new Set();
+  for(const r of RELIQUIAS) for(const k of Object.keys(r.ao||{})) ganchos.add(k);
+  for(const g of ganchos)
+    ok(motor.includes(`ao?.${g}`) || motor.includes(`ao.${g}`)
+       || motor.includes(`_chamar('${g}'`),
+       `o motor dispara o gancho "${g}"`);
+
+  /* nenhuma relíquia pode ser só texto: ou mexe num mod, ou tem gancho, ou
+     roda alguma coisa ao iniciar a sala */
+  for(const r of RELIQUIAS)
+    ok(r.mods || r.ao || r.aoIniciar || r.moedasIniciais,
+       `a relíquia ${r.id} faz alguma coisa além de estar escrita`);
+
+  ok(RELIQUIAS.length >= 60, `o catálogo tem ${RELIQUIAS.length} relíquias`);
+  const porR = {};
+  for(const r of RELIQUIAS) porR[r.r] = (porR[r.r]||0)+1;
+  for(const grau of ['comum','rara','lendaria'])
+    ok(porR[grau] >= 10, `há ${porR[grau]} relíquias ${grau} — variedade em cada degrau`);
+}
+
 /* ════════════════════════════════════════════════════════ 9 */
 secao('9. Fim de sala');
 {
@@ -836,13 +877,21 @@ secao('16b. Todo nome do jogo tem um desenho');
   const SALA_ICO = ['combate','elite','chefe','loja','evento','fogueira','tesouro'];
   for(const v of SALA_ICO) ok(!!ICO[v], `o tipo de sala "${v}" tem ícone desenhado`);
 
-  /* cada relíquia e cada família também precisam da sua marca: enquanto as
-     vinte e uma relíquias dividiam um amuleto genérico, a loja oferecia três
-     coisas visualmente idênticas e a escolha virava leitura de parágrafo */
-  for(const r of RELIQUIAS) ok(!!ICO_RELIQUIA[r.id], `a relíquia ${r.id} tem marca própria`);
-  for(const f of LISTA_FAMILIAS) ok(!!ICO_FAM[f.id], `a família ${f.id} tem brasão`);
-  eq(new Set(Object.values(ICO_RELIQUIA)).size, RELIQUIAS.length,
+  /* CADA RELÍQUIA COM A SUA MARCA — pintada ou desenhada, mas própria.
+     Enquanto as vinte e uma dividiam um amuleto genérico, a loja oferecia três
+     coisas visualmente idênticas e a escolha virava leitura de parágrafo. O
+     catálogo cresceu para setenta e cinco e o problema voltaria inteiro se as
+     novas ficassem esperando arte: por isso quem não tem pintura ganha um
+     emblema montado de moldura mais marca. */
+  const marcas = RELIQUIAS.map(r=>icoReliquia(r.id));
+  for(let i=0;i<RELIQUIAS.length;i++)
+    ok(!!marcas[i] && marcas[i] !== ICO.reliquia,
+       `a relíquia ${RELIQUIAS[i].id} tem marca própria`);
+  eq(new Set(marcas).size, RELIQUIAS.length,
      'nenhuma relíquia usa a marca de outra');
+  for(const f of LISTA_FAMILIAS) ok(!!ICO_FAM[f.id], `a família ${f.id} tem brasão`);
+  ok(Object.keys(ICO_RELIQUIA).every(id=>RELIQUIAS.some(r=>r.id===id)),
+     'toda arte pintada de relíquia pertence a uma relíquia que existe');
 
   const todos = [...Object.values(ICO), ...Object.values(ICO_CLASSE), ...Object.values(ICO_CHEFE),
                  ...Object.values(ICO_FAM), ...Object.values(ICO_RELIQUIA)];

@@ -9,6 +9,9 @@
    São SVG de traço em viewBox 0 0 24 24, para herdarem cor e espessura de
    quem os coloca.
    ===================================================================== */
+import { RELIQUIAS } from '../data/reliquias.js';
+import { emblema } from '../arte/emblemas.js';
+
 const S = d => `<svg class="gl" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
 
 export const ICO = {
@@ -156,6 +159,10 @@ for(const id of Object.keys(ICO_CHEFE))  ICO_CHEFE[id]  = pintura('chefe', id, '
    oferecia três amuletos iguais com nomes diferentes. Escolher entre coisas
    que se parecem não é escolher — é ler três parágrafos e chutar. Cada uma
    passa a ter a sua marca, e o brasão faz o mesmo pela família. */
+/* a posição de cada relíquia na lista é o que decide o emblema dela: fixa,
+   sem sorteio, igual em qualquer aparelho */
+const ORDEM_RELIQUIA = new Map(RELIQUIAS.map((r,i)=>[r.id, i]));
+
 export const ICO_RELIQUIA = {};
 for(const id of ['olho_coruja','caderno','ima','luva','ampulheta','lampada',
   'moeda_torta','dado_viciado','memoria_fotografica','espelho_antigo','coroa',
@@ -186,8 +193,15 @@ export const MOLDURA_DO_TIPO = {
   camaleao:'m-aco',  veneno:'m-aco', corrente:'m-aco',
 };
 
-/* a marca de uma relíquia, com o amuleto genérico como rede de segurança:
-   relíquia nova entra no jogo sem quebrar a tela enquanto a arte não chega */
-export const icoReliquia = id => ICO_RELIQUIA[id] || ICO.reliquia;
+/* A MARCA DE UMA RELÍQUIA, em três degraus.
+   Primeiro a arte pintada, se aquela relíquia tiver. Depois um EMBLEMA
+   desenhado, próprio dela, montado de moldura mais marca — porque cinquenta e
+   quatro relíquias dividindo o mesmo amuleto genérico é o problema que a arte
+   tinha acabado de resolver: escolher entre três coisas iguais não é escolher.
+   O amuleto genérico fica só como rede, para relíquia que nasça fora da lista
+   e não derrube a tela. */
+export const icoReliquia = id =>
+  ICO_RELIQUIA[id] || (ORDEM_RELIQUIA.has(id)
+    ? emblema(ORDEM_RELIQUIA.get(id)) : ICO.reliquia);
 
 export default ICO;

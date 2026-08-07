@@ -142,6 +142,8 @@ export class Sala {
     this.fer = o.ferramenta || null;   // ferramenta da classe
     this.usosFer = o.ferramenta?.usos ?? 0;
     this._novas = [];                  // por virada: a carta era inédita?
+    this._perdoou = false;             // o perdão do primeiro erro já foi gasto?
+    this._marcou = false;              // a primeira carta da sala já foi marcada?
     this.cartas = this._montar();
     this.colunas = colunasPara(this.cartas.length);
     if(this.boss?.inicio) this.boss.inicio(this);
@@ -198,10 +200,14 @@ export class Sala {
   porPos(){ return [...this.cartas].sort((a,b)=>a.pos-b.pos); }
   temFamilia(id){ return this.familias.some(f=>f.id===id); }
   degrau(){ return degrauCombo(this.combo); }
+  /* o multiplicador pode depender do ESTADO, e não só da build: a Balança
+     Torta paga o dobro enquanto o Foco está intacto, o que transforma cada
+     esquecimento numa perda dupla. */
   multCombo(){
     const d = degrauCombo(this.combo);
     const dobra = this._concentrado ? 2 : 1;
-    return (d.mult + (this.mods.multCombo||0) + (this._bonusRunas||0)) * dobra;
+    const cheio = this.mods.dobraComFoco && this.foco >= this.focoMax ? 2 : 1;
+    return (d.mult + (this.mods.multCombo||0) + (this._bonusRunas||0)) * dobra * cheio;
   }
   /* o que a tela precisa saber para pintar a prévia sem recalcular regra */
   valorDe(c){
@@ -242,6 +248,9 @@ export class Sala {
     if(this.abertas.length >= 2) return { erro:'resolva o par aberto' };
 
     const inedita = !c.conhecida;
+    /* o Marcador de Página prende a PRIMEIRA carta da sala: ela deixa de
+       expirar e vira o ponto de referência do tabuleiro inteiro */
+    if(this.mods.marcaPrimeira && !this._marcou){ this._marcou = true; c.marcada = true; }
     c.virada = true; this._mostrar(c);
     this.abertas.push(c.id);
     this._novas.push(inedita);
@@ -297,6 +306,15 @@ export class Sala {
     const t = TIPOS[a.tipo].curinga ? TIPOS[b.tipo] : TIPOS[a.tipo];
     let base = (t.base||10) + (this.mods.pontoBase||0);
     let mult = (t.mult||1);
+    /* ESPECIALIZAÇÃO. Dois mapas — um por TIPO de carta, outro por FAMÍLIA —
+       fazem uma relíquia poder dizer "o Cristal vale o dobro para você" ou
+       "Egito rende mais" sem uma linha de código nova no motor. É o que abre
+       espaço para build de verdade: duas runs com relíquias diferentes passam
+       a procurar coisas diferentes no mesmo tabuleiro. */
+    const porTipo = this.mods.multTipo?.[a.tipo] ?? this.mods.multTipo?.[b.tipo];
+    if(porTipo) mult *= porTipo;
+    const porFam = this.mods.multFam?.[a.fam] ?? this.mods.multFam?.[b.fam];
+    if(porFam) mult *= porFam;
     /* DRAGÕES pagam mais e cobram nos erros (o custo está em _errou) */
     if(a.fam==='dragoes'||b.fam==='dragoes') mult *= 1.5;
     /* XADREZ: os dois primeiros pares da família valem dobrado */
@@ -319,7 +337,9 @@ export class Sala {
     if(t.moedas){ const m=t.moedas+(this.mods.moedaBonus||0); this.moedas+=m;
       rel.eventos.push({ e:'moedas', n:m }); }
     if(t.embaralha) this._embaralhar(t.embaralha, rel);
-    if(t.acorrenta) this._revelarUma(rel);
+    if(t.acorrenta){ this._revelarUma(rel);
+      /* a Linha de Costura faz a Corrente puxar duas em vez de uma */
+      if(this.mods.correnteDupla) this._revelarUma(rel); }
     if(t.revelaFamilia) this._revelarFamilia(a.fam, rel);
     /* o que a FAMÍLIA faz */
     if(a.fam==='alquimia'||b.fam==='alquimia'){ this.viradas++;
@@ -343,6 +363,10 @@ export class Sala {
       rel.eventos.push({ e:'mimic', carta:c.id });
     }
     if(this.mods.erroDobra) custo *= 2;
+    if(custo && this.mods.erroExtra) custo += this.mods.erroExtra;
+    /* o perdão vale UMA vez por sala, e é gasto mesmo que o erro fosse de
+       graça — senão ele fica guardado até o erro mais caro e vira outra coisa */
+    if(this.mods.perdao && !this._perdoou){ this._perdoou = true; custo = 0; }
     custo = Math.max(0, custo - (this.mods.blindagem||0));
     /* fotografia do que dá para desfazer, antes de estragar (Cronomante).
        A virada guardada é a de ANTES da tentativa: desfazer o erro tem que
@@ -350,15 +374,28 @@ export class Sala {
     this._ultimoErro = { combo:this.combo, foco:this.foco,
                          viradas: viradasAntes ?? this.viradas };
     this.foco -= custo;
-    /* MITOLOGIA (e a Pena do Escriba) não zeram o combo: cortam pela metade */
+    /* MITOLOGIA (e a Pena do Escriba) não zeram o combo: cortam pela metade.
+       O Fio de Prata é mais forte: tira um DEGRAU. O Coração de Pedra é o
+       contrário — zera de vez, e paga por isso em Foco. */
     const meio = a.fam==='mitologia' || b.fam==='mitologia' || this.mods.meioCombo;
-    this.combo = meio ? Math.floor(this.combo/2) : 0;
+    this.combo = this.mods.comboSeco ? 0
+               : this.mods.comboDegrau ? Math.max(0, this.combo - 1)
+               : meio ? Math.floor(this.combo/2) : 0;
     this._concentrado = false;
     if(a.fam==='dragoes'||b.fam==='dragoes') this.moedas = Math.max(0,this.moedas-1);
     a.virada=false; b.virada=false;
     /* FANTASMA apaga o que você acabou de ver — mas não o fato de ter visto */
     for(const c of [a,b]) if(TIPOS[c.tipo].esconde) this._apagarTela(c);
     if(this.mods.consolo) this._revelarUma(rel);
+    /* moeda por erro: transforma o tropeço em economia, e é o que sustenta
+       uma família inteira de relíquias sem precisar de código para cada uma */
+    if(this.mods.moedaPorErro) this.moedas += this.mods.moedaPorErro;
+    if(this.mods.viradaPorErro){ this.viradas += this.mods.viradaPorErro;
+      rel.eventos.push({ e:'virada_extra' }); }
+    /* explorar de graça: errar duas cartas INÉDITAS devolve a virada. Só faz
+       sentido junto com a regra do Foco, que já não cobra por descoberta. */
+    if(eramNovas && this.mods.descobertaGratis){ this.viradas++;
+      rel.eventos.push({ e:'virada_extra' }); }
     rel.eventos.push({ e:'erro', cartas:[a.id,b.id], custo, combo:this.combo,
                        descoberta:!!eramNovas });
   }
