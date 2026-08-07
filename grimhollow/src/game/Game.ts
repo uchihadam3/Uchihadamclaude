@@ -1663,6 +1663,16 @@ const A3OPT_GLOB = import.meta.glob("../assets/env/tex_a3*.png", {
   eager: true, query: "?url", import: "default",
 }) as Record<string, string>;
 const a3OptUrl = (name: string): string | undefined => A3OPT_GLOB[`../assets/env/${name}.png`];
+// DECALQUES DE PAREDE do Ato III (dec_a3_*.png). A cidade já funciona assim: a
+// fachada é um painel LISO e a janela, o postigo e a lanterna entram por cima,
+// como props separados. Vaurstead segue a mesma regra, e por um motivo melhor que
+// economia: uma textura com a janela PINTADA DENTRO repete a mesma janela em cada
+// painel do mapa inteiro, e é a repetição que denuncia a caixa. Solta, a janela
+// aparece onde faz sentido e some onde não faz.
+const A3DEC_GLOB = import.meta.glob("../assets/env/dec_a3_*.png", {
+  eager: true, query: "?url", import: "default",
+}) as Record<string, string>;
+const A3DEC_PNG: string[] = Object.keys(A3DEC_GLOB).sort().map((k) => A3DEC_GLOB[k]);
 
 // CO-OP: arte do avatar dos outros jogadores, por classe. Se existir
 // `avatar_<classe>.png` em assets/npc/ ela vence; senão usa o placeholder.
@@ -8101,6 +8111,8 @@ export class Game {
           : this.pbrStone(a2CleanUrl ?? a2MossyUrl, "a2ceilw", { rough: 0.9, normal: 1.15, tint: 0xdcdfe2, repeat: [1.6, 1.6] }))
       : this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
+    // um material por arte de decalque do Ato III (vazio enquanto não houver arte)
+    const a3DecMats: THREE.Material[] = a3 ? A3DEC_PNG.map((u: string) => this.decalMat(u, 0.35)) : [];
     const crackMat = this.decalMat(decCracksUrl, 0.08);
     const boneMat = new THREE.MeshLambertMaterial({
       map: tex.skullPile(69), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide,

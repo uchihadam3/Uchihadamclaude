@@ -1952,18 +1952,61 @@ tem de reconhecer o lugar antes de o Frei Anselmo explicar.</p>
 aberto de noite, e a única luz é a lua. Foi a troca mais barata e mais eficaz do
 ato — o mesmo motor de corredor dos dois primeiros atos, sem tampa em cima e com
 parede alta, já lê como cidade.</p>
-<h3 id="331--tex_a3wallpng-a-parede-de-vaurstead">33.1 — <code>tex_a3wall.png</code> (a parede de Vaurstead)</h3>
-<p>Hoje usa <code>tex_stonewall</code> tingida de bege-osso, repetida 2,1× na vertical (a
-parede do Ato III tem o dobro da altura e pedra esticada denuncia a caixa). Uma
-textura própria resolve o esticamento e traz o que a tinta não traz: <strong>o suporte
-de lampião vazio</strong>, que é o detalhe que conta a história inteira.</p>
-<pre><code>A seamless tileable stone wall texture of a ruined medieval city house facade, tall format, pale bone-grey ashlar masonry with fine mortar joints, weathered and pitted by six hundred years, dark soot staining creeping up from below on part of the surface, a single empty rusted iron lantern bracket bolted to the stone with no lantern in it, a boarded-up shuttered window opening, dry dead ivy clinging in places, no people, no light sources, no glow, cold moonlit night lighting from above, grim dark medieval fantasy game texture, painterly realistic, high detail, no text, no watermark, seamless edges on all four sides
+<h3 id="331--tex_a3wallpng--a-parede-lisa-e-só-ela">33.1 — <code>tex_a3wall.png</code> — a PAREDE LISA, e só ela</h3>
+<p>A primeira versão deste prompt pedia a parede JÁ COM a janela e o suporte de
+lampião pintados dentro. Está errado, e o erro é o mesmo de sempre: uma textura é
+repetida em CADA painel do mapa, então a mesma janela na mesma altura apareceria
+centenas de vezes numa cidade de 44×40 células. Repetição é o que denuncia a
+caixa — e uma cidade inteira de casas idênticas não lê como cidade, lê como
+papel de parede.</p>
+<p><strong>A cidade de Grimhollow já resolveu isso</strong> e é de lá que a regra vem: a fachada
+é um painel LISO (<code>tw_facade_*</code>), e a janela com postigo e a lanterna entram
+DEPOIS, como props soltos (<code>prop_janela_postigo</code>, <code>prop_lanterna_parede</code>). Aqui
+é igual: esta textura é só alvenaria, e o que conta a história vem no §33.5.</p>
+<pre><code>A seamless tileable stone brick wall texture, tall format, plain ashlar masonry of a ruined medieval city, pale bone-grey and dusty beige blocks with fine mortar joints, weathered and pitted by six hundred years, uneven block sizes, hairline cracks, patches where the render has fallen off exposing rougher brick beneath, faint dark soot staining rising from the bottom edge, NO WINDOW, NO DOOR, NO OPENING of any kind, NO LANTERN, NO BRACKET, NO IVY, no props, no ornaments, nothing but wall, cold moonlit night lighting from above, grim dark medieval fantasy game texture, painterly realistic, high detail, no text, no watermark, seamless edges on all four sides
 </code></pre>
 <h3 id="332--tex_a3floorpng-a-rua">33.2 — <code>tex_a3floor.png</code> (a rua)</h3>
-<p>Hoje usa a mesma calçada procedural da praça de Grimhollow, acinzentada. Uma
-textura própria acrescenta o pó e o que ficou caído.</p>
+<p>Hoje usa a calçada procedural da praça de Grimhollow, acinzentada. Uma textura
+própria acrescenta o pó e o que ficou caído.</p>
 <pre><code>A seamless tileable top-down texture of an abandoned medieval city street, irregular cobblestones in pale grey and dusty beige, thick layer of fine grey ash and dust settled between the stones, dry cracks, scattered small rubble and broken roof tiles, faded dark stains, dead weeds pushing between a few stones, no people, no footprints, cold moonlit night, grim dark medieval fantasy game texture, painterly realistic, high detail, no text, no watermark, seamless edges on all four sides
 </code></pre>
+<h3 id="335--dec_a3png--os-decalques-da-parede-uma-folha-só-fundo-magenta">33.5 — <code>dec_a3.png</code> — os DECALQUES da parede (uma folha só, fundo magenta)</h3>
+<p>É esta folha que faz Vaurstead deixar de ser um corredor de tijolo. <strong>O código já
+está pronto</strong>: cada <code>dec_a3_*.png</code> que aparecer em <code>assets/env/</code> é sorteado sobre
+as paredes que dão para a rua, em alturas variadas — janela na altura de janela,
+trepadeira subindo do chão. Sem arte, a parede fica lisa, que é o estado de hoje
+e não um defeito.</p>
+<p><strong>1536×1536, quatro peças</strong>, fundo magenta chapado, cada uma inteira e com folga.
+Todas vistas DE FRENTE, sem perspectiva — elas vão coladas numa parede plana.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>1</th>
+<th>2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A</strong></td>
+<td>janela quebrada</td>
+<td>vão desabado</td>
+</tr>
+<tr>
+<td><strong>B</strong></td>
+<td>suporte de lampião vazio</td>
+<td>trepadeira seca</td>
+</tr>
+</tbody>
+</table>
+<pre><code>A single flat sprite sheet of 4 medieval ruin wall decals arranged in a 2 by 2 grid, 1536x1536, each item fully centered inside its own 768x768 cell with generous empty padding, nothing touching or overlapping between cells, SOLID PURE MAGENTA BACKGROUND #FF00FF filling every pixel that is not the item, absolutely flat magenta with no gradient and no shadow cast on the background, no cell borders, no frames, no grid lines, no text, no watermark. All four drawn STRAIGHT ON with no perspective, as if photographed flat against a wall. Cell 1: a broken stone window opening of a medieval house, the frame cracked and half collapsed, jagged remains of a wooden shutter hanging from one hinge, pure black darkness inside the opening. Cell 2: a large collapsed hole torn through a brick wall, irregular jagged edge with loose bricks still clinging around the rim, rubble piled at the bottom lip, pure black darkness inside. Cell 3: a rusted wrought iron lantern bracket bolted to stone with NO LANTERN hanging from it, just the empty curved arm and its bolt plate, one broken chain link dangling. Cell 4: a mass of dead dry ivy clinging flat to a wall, brittle brown stems and curled dead leaves spreading upward and outward, some stems snapped. Consistent style: grim dark medieval fantasy game art, cold moonlit night lighting from above, muted grey and brown palette, painterly realistic, high detail, no glow, no coloured aura
+</code></pre>
+<blockquote>
+<p><strong>Como fatiar:</strong> <code>python3 scripts/slice_mobs.py dec_a3.png --nomes dec_a3_janela,dec_a3_vao,dec_a3_suporte,dec_a3_trepadeira</code>
+— o mesmo script dos bichos, porque o problema é o mesmo (fundo magenta, peças
+soltas, franja na borda). Rode antes com <code>--listar</code> p/ conferir a ordem: ele
+acha as peças onde elas estiverem, e a folha nem sempre volta em grade.</p>
+</blockquote>
 <h3 id="333--o-roster-do-ato--cinco-folhas-soltas">33.3 — o roster do ato — cinco folhas soltas</h3>
 <p>Todas com <strong>fundo transparente de verdade</strong> e a criatura <strong>inteira dentro do
 quadro</strong> — foi a aura larga que estragou o recorte da aberração do Ato II. Nome
