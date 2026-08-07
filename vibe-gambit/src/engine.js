@@ -103,6 +103,7 @@ export class Combat {
   act(u){
     const ctx = { alliesOf: x => this.alliesOf(x), enemiesOf: x => this.enemiesOf(x), rng: this.rng };
     for(const g of u.gambits){
+      if(g.enabled === false) continue;     // linha DESLIGADA → ignora
       const condFn = CONDITION_FNS[g.condition];
       const skill  = SKILLS[g.action];
       if(!condFn || !skill) continue;       // linha inválida → ignora

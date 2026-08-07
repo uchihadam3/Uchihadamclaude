@@ -304,20 +304,25 @@ function openGambitHUD(){
 function renderGambitHUD(mount){
   const hs = S.heroes.find(h=>h.id===ghHero); const def = HERO_DEFS.find(h=>h.id===hs.id);
   const condOpts = S.unlockedConditions;
+  const rr = () => renderGambitHUD(mount);
   const tabs = S.heroes.map(h=>{ const d = HERO_DEFS.find(x=>x.id===h.id);
     return `<button class="gh-tab ${h.id===ghHero?'on':''}" data-h="${h.id}" style="--acc:${accentOf(h.id)}">
       <img src="assets/${h.id}_face.png" alt=""><span>${d.name}</span></button>`; }).join('');
   const rows = hs.gambits.map((g,i)=>{
+    const on = g.enabled !== false;
     const cond = `<select class="cond" data-line="${i}" data-kind="condition">${condOpts.map(c=>`<option value="${c}" ${g.condition===c?'selected':''}>${CONDITIONS[c].label}</option>`).join('')}</select>`;
     const act  = `<select class="act" data-line="${i}" data-kind="action">${def.skills.map(s=>`<option value="${s}" ${g.action===s?'selected':''}>${SKILLS[s].name}</option>`).join('')}</select>`;
-    return `<div class="gh-row">
+    return `<div class="gh-row ${on?'':'off'}" data-i="${i}">
+      <div class="gh-drag" title="Arraste para reordenar">⠿</div>
       <span class="gh-pri">${i+1}</span>
-      <div class="gh-mv"><button class="gh-up" data-i="${i}" ${i===0?'disabled':''}>▲</button><button class="gh-dn" data-i="${i}" ${i===hs.gambits.length-1?'disabled':''}>▼</button></div>
       <div class="gh-conds">
         <div class="gh-cline"><span class="gh-if">SE</span>${cond}</div>
         <div class="gh-cline"><span class="gh-arw">➜</span>${act}</div>
       </div>
-      <button class="gh-rm" data-i="${i}" title="Remover">✕</button>
+      <div class="gh-tools">
+        <button class="gh-toggle ${on?'on':''}" data-i="${i}" title="${on?'Desligar':'Ligar'} esta linha"><span class="gh-knob"></span></button>
+        <button class="gh-rm" data-i="${i}" title="Remover">✕</button>
+      </div>
     </div>`;
   }).join('');
   const locked = Array.from({length: def.maxSlots - hs.slots}, (_,k)=>{
@@ -328,22 +333,53 @@ function renderGambitHUD(mount){
     return `<div class="gh-row locked dim"><span class="gh-pri">🔒</span><span class="gh-lock">Slot ${slotNo} — bloqueado</span></div>`;
   }).join('');
   const canAdd = hs.gambits.length < hs.slots;
+  const active = hs.gambits.filter(g=>g.enabled!==false).length;
   mount.innerHTML = `
     <div class="gh-tabs">${tabs}</div>
     <div class="gh-head" style="--acc:${accentOf(hs.id)}">
       <img class="gh-face" src="assets/${hs.id}_face.png" alt="">
-      <div><b>${def.name}</b><small>${hs.gambits.length}/${hs.slots} linhas ativas · prioridade ▲▼</small></div>
+      <div><b>${def.name}</b><small>${active}/${hs.gambits.length} linhas ligadas · arraste ⠿ p/ reordenar</small></div>
     </div>
     <div class="gh-rows">${rows || '<div class="muted tiny" style="text-align:center;padding:8px">Sem linhas — adicione abaixo.</div>'}${locked}</div>
     <button class="gh-add small primary" ${canAdd?'':'disabled'}>+ Adicionar linha</button>`;
-  mount.querySelectorAll('.gh-tab').forEach(b => b.onclick = () => { ghHero=b.dataset.h; renderGambitHUD(mount); });
+  mount.querySelectorAll('.gh-tab').forEach(b => b.onclick = () => { ghHero=b.dataset.h; rr(); });
   mount.querySelectorAll('select').forEach(sel => sel.onchange = () => { hs.gambits[+sel.dataset.line][sel.dataset.kind]=sel.value; save(S); });
-  mount.querySelectorAll('.gh-rm').forEach(x => x.onclick = () => { hs.gambits.splice(+x.dataset.i,1); save(S); renderGambitHUD(mount); });
-  mount.querySelectorAll('.gh-up').forEach(x => x.onclick = () => { const i=+x.dataset.i; [hs.gambits[i-1],hs.gambits[i]]=[hs.gambits[i],hs.gambits[i-1]]; save(S); renderGambitHUD(mount); });
-  mount.querySelectorAll('.gh-dn').forEach(x => x.onclick = () => { const i=+x.dataset.i; [hs.gambits[i+1],hs.gambits[i]]=[hs.gambits[i],hs.gambits[i+1]]; save(S); renderGambitHUD(mount); });
-  mount.querySelectorAll('.gh-unlock').forEach(b => b.onclick = () => { const n=+b.dataset.slot; const cost=ACADEMY.slotCosts[n]; if(!canAfford(cost))return; spend(cost); hs.slots++; save(S); bumpRes(); renderGambitHUD(mount); });
+  mount.querySelectorAll('.gh-rm').forEach(x => x.onclick = () => { hs.gambits.splice(+x.dataset.i,1); save(S); rr(); });
+  mount.querySelectorAll('.gh-toggle').forEach(t => t.onclick = () => { const g=hs.gambits[+t.dataset.i]; g.enabled = (g.enabled===false); save(S); rr(); });
+  mount.querySelectorAll('.gh-unlock').forEach(b => b.onclick = () => { const n=+b.dataset.slot; const cost=ACADEMY.slotCosts[n]; if(!canAfford(cost))return; spend(cost); hs.slots++; save(S); bumpRes(); rr(); });
   const add = mount.querySelector('.gh-add');
-  if(add) add.onclick = () => { if(hs.gambits.length>=hs.slots)return; hs.gambits.push({ condition:S.unlockedConditions[0], action:def.skills[0] }); save(S); renderGambitHUD(mount); };
+  if(add) add.onclick = () => { if(hs.gambits.length>=hs.slots)return; hs.gambits.push({ condition:S.unlockedConditions[0], action:def.skills[0], enabled:true }); save(S); rr(); };
+  enableGambitDrag(mount, hs, rr);
+}
+// arrastar linhas de gambit p/ reordenar (pointer-based, funciona no touch)
+function enableGambitDrag(mount, hs, rerender){
+  const list = mount.querySelector('.gh-rows'); if(!list) return;
+  mount.querySelectorAll('.gh-drag').forEach(handle => {
+    let drag = null;
+    handle.addEventListener('pointerdown', e => {
+      const row = handle.closest('.gh-row'); if(!row || row.classList.contains('locked')) return;
+      e.preventDefault();
+      const rows = [...list.querySelectorAll('.gh-row:not(.locked)')];
+      const h = row.getBoundingClientRect().height + 6;   // altura + gap
+      drag = { row, from: rows.indexOf(row), n: rows.length, startY: e.clientY, h, moved:false };
+      row.classList.add('dragging'); handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener('pointermove', e => {
+      if(!drag) return;
+      const dy = e.clientY - drag.startY; drag.moved = true;
+      drag.row.style.transform = `translateY(${dy}px)`;
+    });
+    const end = e => {
+      if(!drag) return;
+      const dy = (e.clientY||drag.startY) - drag.startY;
+      const to = Math.max(0, Math.min(drag.n-1, drag.from + Math.round(dy/drag.h)));
+      drag.row.style.transform=''; drag.row.classList.remove('dragging');
+      const { from, moved } = drag; drag = null;
+      if(moved && to!==from){ const [it]=hs.gambits.splice(from,1); hs.gambits.splice(to,0,it); save(S); rerender(); }
+    };
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  });
 }
 
 // ---- PAINEL DIREITO: NPC + LOJA DE GAMBITS ----
