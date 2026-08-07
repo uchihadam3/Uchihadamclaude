@@ -40,6 +40,7 @@ export function unitFrom(def, side, opts = {}){
     gambits: opts.gambits || def.gambits || [],
     isBoss: !!opts.isBoss,
     taunt: 0,                               // ticks restantes de provocação (aggro)
+    statuses: [],                           // efeitos ativos (dot/stun/buff)
   };
 }
 
@@ -52,15 +53,22 @@ export function forgeAtkBonus(level){
 
 // Monta o party de heróis a partir do ESTADO do jogador (state.heroes).
 export function buildParty(state){
-  return state.heroes.map(hs => {
-    const def = HERO_DEFS.find(h => h.id === hs.id);
-    return unitFrom(def, 'hero', {
-      uid: def.id,
-      gambits: hs.gambits,
-      atkBonus: forgeAtkBonus(hs.weaponLevel),
-      bonus: itemBonuses(hs.equip),
+  // só os heróis ATIVOS entram na expedição (seleção de party). Fallback: 4 primeiros.
+  const active = (state.activeParty && state.activeParty.length)
+    ? state.activeParty
+    : state.heroes.slice(0, 4).map(h => h.id);
+  return active
+    .map(id => state.heroes.find(h => h.id === id))
+    .filter(Boolean)
+    .map(hs => {
+      const def = HERO_DEFS.find(h => h.id === hs.id);
+      return unitFrom(def, 'hero', {
+        uid: def.id,
+        gambits: hs.gambits,
+        atkBonus: forgeAtkBonus(hs.weaponLevel),
+        bonus: itemBonuses(hs.equip),
+      });
     });
-  });
 }
 
 // Monta uma leva de inimigos a partir de ids.
@@ -111,8 +119,37 @@ export class Combat {
     return taunters.reduce((a, b) => (b.taunt > a.taunt ? b : a));
   }
 
+  // Processa os STATUS da unidade no INÍCIO do seu turno:
+  //  - DoT (queimadura/veneno/sangramento) causa dano;
+  //  - STUN faz pular o turno;
+  //  - decai a duração de todos e expira (buffs restauram o atributo).
+  // Retorna true se a unidade está atordoada (deve pular a ação).
+  processStatuses(u){
+    if(!u.statuses || !u.statuses.length) return false;
+    let stunned = false;
+    for(const st of u.statuses){
+      if(st.kind === 'dot' && st.ticks > 0 && u.hp > 0){
+        const dmg = Math.max(1, st.dmg || 0);
+        u.hp = Math.max(0, u.hp - dmg);
+        this.log.push({ type:'dot', status:st.id, source:u, target:u, amount:dmg, tick:this.tick, dead: u.hp === 0 });
+      }
+    }
+    const stun = u.statuses.find(s => s.kind === 'stun' && s.ticks > 0);
+    if(stun) stunned = true;
+    // decai + expira
+    for(const st of u.statuses){
+      st.ticks--;
+      if(st.ticks <= 0 && st.kind === 'buff') u.stats[st.stat] = (u.stats[st.stat] || 0) - (st.amt || 0);
+    }
+    u.statuses = u.statuses.filter(s => s.ticks > 0);
+    return stunned;
+  }
+
   // Resolve UMA unidade: varre gambits topo→baixo, executa a 1ª aplicável, para.
   act(u){
+    const stunned = this.processStatuses(u);
+    if(u.hp <= 0) return null;               // morreu de DoT no início do turno
+    if(stunned){ this.log.push({ type:'stun', source:u, target:u, tick:this.tick }); return null; }
     const ctx = { alliesOf: x => this.alliesOf(x), enemiesOf: x => this.enemiesOf(x), rng: this.rng };
     for(const g of u.gambits){
       if(g.enabled === false) continue;     // linha DESLIGADA → ignora

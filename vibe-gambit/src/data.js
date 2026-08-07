@@ -16,10 +16,31 @@ export const RESOURCES_INIT = { gold: 500, iron: 0, wood: 0, crystals: 0, herbs:
 export const SKILLS = {
   basic_attack: { id:'basic_attack', name:'Ataque Básico',  kind:'damage', targetType:'enemy', stat:'atk', power:1.00, mp:0 },
   power_shot:   { id:'power_shot',   name:'Tiro Certeiro',   kind:'damage', targetType:'enemy', stat:'atk', power:1.30, mp:3, critBonus:0.15 },
-  fireball:     { id:'fireball',     name:'Bola de Fogo',    kind:'damage', targetType:'enemy', stat:'mag', power:1.60, mp:6, element:'fire' },
+  fireball:     { id:'fireball',     name:'Bola de Fogo',    kind:'damage', targetType:'enemy', stat:'mag', power:1.60, mp:6, element:'fire', applies:{ status:'burn', ticks:2, dmg:5 } },
   holy_strike:  { id:'holy_strike',  name:'Ataque Sagrado',  kind:'damage', targetType:'enemy', stat:'mag', power:1.10, mp:4, element:'holy' },
   heal:         { id:'heal',         name:'Curar',           kind:'heal',   targetType:'ally',  stat:'mag', power:1.40, mp:5 },
   provocar:     { id:'provocar',     name:'Provocar',        kind:'taunt',  targetType:'self',  duration:2, mp:0 },
+
+  // --- FASE 2: elementos & status ------------------------------------------
+  incinerar:        { id:'incinerar',        name:'Incinerar',        kind:'damage', targetType:'enemy', stat:'mag', power:1.30, mp:7, element:'fire',   applies:{ status:'burn',   ticks:3, dmg:8 } },
+  frasco_veneno:    { id:'frasco_veneno',    name:'Frasco de Veneno', kind:'damage', targetType:'enemy', stat:'mag', power:0.60, mp:5, element:'poison', applies:{ status:'poison', ticks:4, dmg:5 } },
+  elixir:           { id:'elixir',           name:'Elixir',           kind:'heal',   targetType:'ally',  stat:'mag', power:1.55, mp:6 },
+  estocada:         { id:'estocada',         name:'Estocada',         kind:'damage', targetType:'enemy', stat:'atk', power:1.15, mp:2, applies:{ status:'bleed',  ticks:3, dmg:4 } },
+  golpe_atordoante: { id:'golpe_atordoante', name:'Golpe Atordoante', kind:'damage', targetType:'enemy', stat:'atk', power:0.90, mp:4, applies:{ status:'stun',   ticks:1 } },
+  palma_ki:         { id:'palma_ki',         name:'Palma de Ki',      kind:'damage', targetType:'enemy', stat:'atk', power:1.25, mp:2 },
+  postura_ki:       { id:'postura_ki',       name:'Postura de Ki',    kind:'buff',   targetType:'self',  buff:{ stat:'atk', amt:5 }, duration:4, mp:3 },
+  furia:            { id:'furia',            name:'Fúria',            kind:'buff',   targetType:'self',  buff:{ stat:'atk', amt:8 }, duration:5, mp:0 },
+  machadada:        { id:'machadada',        name:'Machadada',        kind:'damage', targetType:'enemy', stat:'atk', power:1.50, mp:3, applies:{ status:'bleed',  ticks:2, dmg:5 } },
+  execucao:         { id:'execucao',         name:'Execução',         kind:'damage', targetType:'enemy', stat:'atk', power:2.20, mp:5, critBonus:0.25 },
+};
+
+// Metadados de STATUS (para ícones/labels na View). kind: 'dot' | 'stun' | 'buff'.
+export const STATUS_META = {
+  burn:   { id:'burn',   label:'Queimadura', icon:'🔥', kind:'dot' },
+  poison: { id:'poison', label:'Veneno',     icon:'🧪', kind:'dot' },
+  bleed:  { id:'bleed',  label:'Sangramento',icon:'🩸', kind:'dot' },
+  stun:   { id:'stun',   label:'Atordoado',  icon:'💫', kind:'stun' },
+  atk_up: { id:'atk_up', label:'Fúria/Ki',   icon:'💢', kind:'buff' },
 };
 
 // --- CONDIÇÕES DE GAMBIT (metadados) ----------------------------------------
@@ -37,6 +58,8 @@ export const CONDITIONS = {
   // TIPO do inimigo
   enemy_flying:    { id:'enemy_flying',    label:'Inimigo: Voador',       scope:'enemy' },
   enemy_undead:    { id:'enemy_undead',    label:'Inimigo: Morto-vivo',   scope:'enemy' },
+  // STATUS (Fase 2)
+  enemy_burning:   { id:'enemy_burning',   label:'Inimigo: Queimando',    scope:'enemy' },
   // ALIADO
   ally_hp_75:      { id:'ally_hp_75',      label:'Aliado: HP < 75%',      scope:'ally' },
   ally_hp_50:      { id:'ally_hp_50',      label:'Aliado: HP < 50%',      scope:'ally',  starter:true },
@@ -45,6 +68,7 @@ export const CONDITIONS = {
   // EU (auto — enrage/defensivo)
   self_hp_50:      { id:'self_hp_50',      label:'Eu: HP < 50%',          scope:'self',  starter:true },
   self_hp_30:      { id:'self_hp_30',      label:'Eu: HP < 30%',          scope:'self' },
+  self_no_buff:    { id:'self_no_buff',    label:'Eu: Sem Buff',          scope:'self',  starter:true },
   self_mp_low:     { id:'self_mp_low',     label:'Eu: MP < 10',           scope:'self' },
 };
 
@@ -97,6 +121,89 @@ export const HERO_DEFS = [
       { condition:'enemy_nearest', action:'basic_attack' },
     ],
   },
+
+  // ===== FASE 1 — classes marciais adicionais ================================
+  {
+    id:'barbarian', name:'Bárbaro', klass:'Bárbaro', sprite:'🪓',
+    armorWeight:'heavy', weaponStyle:'twohand', weaponStyles:['twohand','dual'],
+    base:{ hp:130, atk:16, def:5, mag:0, mp:10, spd:5 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['basic_attack','machadada','furia'],
+    gambits:[
+      { condition:'self_hp_50',    action:'furia' },
+      { condition:'enemy_nearest', action:'machadada' },
+      { condition:'enemy_any',     action:'basic_attack' },
+    ],
+  },
+  {
+    id:'assassin', name:'Assassino', klass:'Assassino', sprite:'🗡️',
+    armorWeight:'medium', weaponStyle:'dual', weaponStyles:['dual','ranged'],
+    base:{ hp:76, atk:15, def:3, mag:0, mp:15, spd:12 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['basic_attack','execucao'],
+    gambits:[
+      { condition:'enemy_hp_30',   action:'execucao' },
+      { condition:'enemy_nearest', action:'basic_attack' },
+    ],
+  },
+  {
+    id:'paladin', name:'Paladino', klass:'Paladino', sprite:'⚜️',
+    armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield'],
+    base:{ hp:115, atk:12, def:9, mag:10, mp:30, spd:6 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['basic_attack','provocar','heal','holy_strike'],
+    gambits:[
+      { condition:'ally_hp_50',    action:'heal' },
+      { condition:'enemy_any',     action:'holy_strike' },
+      { condition:'enemy_nearest', action:'basic_attack' },
+    ],
+  },
+
+  // ===== FASE 2 — classes de elemento & status ==============================
+  {
+    id:'pyromancer', name:'Piromante', klass:'Piromante', sprite:'🔥',
+    armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
+    base:{ hp:72, atk:4, def:3, mag:18, mp:50, spd:8 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['fireball','incinerar','basic_attack'],
+    gambits:[
+      { condition:'enemy_hp_50',   action:'incinerar' },
+      { condition:'enemy_any',     action:'fireball' },
+    ],
+  },
+  {
+    id:'alchemist', name:'Alquimista', klass:'Alquimista', sprite:'⚗️',
+    armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
+    base:{ hp:82, atk:5, def:4, mag:14, mp:45, spd:7 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['frasco_veneno','elixir','basic_attack'],
+    gambits:[
+      { condition:'ally_hp_50',    action:'elixir' },
+      { condition:'enemy_any',     action:'frasco_veneno' },
+    ],
+  },
+  {
+    id:'duelist', name:'Duelista', klass:'Duelista', sprite:'🤺',
+    armorWeight:'medium', weaponStyle:'dual', weaponStyles:['dual'],
+    base:{ hp:88, atk:13, def:5, mag:2, mp:20, spd:11 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['estocada','basic_attack'],
+    gambits:[
+      { condition:'enemy_nearest', action:'estocada' },
+      { condition:'enemy_any',     action:'basic_attack' },
+    ],
+  },
+  {
+    id:'monk', name:'Monge', klass:'Monge Espiritual', sprite:'👊',
+    armorWeight:'medium', weaponStyle:'fists', weaponStyles:['fists','dual'],
+    base:{ hp:95, atk:12, def:6, mag:4, mp:25, spd:10 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['palma_ki','postura_ki','basic_attack'],
+    gambits:[
+      { condition:'self_no_buff',  action:'postura_ki' },
+      { condition:'enemy_nearest', action:'palma_ki' },
+    ],
+  },
 ];
 
 // --- INIMIGOS ----------------------------------------------------------------
@@ -142,6 +249,7 @@ export const ACADEMY = {
     enemy_boss:      { gold:150, crystals:2 },
     enemy_flying:    { gold:120, crystals:1 },
     enemy_undead:    { gold:120, crystals:1 },
+    enemy_burning:   { gold:130, crystals:1 },
     ally_hp_75:      { gold:90,  crystals:1 },
     ally_hp_25:      { gold:120, crystals:1 },
     ally_dead:       { gold:200, crystals:3 },

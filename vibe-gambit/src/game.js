@@ -5,7 +5,7 @@
 
 import {
   SKILLS, CONDITIONS, HERO_DEFS, ENEMY_DEFS, STAGES, FORGE_LEVELS, ACADEMY,
-  ITEMS, ITEM_DROPS, itemBonuses, ARMOR_WEIGHTS, WEAPON_STYLES,
+  ITEMS, ITEM_DROPS, itemBonuses, ARMOR_WEIGHTS, WEAPON_STYLES, STATUS_META,
 } from './data.js';
 import { loadOrNew, save, newGame } from './state.js';
 import { Combat, buildParty, buildWave, forgeAtkBonus } from './engine.js';
@@ -19,8 +19,15 @@ const randInt = (a,b) => a + Math.floor(Math.random()*(b-a+1));
 // Fundos de combate 2D por bioma (quando existe imagem, usa; senão desenha a masmorra procedural)
 const BG = { forest:'assets/bg_forest.png' };
 // Cor de destaque por herói (cabeçalhos dos cards, estilo referência)
-const HERO_ACCENT = { warrior:'#3d7fc4', cleric:'#d0a13c', archer:'#4a9a4a', mage:'#7d5fd0' };
+const HERO_ACCENT = { warrior:'#3d7fc4', cleric:'#d0a13c', archer:'#4a9a4a', mage:'#7d5fd0',
+  barbarian:'#c0512b', assassin:'#5a4468', paladin:'#c9a24b', pyromancer:'#e0562a',
+  alchemist:'#3f8f5a', duelist:'#2e8f88', monk:'#e08b3a' };
 const accentOf = id => HERO_ACCENT[id] || '#8a7a45';
+// classes com retrato PNG pronto; as demais usam o sprite SVG como retrato provisório
+const FACE_ART = { warrior:1, cleric:1, archer:1, mage:1 };
+const faceMedia = id => FACE_ART[id]
+  ? `<img class="fm-img" src="assets/${id}_face.png" alt="" onerror="this.style.display='none'">`
+  : `<span class="fm-svg">${spriteFor(id)}</span>`;
 
 // Aviso rápido (toast) — some sozinho.
 let _toastT = null;
@@ -77,7 +84,7 @@ const NODE_POS = { // % dentro do mapa — caminho serpenteante (retrato), acima
   ruined_keep:{x:64,y:15}, peak_of_trials:{x:44,y:8},
 };
 function renderMap(){
-  const heroesMini = S.heroes.map(hs => {
+  const heroesMini = activeParty().map(hs => {
     const def = HERO_DEFS.find(h=>h.id===hs.id);
     return `<div class="pmini"><div class="av">${spriteFor(def.id)}</div>
       <div class="pn">${def.name}</div><div class="pbar"><i style="width:100%"></i></div></div>`;
@@ -192,14 +199,17 @@ function fitBase(){
 }
 
 // ---- PAINEL ESQUERDO: 4 heróis (rosto) + resumo de equipamento. Clicar = selecionar ----
+function activeParty(){ return (S.activeParty||[]).map(id=>S.heroes.find(h=>h.id===id)).filter(Boolean); }
 function renderHubParty(mount){
-  mount.innerHTML = `<div class="panel-cap">🛡️ Sua Party</div>
-    <div class="party-cards">${S.heroes.map(hs=>{
+  const list = activeParty();
+  if(selHero && !list.find(h=>h.id===selHero)) selHero = list[0]?.id;
+  mount.innerHTML = `<div class="panel-cap">🛡️ Sua Party <button class="party-swap" title="Trocar heróis">⇄</button></div>
+    <div class="party-cards">${list.map(hs=>{
       const def = HERO_DEFS.find(h=>h.id===hs.id);
       const {atk, hp} = heroRuntimeStats(hs);
       const nEquip = EQUIP_SLOTS.filter(s=>s.key!=='weapon' && ITEMS[heroEquip(hs)[s.key]]).length;
       return `<div class="party-card ${hs.id===selHero?'sel':''}" data-id="${hs.id}" style="--acc:${accentOf(def.id)}">
-        <div class="pc-face"><img src="assets/${def.id}_face.png" alt=""></div>
+        <div class="pc-face">${faceMedia(def.id)}</div>
         <div class="pc-info">
           <div class="pc-nm">${def.name}</div>
           <div class="pc-st">⚔️${atk} · ❤️${hp} · 🎒${nEquip}</div>
@@ -208,6 +218,39 @@ function renderHubParty(mount){
     }).join('')}</div>`;
   mount.querySelectorAll('.party-card').forEach(c => c.onclick = () => {
     selHero = c.dataset.id; renderHubParty(mount); renderDetail(); fitBase();
+  });
+  mount.querySelector('.party-swap').onclick = openPartyPicker;
+}
+
+// Modal: escolher quais heróis (máx 4) vão à expedição.
+function openPartyPicker(){
+  openPanelModal('⇄ Escolher Party', body=>{
+    const draw = ()=>{
+      const active = S.activeParty || [];
+      body.innerHTML = `<p class="muted tiny" style="margin:0 2px 10px">Escolha até <b>4</b> heróis para a expedição. (${active.length}/4)</p>
+        <div class="pick-grid">${HERO_DEFS.map(def=>{
+          const on = active.includes(def.id);
+          const rs = heroRuntimeStats(S.heroes.find(h=>h.id===def.id));
+          const w = ARMOR_WEIGHTS[def.armorWeight], st = WEAPON_STYLES[def.weaponStyle];
+          return `<button class="pick-hero ${on?'on':''}" data-id="${def.id}" style="--acc:${accentOf(def.id)}">
+            <div class="ph-face">${faceMedia(def.id)}</div>
+            <div class="ph-nm">${def.name}</div>
+            <div class="ph-cl">${def.klass}</div>
+            <div class="ph-st">⚔️${rs.atk} ❤️${rs.hp}</div>
+            <div class="ph-tags">${w.icon}${st.icon}</div>
+            ${on?'<span class="ph-ck">✓</span>':''}
+          </button>`;
+        }).join('')}</div>`;
+      body.querySelectorAll('.pick-hero').forEach(b=> b.onclick = ()=>{
+        const id = b.dataset.id; const active = S.activeParty || (S.activeParty=[]);
+        const i = active.indexOf(id);
+        if(i>=0){ if(active.length<=1){ toast('A party precisa de ao menos 1 herói.'); return; } active.splice(i,1); }
+        else { if(active.length>=4){ toast('Máximo de 4 heróis na party.'); return; } active.push(id); }
+        save(S); draw();
+        if($('hub-left')){ renderHubParty($('hub-left')); renderDetail(); fitBase(); }
+      });
+    };
+    draw();
   });
 }
 
@@ -249,7 +292,7 @@ function renderDetail(){
     <div class="detail-title"><span>Herói & Inventário</span></div>
     <div class="detail-body">
       <div class="d-hero" style="--acc:${accentOf(hs.id)}">
-        <div class="d-face"><img src="assets/${def.id}_face.png" alt=""></div>
+        <div class="d-face">${faceMedia(def.id)}</div>
         <div class="d-meta">
           <div class="d-nm">${def.name} <small>${def.klass}</small></div>
           <div class="d-prof"><span class="prof-chip w-${def.armorWeight}" title="Armadura: ${wgt.focus}">${wgt.icon} ${wgt.label}</span><span class="prof-chip sty" title="${sty.desc}">${sty.icon} ${sty.label}</span></div>
@@ -350,7 +393,7 @@ function renderGambitHUD(mount){
   const rr = () => renderGambitHUD(mount);
   const tabs = S.heroes.map(h=>{ const d = HERO_DEFS.find(x=>x.id===h.id);
     return `<button class="gh-tab ${h.id===ghHero?'on':''}" data-h="${h.id}" style="--acc:${accentOf(h.id)}">
-      <img src="assets/${h.id}_face.png" alt=""><span>${d.name}</span></button>`; }).join('');
+      <span class="ght-face">${faceMedia(h.id)}</span><span>${d.name}</span></button>`; }).join('');
   const rows = hs.gambits.map((g,i)=>{
     const on = g.enabled !== false;
     const cLabel = CONDITIONS[g.condition]?.label || '—';
@@ -383,7 +426,7 @@ function renderGambitHUD(mount){
   const active = hs.gambits.filter(g=>g.enabled!==false).length;
   mount.innerHTML = `
     <div class="gh-tabs">${tabs}</div>
-    <div class="gg-hero"><img class="gg-hface" src="assets/${hs.id}_face.png" alt="">
+    <div class="gg-hero"><span class="gg-hface">${faceMedia(hs.id)}</span>
       <span class="gg-hname">${def.name}</span>
       <span class="gg-hcount">${active}/${hs.gambits.length} ativas</span></div>
     <div class="gg-colhead"><span>Nº</span><span>SE (condição)  ➜  ENTÃO (ação)</span><span>Status</span></div>
@@ -671,8 +714,8 @@ function expoTick(){
 }
 
 function presentEvent(ev){
-  // loot ao matar inimigo
-  if(ev.type==='damage' && ev.dead && ev.target.side==='enemy') awardLoot(ev.target);
+  // loot ao matar inimigo (por golpe OU por DoT)
+  if(ev.dead && ev.target.side==='enemy') awardLoot(ev.target);
   const skill = SKILLS[ev.skill]?.name || ev.skill;
   const s = ev.source.side==='hero'?'h':'e', t = ev.target.side==='hero'?'h':'e';
   // PROVOCAR: sem número flutuante de dano — marca visual + log próprio
@@ -680,6 +723,31 @@ function presentEvent(ev){
     const be = battlerEl(ev.source);
     if(be){ const f=document.createElement('div'); f.className='float taunt'; f.textContent='🛡️!'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">PROVOCA os inimigos</span>`);
+    return;
+  }
+  // DoT (queimadura/veneno/sangramento): tick de dano no próprio alvo
+  if(ev.type==='dot'){
+    const meta = STATUS_META[ev.status] || { icon:'•' };
+    const be = battlerEl(ev.target);
+    if(be){ const f=document.createElement('div'); f.className='float dot'; f.textContent=`${meta.icon}${ev.amount}`; be.appendChild(f); setTimeout(()=>f.remove(),1000);
+      be.classList.add('hit'); setTimeout(()=>be.classList.remove('hit'),300); }
+    refreshBattlerStatus(ev.target);
+    logLine(`t${ev.tick} <b class="${t}">${ev.target.name}</b> sofre <span class="c">${meta.icon} ${ev.amount}</span>${ev.dead?' ☠️':''}`);
+    return;
+  }
+  // BUFF (Fúria/Postura de Ki)
+  if(ev.type==='buff'){
+    const be = battlerEl(ev.source);
+    if(be){ const f=document.createElement('div'); f.className='float buff'; f.textContent='💢'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerStatus(ev.source);
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="g">+${ev.amount} ${(''+ev.stat).toUpperCase()}</span>`);
+    return;
+  }
+  // STUN: pulou o turno
+  if(ev.type==='stun'){
+    const be = battlerEl(ev.source);
+    if(be){ const f=document.createElement('div'); f.className='float stun'; f.textContent='💫'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> <span class="muted">atordoado — perde o turno</span>`);
     return;
   }
   // dano/cura flutuante + hit flash
@@ -771,16 +839,29 @@ function renderBattlers(){
 function battlerHTML(u, foe){
   return `<div class="battler ${foe?'foe':''}" id="b-${u.uid}">
     <div class="nmtag">${u.name}</div>
+    <div class="b-status"></div>
     <div class="ohp"><i></i></div>
     <div class="spr">${spriteFor(u.id)}</div>
     <div class="shadow"></div></div>`;
 }
 function battlerEl(u){ return document.getElementById('b-'+u.uid); }
+// pips de status (queimando/veneno/atordoado/buff) sobre o battler
+function refreshBattlerStatus(u){
+  const be = battlerEl(u); if(!be) return;
+  const box = be.querySelector('.b-status'); if(!box) return;
+  const seen = new Set();
+  box.innerHTML = (u.statuses||[]).filter(st=>st.ticks>0).map(st=>{
+    const id = st.kind==='buff' ? 'atk_up' : st.id;
+    if(seen.has(id)) return ''; seen.add(id);
+    const m = STATUS_META[id]; return m ? `<span class="sp" title="${m.label}">${m.icon}</span>` : '';
+  }).join('');
+}
 function refreshBattlerBars(){
   for(const u of [...(expo.party||[]), ...(expo.enemies||[])]){
     const be = battlerEl(u); if(!be) continue;
     be.classList.toggle('dead', u.hp<=0);
     be.querySelector('.ohp>i').style.width = Math.max(0, 100*u.hp/u.maxHp) + '%';
+    refreshBattlerStatus(u);
   }
 }
 

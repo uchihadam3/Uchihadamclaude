@@ -24,6 +24,7 @@ export function newGame(){
       equip: { head:null, chest:null, hands:null, feet:null, weapon:null, trinket:null },
     })),
     inventory: [...STARTER_INVENTORY],          // itens possuídos (não equipados)
+    activeParty: HERO_DEFS.slice(0, 4).map(h => h.id),  // heróis que vão à expedição (máx 4)
     stagesUnlocked: Object.fromEntries(STAGES.map(s => [s.id, s.unlocked])),
     progress: { currentStage: 'mossy_glen', clears: 0 },
   };
@@ -33,6 +34,21 @@ export function newGame(){
 export function migrate(state){
   if(!state) return state;
   if(!Array.isArray(state.inventory)) state.inventory = [...STARTER_INVENTORY];
+  // adiciona heróis (classes) novos que ainda não existem no save
+  state.heroes = Array.isArray(state.heroes) ? state.heroes : [];
+  for(const def of HERO_DEFS){
+    if(!state.heroes.find(h => h.id === def.id)){
+      state.heroes.push({
+        id: def.id, weaponLevel: def.weaponLevel, slots: def.slots,
+        gambits: def.gambits.map(g => ({ ...g })),
+        equip: { head:null, chest:null, hands:null, feet:null, weapon:null, trinket:null },
+      });
+    }
+  }
+  // party ativa (máx 4). default: 4 primeiras classes.
+  if(!Array.isArray(state.activeParty) || !state.activeParty.length)
+    state.activeParty = HERO_DEFS.slice(0, 4).map(h => h.id);
+  state.activeParty = state.activeParty.filter(id => HERO_DEFS.some(h => h.id === id)).slice(0, 4);
   // garante que as condições STARTER novas (Fase 1) fiquem disponíveis em saves antigos
   const starters = Object.values(CONDITIONS).filter(c => c.starter).map(c => c.id);
   if(!Array.isArray(state.unlockedConditions)) state.unlockedConditions = [];

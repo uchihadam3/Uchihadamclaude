@@ -31,6 +31,7 @@ export const CONDITION_FNS = {
   // por TIPO
   enemy_flying:    (u, ctx) => ctx.enemiesOf(u).find(e => alive(e) && e.type === 'voador') || null,
   enemy_undead:    (u, ctx) => ctx.enemiesOf(u).find(e => alive(e) && e.type === 'morto-vivo') || null,
+  enemy_burning:   (u, ctx) => ctx.enemiesOf(u).find(e => alive(e) && hasStatus(e,'burn')) || null,
 
   ally_hp_75:      (u, ctx) => ctx.alliesOf(u).find(a => alive(a) && hpPct(a) < 0.75) || null,
   ally_hp_50:      (u, ctx) => ctx.alliesOf(u).find(a => alive(a) && hpPct(a) < 0.50) || null,
@@ -39,8 +40,19 @@ export const CONDITION_FNS = {
 
   self_hp_50:      (u)      => (hpPct(u) < 0.50 ? u : null),
   self_hp_30:      (u)      => (hpPct(u) < 0.30 ? u : null),
+  self_no_buff:    (u)      => ((u.statuses || []).some(s => s.kind === 'buff') ? null : u),
   self_mp_low:     (u)      => (u.mp < 10 ? u : null),
 };
+
+// -- STATUS helpers -----------------------------------------------------------
+const hasStatus = (u, id) => (u.statuses || []).some(s => s.id === id && s.ticks > 0);
+// aplica/renova um status no alvo (refresca a duração se já existir o mesmo id)
+function addStatus(target, st){
+  target.statuses = target.statuses || [];
+  const cur = target.statuses.find(s => s.id === st.id);
+  if(cur){ cur.ticks = Math.max(cur.ticks, st.ticks); if('dmg' in st) cur.dmg = st.dmg; return; }
+  target.statuses.push({ ...st });
+}
 
 // -- CUSTO / EXECUÇÃO ---------------------------------------------------------
 export function canPay(unit, skill){ return unit.mp >= (skill.mp || 0); }
@@ -54,6 +66,14 @@ export function execute(unit, skill, target, ctx){
   if(skill.kind === 'taunt'){
     unit.taunt = Math.max(unit.taunt || 0, skill.duration || 2);
     return { type:'taunt', source:unit, target:unit, skill:skill.id, amount: unit.taunt };
+  }
+
+  // BUFF (Fúria/Postura de Ki): aumenta um atributo por N ticks.
+  if(skill.kind === 'buff'){
+    const b = skill.buff || {};
+    unit.stats[b.stat] = (unit.stats[b.stat] || 0) + (b.amt || 0);
+    addStatus(unit, { id:'atk_up', kind:'buff', stat:b.stat, amt:b.amt || 0, ticks:(skill.duration || 3) + 1 });
+    return { type:'buff', source:unit, target:unit, skill:skill.id, stat:b.stat, amount:b.amt || 0 };
   }
 
   if(skill.kind === 'heal'){
@@ -71,5 +91,15 @@ export function execute(unit, skill, target, ctx){
   let dmg = atkStat * skill.power - target.stats.def * 0.5;
   dmg = Math.max(1, Math.round(dmg * (isCrit ? 1.6 : 1) * holyVsUndead));
   target.hp = Math.max(0, target.hp - dmg);
-  return { type:'damage', source:unit, target, skill:skill.id, amount:dmg, crit:isCrit, dead: target.hp === 0, holy: holyVsUndead>1 };
+  const dead = target.hp === 0;
+  // aplica status (queimadura/veneno/sangramento/atordoar) se o alvo sobreviveu
+  let applied = null;
+  if(!dead && skill.applies){
+    const a = skill.applies;
+    addStatus(target, a.status === 'stun'
+      ? { id:'stun', kind:'stun', ticks:a.ticks }
+      : { id:a.status, kind:'dot', dmg:a.dmg, ticks:a.ticks });
+    applied = a.status;
+  }
+  return { type:'damage', source:unit, target, skill:skill.id, amount:dmg, crit:isCrit, dead, holy: holyVsUndead>1, applied };
 }

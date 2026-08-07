@@ -61,8 +61,24 @@
   .hub-grid{display:grid;grid-template-columns:1.05fr auto 1.15fr;gap:10px;align-items:stretch;margin-top:20px}
   .hub-panel{background:var(--card);border:1px solid var(--line);border-radius:12px;
     padding:9px;box-shadow:inset 0 0 0 2px #f4ead0,0 2px 6px rgba(30,20,8,.12);min-width:0;display:flex;flex-direction:column}
-  .panel-cap{font-size:14px;font-weight:900;color:var(--ink2);text-align:center;
+  .panel-cap{font-size:14px;font-weight:900;color:var(--ink2);text-align:center;position:relative;
     padding:2px 0 7px;border-bottom:1px dashed var(--line);margin-bottom:8px;letter-spacing:.3px}
+  .party-swap{position:absolute;right:0;top:-2px;width:24px;height:24px;border-radius:7px;border:1px solid var(--line);
+    background:#fff8e8;color:var(--ink2);font-size:14px;font-weight:900;line-height:1;cursor:pointer;padding:0}
+  .party-swap:active{transform:translateY(1px)}
+  /* modal: seleção de party */
+  .pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+  .pick-hero{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px 7px;
+    background:#fff8e8;border:1px solid var(--line);border-radius:11px;cursor:pointer;min-width:0}
+  .pick-hero.on{border-color:var(--acc);box-shadow:inset 0 0 0 2px var(--acc)}
+  .pick-hero:not(.on){opacity:.62;filter:saturate(.85)}
+  .ph-face{width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;
+    background:radial-gradient(circle at 50% 35%,#fff,#e9d6ab);border:2px solid var(--acc)}
+  .ph-nm{font-weight:900;font-size:12.5px;color:var(--ink);line-height:1.05;text-align:center}
+  .ph-cl{font-size:9px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.3px;text-align:center;line-height:1}
+  .ph-st{font-size:11px;font-weight:800;color:var(--ink2)} .ph-tags{font-size:12px;line-height:1}
+  .ph-ck{position:absolute;top:4px;right:5px;width:18px;height:18px;display:grid;place-items:center;
+    font-size:10px;font-weight:900;color:#fff;background:var(--acc);border-radius:50%;border:1.5px solid #fff}
 
   /* party: coluna de 4 cards */
   .party-cards{display:flex;flex-direction:column;gap:8px}
@@ -192,17 +208,23 @@
   #gh-mount{text-align:left}
   .gh-lede{margin-top:-2px;text-align:center}
   .gh-tabs{display:flex;gap:10px;justify-content:center;margin:12px 0 10px;flex-wrap:wrap}
-  .gh-tab{display:flex;flex-direction:column;align-items:center;gap:4px;padding:2px;background:none;border:none;box-shadow:none}
-  .gh-tab img{width:52px;height:52px;border-radius:50%;object-fit:cover;object-position:50% 22%;image-rendering:pixelated;
-    border:2px solid transparent;background:radial-gradient(circle at 50% 35%,#fff,#ecdcb6)}
-  .gh-tab.on img{border-color:var(--acc);box-shadow:0 0 0 2px #fff,0 3px 7px rgba(0,0,0,.25)}
-  .gh-tab:not(.on) img{opacity:.72;filter:saturate(.9)}
+  .gh-tabs{overflow-x:auto}
+  .gh-tab{display:flex;flex-direction:column;align-items:center;gap:4px;padding:2px;background:none;border:none;box-shadow:none;flex:none}
+  .ght-face{width:52px;height:52px;border-radius:50%;overflow:hidden;image-rendering:pixelated;
+    border:2px solid transparent;background:radial-gradient(circle at 50% 35%,#fff,#ecdcb6);display:block}
+  .gh-tab.on .ght-face{border-color:var(--acc);box-shadow:0 0 0 2px #fff,0 3px 7px rgba(0,0,0,.25)}
+  .gh-tab:not(.on) .ght-face{opacity:.72;filter:saturate(.9)}
   .gh-tab span{font-size:10.5px;font-weight:800;color:var(--dim)}
   .gh-tab.on span{color:var(--ink)}
 
+  /* retrato universal: PNG (fm-img) ou SVG (fm-svg) preenchendo o círculo */
+  .fm-img{width:100%;height:100%;object-fit:cover;object-position:50% 16%;image-rendering:pixelated}
+  .fm-svg{display:block;width:100%;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 35%,#fff,#e9d6ab)}
+  .fm-svg svg{width:100%;height:100%;transform:scale(1.7);transform-origin:50% 14%}
+
   /* cabeçalho do herói: slim, sem "caixa azul" */
   .gg-hero{display:flex;align-items:center;gap:8px;padding:4px 2px 8px;border-bottom:2px solid var(--line);margin-bottom:6px}
-  .gg-hface{width:26px;height:26px;border-radius:50%;object-fit:cover;object-position:50% 14%;image-rendering:pixelated;border:1px solid var(--line);flex:none}
+  .gg-hface{width:26px;height:26px;border-radius:50%;overflow:hidden;image-rendering:pixelated;border:1px solid var(--line);flex:none;display:block}
   .gg-hname{font-size:16px;font-weight:400;color:var(--ink)}
   .gg-hcount{margin-left:auto;font-size:11px;font-weight:800;color:var(--dim)}
   .gg-colhead{display:flex;align-items:center;gap:8px;font-size:9.5px;font-weight:800;letter-spacing:.5px;color:var(--dim2);text-transform:uppercase;padding:0 2px 6px}
@@ -376,6 +398,8 @@
   .lane.enemies{right:2%}
   .battler{position:relative;width:44px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;transition:opacity .4s,transform .4s}
   .battler .nmtag{font-size:9px;font-weight:800;color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000,0 0 3px #000;margin-bottom:1px;white-space:nowrap}
+  .battler .b-status{display:flex;gap:1px;justify-content:center;min-height:13px;margin-bottom:1px}
+  .battler .b-status .sp{font-size:11px;line-height:1;filter:drop-shadow(0 1px 1px #000)}
   .battler .ohp{width:44px;height:5px;background:#0b0912;border:1px solid #000;border-radius:3px;overflow:hidden;margin-bottom:1px}
   .battler .ohp>i{display:block;height:100%;background:linear-gradient(90deg,var(--hp),var(--hp2));transition:width .25s}
   .battler.foe .ohp>i{background:linear-gradient(90deg,#ff6a5a,#c0342a)}
@@ -393,6 +417,7 @@
   @keyframes hit{25%{filter:drop-shadow(0 5px 3px #0009) brightness(2.4)}50%{transform:translateX(3px)}}
   .float{position:absolute;top:-4px;left:50%;transform:translateX(-50%);font-weight:900;font-size:15px;pointer-events:none;text-shadow:0 2px 3px #000;z-index:5;animation:floatUp 1s ease-out forwards}
   .float.dmg{color:#ffd0c8} .float.crit{color:var(--crit);font-size:18px} .float.heal{color:var(--heal)} .float.taunt{color:#ffd766;font-size:16px}
+  .float.dot{color:#ffb08a;font-size:13px} .float.buff{color:#ffe08a;font-size:16px} .float.stun{color:#cfd0ff;font-size:16px}
   @keyframes floatUp{0%{opacity:0;transform:translate(-50%,6px)}15%{opacity:1}100%{opacity:0;transform:translate(-50%,-26px)}}
   .stage-banner{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:8}
   .stage-banner .msg{font-size:26px;font-weight:900;padding:8px 22px;border-radius:12px;text-shadow:0 3px 6px #000;opacity:0;animation:pop .5s ease forwards}
