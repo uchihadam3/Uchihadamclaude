@@ -43,6 +43,34 @@ def assinatura(caminho):
         p = p.crop((xs.min(), ys.min(), xs.max()+1, ys.max()+1))
     return np.array(p.resize((LADO, LADO), Image.LANCZOS), float)
 
+def conferir_recorte(pasta):
+    """Duas coisas que a distância entre peças não pega.
+
+    CORTADA — o recorte antigo dividia a folha numa grade de retângulos, e o
+    modelo não desenha dentro da célula. Na folha do Egito as dezoito peças
+    estouravam, e todas saíam com a borda decepada. Uma borda inteira ocupada
+    por tinta é a assinatura disso.
+
+    TORTA — `object-fit: contain` centra a CAIXA do desenho, e caixa não é
+    desenho. Uma runa de mastro à esquerda com ramo à direita tem a caixa no
+    meio e o traço grosso encostado num lado; na carta lê como símbolo torto.
+    """
+    problemas = []
+    for f in sorted(pathlib.Path(pasta).glob('*.png')):
+        a = np.array(Image.open(f).convert('RGBA'))
+        op = a[..., 3] > 24
+        if not op.any(): problemas.append((f.stem, 'vazia', 0)); continue
+        decepada = max(op[0].mean(), op[-1].mean(), op[:,0].mean(), op[:,-1].mean())
+        if decepada > 0.5:
+            problemas.append((f.stem, 'borda decepada', decepada))
+        peso = a[..., 3].astype(float); h, w = peso.shape
+        cx = (peso.sum(0)*np.arange(w)).sum()/peso.sum()/w
+        cy = (peso.sum(1)*np.arange(h)).sum()/peso.sum()/h
+        fora = max(abs(cx-0.5), abs(cy-0.5))
+        if fora > 0.05:
+            problemas.append((f.stem, 'peso fora do centro', fora))
+    return problemas
+
 def conferir(pasta):
     fs = sorted(pathlib.Path(pasta).glob('*.png'))
     ass = {f.stem: assinatura(f) for f in fs}
@@ -104,5 +132,9 @@ if __name__ == '__main__':
             print(f'   {a} × {b}   {d:6.1f}{marca}')
             if d < PERTO: ruim += 1
         print(f'   mediana {np.median([p[0] for p in pares]):.1f}')
-    print('\n' + ('✗ %d par(es) perto demais' % ruim if ruim else '✓ nenhum par confundível'))
+        for nome, oque, v in conferir_recorte(pasta):
+            print(f'   ✗ {nome}: {oque} ({v*100:.0f}%)')
+            ruim += 1
+    print('\n' + ('✗ %d problema(s)' % ruim if ruim
+                  else '✓ nenhum par confundível, nenhuma peça cortada ou torta'))
     sys.exit(1 if ruim else 0)

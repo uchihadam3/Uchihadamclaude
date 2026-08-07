@@ -370,6 +370,37 @@ def so_a_maior(im):
         for y, x in m: a[y, x, 3] = 0
     return Image.fromarray(a, 'RGBA')
 
+def centrar_massa(im, limite=0.34):
+    """Acolchoa a peça para o PESO DA TINTA cair no meio do arquivo.
+
+    `object-fit: contain` centra a CAIXA do desenho, e caixa não é o mesmo que
+    desenho. Uma runa é um mastro à esquerda com um ramo saindo para a
+    direita: a caixa fica centrada e o traço grosso, que é o que o olho segue,
+    fica encostado num lado. Numa carta isso lê como símbolo torto — e era
+    quase um quinto da largura de diferença nas runas de ramo único.
+
+    Aqui a peça ganha margem transparente do lado mais leve, até o centro de
+    massa coincidir com o centro do arquivo. O `limite` impede que uma peça
+    muito assimétrica cresça sem fim e acabe minúscula dentro da carta.
+    """
+    a = np.array(im)
+    peso = a[..., 3].astype(float)
+    if peso.sum() <= 0: return im
+    h, w = peso.shape
+    ys = (peso.sum(axis=1) * np.arange(h)).sum() / peso.sum()
+    xs = (peso.sum(axis=0) * np.arange(w)).sum() / peso.sum()
+    # de quanto o lado leve precisa crescer para o peso ficar no meio
+    esq  = int(round(max(0, (w - 1) - 2*xs)))
+    dir_ = int(round(max(0, 2*xs - (w - 1))))
+    cima = int(round(max(0, (h - 1) - 2*ys)))
+    baixo= int(round(max(0, 2*ys - (h - 1))))
+    esq, dir_ = min(esq, int(w*limite)), min(dir_, int(w*limite))
+    cima, baixo = min(cima, int(h*limite)), min(baixo, int(h*limite))
+    if not (esq or dir_ or cima or baixo): return im
+    novo = Image.new('RGBA', (w + esq + dir_, h + cima + baixo), (0,0,0,0))
+    novo.paste(im, (esq, cima))
+    return novo
+
 def aparar(im, folga=3):
     """corta a moldura vazia em volta da peça"""
     a = np.array(im)
@@ -389,6 +420,117 @@ def celulas(im, cols, linhas):
         for c in range(cols):
             cel = im.crop((int(c*cw), int(l*ch), int((c+1)*cw), int((l+1)*ch)))
             fora.append(aparar(cel))
+    return fora
+
+def fronteiras_no_vale(op, n, eixo):
+    """Onde cortar sem decepar tinta.
+
+    A fronteira da grade é onde a divisão diz, mas a arte não sabe disso: na
+    folha do Egito os dezoito símbolos estouram a célula e a linha teórica
+    passa por dentro do desenho. Cortar ali serra a borda de todas as peças.
+
+    Perto da fronteira teórica quase sempre existe uma faixa VAZIA — o
+    respiro entre duas peças. Basta procurar, na janela, a linha com menos
+    pixels de tinta. Quando ela tem zero, o corte é limpo; quando não tem,
+    ainda assim é o menos pior que existe naquela vizinhança.
+    """
+    lado = op.shape[1] if eixo == 1 else op.shape[0]
+    passo = lado / n
+    tinta = op.sum(axis=1-eixo).astype(int)     # quanta tinta em cada linha
+    cortes = [0]
+    janela = max(4, int(passo * 0.12))
+    for i in range(1, n):
+        alvo = int(round(i * passo))
+        a0, a1 = max(1, alvo - janela), min(lado - 1, alvo + janela + 1)
+        faixa = tinta[a0:a1]
+        # entre os empatados em menos tinta, o mais perto da fronteira teórica
+        menos = faixa.min()
+        cands = [a0 + int(j) for j in np.where(faixa == menos)[0]]
+        cortes.append(min(cands, key=lambda x: abs(x - alvo)))
+    cortes.append(lado)
+    return cortes
+
+def pecas_por_vale(caminho, cols, linhas):
+    """Recorta a folha cortando por onde não passa tinta, e apara cada peça."""
+    a = np.array(Image.open(caminho).convert('RGB'))
+    k = cor_da_borda(a)
+    alfa = alfa_chave(a, k)
+    rgba = np.dstack([descontaminar(a, k, alfa), alfa])
+    op = alfa > 24
+    xs = fronteiras_no_vale(op, cols, 1)
+    ys = fronteiras_no_vale(op, linhas, 0)
+    fora = []
+    for l in range(linhas):
+        for c in range(cols):
+            cel = rgba[ys[l]:ys[l+1], xs[c]:xs[c+1]]
+            fora.append(Image.fromarray(cel, 'RGBA'))
+    return fora
+
+def pecas_por_mancha(caminho, cols, linhas, minimo=0.0015):
+    """Recorta cada peça pela PRÓPRIA MANCHA, e não por um retângulo da grade.
+
+    Cortar na grade parte do princípio de que o modelo desenhou cada item
+    dentro da sua célula. Ele não desenha. Na folha do Egito as dezoito peças
+    estouram a célula, e o corte em retângulo decepava a borda de todas —
+    ficavam com o contorno serrado de um lado, e na carta isso aparece como
+    símbolo cortado. Em Alquimia e Dragões acontecia em algumas.
+
+    Aqui a grade serve só para AGRUPAR, nunca para cortar: tira-se o fundo da
+    folha inteira, acham-se as manchas de tinta, e cada mancha é atribuída à
+    célula cujo centro está mais perto. A peça é a união das manchas daquela
+    célula — o que preserva parte solta de propósito, como a gota do frasco de
+    veneno ou os pontos orbitando um anel de Espaço. O corte final é a caixa
+    dessa união, com folga, e por construção não corta nada.
+    """
+    im = Image.open(caminho).convert('RGB')
+    a = np.array(im)
+    k = cor_da_borda(a)
+    alfa = alfa_chave(a, k)
+    rgba = np.dstack([descontaminar(a, k, alfa), alfa])
+    op = alfa > 24
+    h, w = op.shape
+    area_min = h * w * minimo
+
+    # manchas de tinta, por alagamento
+    visto = np.zeros((h, w), bool)
+    manchas = []
+    for sy, sx in zip(*np.where(op)):
+        if visto[sy, sx]: continue
+        pilha = [(sy, sx)]; visto[sy, sx] = True
+        y0 = y1 = sy; x0 = x1 = sx; n = 0
+        while pilha:
+            y, x = pilha.pop(); n += 1
+            if y < y0: y0 = y
+            if y > y1: y1 = y
+            if x < x0: x0 = x
+            if x > x1: x1 = x
+            for dy, dx in ((1,0),(-1,0),(0,1),(0,-1)):
+                ny, nx = y+dy, x+dx
+                if 0 <= ny < h and 0 <= nx < w and op[ny, nx] and not visto[ny, nx]:
+                    visto[ny, nx] = True; pilha.append((ny, nx))
+        if n >= area_min:
+            manchas.append((y0, y1, x0, x1))
+
+    # cada mancha vai para a célula do centro mais próximo
+    cw, ch = w / cols, h / linhas
+    caixas = {}
+    for (y0, y1, x0, x1) in manchas:
+        cy, cx = (y0 + y1) / 2, (x0 + x1) / 2
+        l = min(linhas - 1, max(0, int(cy // ch)))
+        c = min(cols - 1, max(0, int(cx // cw)))
+        i = l * cols + c
+        b = caixas.get(i)
+        caixas[i] = (y0, y1, x0, x1) if not b else (
+            min(b[0], y0), max(b[1], y1), min(b[2], x0), max(b[3], x1))
+
+    fora = []
+    for i in range(cols * linhas):
+        b = caixas.get(i)
+        if not b: fora.append(None); continue
+        y0, y1, x0, x1 = b
+        f = 3
+        corte = rgba[max(0,y0-f):min(h,y1+1+f), max(0,x0-f):min(w,x1+1+f)]
+        fora.append(Image.fromarray(corte, 'RGBA'))
     return fora
 
 def fronteiras(a, n, eixo):
