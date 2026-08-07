@@ -5,7 +5,7 @@
 
 import {
   SKILLS, CONDITIONS, HERO_DEFS, ENEMY_DEFS, STAGES, FORGE_LEVELS, ACADEMY,
-  ITEMS, ITEM_DROPS, itemBonuses,
+  ITEMS, ITEM_DROPS, itemBonuses, ARMOR_WEIGHTS, WEAPON_STYLES,
 } from './data.js';
 import { loadOrNew, save, newGame } from './state.js';
 import { Combat, buildParty, buildWave, forgeAtkBonus } from './engine.js';
@@ -21,6 +21,15 @@ const BG = { forest:'assets/bg_forest.png' };
 // Cor de destaque por herói (cabeçalhos dos cards, estilo referência)
 const HERO_ACCENT = { warrior:'#3d7fc4', cleric:'#d0a13c', archer:'#4a9a4a', mage:'#7d5fd0' };
 const accentOf = id => HERO_ACCENT[id] || '#8a7a45';
+
+// Aviso rápido (toast) — some sozinho.
+let _toastT = null;
+function toast(msg){
+  let el = document.getElementById('toast');
+  if(!el){ el = document.createElement('div'); el.id = 'toast'; document.body.appendChild(el); }
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(_toastT); _toastT = setTimeout(()=>el.classList.remove('show'), 2200);
+}
 
 let screen = 'map';
 let expo = null;                    // runtime da expedição
@@ -209,22 +218,31 @@ function renderDetail(){
   const def = HERO_DEFS.find(h=>h.id===hs.id);
   const rs = heroRuntimeStats(hs); const eq = heroEquip(hs);
   const statChip = (ic,v)=>`<span class="d-stat">${ic}<b>${v}</b></span>`;
+  const wgt = ARMOR_WEIGHTS[def.armorWeight]; const sty = WEAPON_STYLES[def.weaponStyle];
+  const slotImg = (src,cls='')=>`<img class="ds-img ${cls}" src="${src}" alt="" onerror="this.style.display='none'">`;
   const slotsHTML = EQUIP_SLOTS.map(s=>{
     if(s.key==='weapon'){
-      return `<button class="d-slot on wpn" data-slot="weapon" title="Arma · Forja" style="--acc:${accentOf(hs.id)}">
-        <span class="ds-ic">⚔️</span><span class="ds-badge">+${hs.weaponLevel}</span></button>`;
+      return `<button class="d-slot on wpn" data-slot="weapon" title="Arma (${sty.label}) · Forja" style="--acc:${accentOf(hs.id)}">
+        ${slotImg('assets/slot_weapon.png')}<span class="ds-badge">+${hs.weaponLevel}</span></button>`;
     }
     const it = ITEMS[eq[s.key]];
-    return `<button class="d-slot ${it?'on':''}" data-slot="${s.key}" title="${s.label}${it?' · '+it.name:' (vazio)'}" style="--acc:${accentOf(hs.id)}">
-      <span class="ds-ic" style="${it?'':'opacity:.32'}">${it?it.icon:s.icon}</span>
-      ${it?'<span class="ds-x" title="Desequipar">✕</span>':''}</button>`;
+    if(it){
+      return `<button class="d-slot on" data-slot="${s.key}" title="${s.label} · ${it.name}" style="--acc:${accentOf(hs.id)}">
+        ${slotImg(it.img)}<span class="ds-x" title="Desequipar">✕</span></button>`;
+    }
+    return `<button class="d-slot" data-slot="${s.key}" title="${s.label} (vazio)" style="--acc:${accentOf(hs.id)}">
+      ${slotImg('assets/slot_'+s.key+'.png','ghost')}</button>`;
   }).join('');
   const inv = S.inventory || [];
   const invHTML = inv.length ? inv.map((iid,idx)=>{
     const it = ITEMS[iid]; if(!it) return '';
     const bon = Object.entries(it.bonus).map(([k,v])=>`+${v}${k.toUpperCase()}`).join(' ');
-    return `<button class="inv-item r-${it.rarity}" data-idx="${idx}" title="${it.name} (${bon}) — tocar p/ equipar em ${def.name}">
-      <span class="ii-ic">${it.icon}</span><span class="ii-bo">${bon}</span></button>`;
+    const wearable = canWear(def, it);
+    const lock = wearable ? '' : `<span class="ii-lock" title="Só ${ARMOR_WEIGHTS[it.weight]?.label||'—'} — ${def.name} usa ${wgt.label}">🔒</span>`;
+    const tt = wearable ? `${it.name} (${bon}) — tocar p/ equipar em ${def.name}`
+                        : `${it.name} — armadura ${ARMOR_WEIGHTS[it.weight]?.label}; ${def.name} só veste ${wgt.label}`;
+    return `<button class="inv-item r-${it.rarity} ${wearable?'':'locked'}" data-idx="${idx}" title="${tt}">
+      <img class="ii-img" src="${it.img}" alt="" onerror="this.style.display='none'"><span class="ii-bo">${bon}</span>${lock}</button>`;
   }).join('') : `<div class="inv-empty">Inventário vazio — itens caem nas expedições.</div>`;
 
   frame.innerHTML = `
@@ -234,6 +252,7 @@ function renderDetail(){
         <div class="d-face"><img src="assets/${def.id}_face.png" alt=""></div>
         <div class="d-meta">
           <div class="d-nm">${def.name} <small>${def.klass}</small></div>
+          <div class="d-prof"><span class="prof-chip w-${def.armorWeight}" title="Armadura: ${wgt.focus}">${wgt.icon} ${wgt.label}</span><span class="prof-chip sty" title="${sty.desc}">${sty.icon} ${sty.label}</span></div>
           <div class="d-stats">${statChip('⚔️',rs.atk)}${statChip('❤️',rs.hp)}${statChip('🔮',rs.mag)}${statChip('🛡️',rs.defense)}${statChip('👟',rs.spd)}${statChip('💧',rs.mp)}</div>
         </div>
       </div>
@@ -250,9 +269,21 @@ function renderDetail(){
   frame.querySelectorAll('.inv-item').forEach(b => b.onclick = () => equipItem(hs.id, +b.dataset.idx));
 }
 
+// Regra de trava: acessório é livre; armadura (head/chest/hands/feet) precisa
+// bater com o PESO da classe. (arma é tratada na Forja.)
+function canWear(def, it){
+  if(!it) return false;
+  if(!it.weight) return true;               // acessório / sem peso = livre
+  return it.weight === def.armorWeight;
+}
 function equipItem(heroId, invIdx){
-  const hs = S.heroes.find(h=>h.id===heroId); const eq = heroEquip(hs);
+  const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
+  const eq = heroEquip(hs);
   const iid = S.inventory[invIdx]; const it = ITEMS[iid]; if(!it) return;
+  if(!canWear(def, it)){
+    toast(`${def.name} usa armadura ${ARMOR_WEIGHTS[def.armorWeight].label} — ${it.name} é ${ARMOR_WEIGHTS[it.weight]?.label||'—'}.`);
+    return;
+  }
   S.inventory.splice(invIdx,1);            // tira do inventário
   if(eq[it.slot]) S.inventory.push(eq[it.slot]);  // devolve o que estava equipado
   eq[it.slot] = iid;

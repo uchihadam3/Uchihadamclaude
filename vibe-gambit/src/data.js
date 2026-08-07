@@ -42,7 +42,8 @@ export const CONDITIONS = {
 // slots: linhas de gambit ativas hoje. maxSlots: teto comprável na Academia.
 export const HERO_DEFS = [
   {
-    id:'warrior', name:'Guerreiro', klass:'Knight', sprite:'🛡️',
+    id:'warrior', name:'Guerreiro', klass:'Cavaleiro', sprite:'🛡️',
+    armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield','twohand'],
     base:{ hp:120, atk:14, def:8, mag:2, mp:10, spd:6 },
     weaponLevel:0, slots:2, maxSlots:5,
     skills:['basic_attack'],
@@ -51,7 +52,8 @@ export const HERO_DEFS = [
     ],
   },
   {
-    id:'cleric', name:'Clérigo', klass:'Cleric', sprite:'✨',
+    id:'cleric', name:'Clérigo', klass:'Clérigo', sprite:'✨',
+    armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:90, atk:7, def:5, mag:14, mp:40, spd:7 },
     weaponLevel:0, slots:2, maxSlots:5,
     skills:['heal','holy_strike','basic_attack'],
@@ -61,7 +63,8 @@ export const HERO_DEFS = [
     ],
   },
   {
-    id:'archer', name:'Arqueiro', klass:'Archer', sprite:'🏹',
+    id:'archer', name:'Arqueiro', klass:'Arqueiro Caçador', sprite:'🏹',
+    armorWeight:'medium', weaponStyle:'ranged', weaponStyles:['ranged','dual'],
     base:{ hp:80, atk:12, def:4, mag:4, mp:20, spd:9 },
     weaponLevel:0, slots:2, maxSlots:5,
     skills:['power_shot','basic_attack'],
@@ -71,7 +74,8 @@ export const HERO_DEFS = [
     ],
   },
   {
-    id:'mage', name:'Mago', klass:'Mage', sprite:'🔮',
+    id:'mage', name:'Mago', klass:'Mago Elemental', sprite:'🔮',
+    armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:70, atk:5, def:3, mag:16, mp:45, spd:8 },
     weaponLevel:0, slots:2, maxSlots:5,
     skills:['fireball','basic_attack'],
@@ -130,25 +134,52 @@ export const ACADEMY = {
 //   (a "arma" = arma de classe melhorada na Forja; os demais são itens do inventário)
 // bonus: somado aos atributos do herói (em combate e na ficha). rarity p/ cor.
 export const EQUIP_SLOT_KEYS = ['head','chest','hands','feet','weapon','trinket'];
+
+// PESOS DE ARMADURA (trava por classe). Cada herói veste UM peso só.
+//   focus = para onde o peso empurra o build. mods = ainda no roadmap do motor.
+export const ARMOR_WEIGHTS = {
+  light:  { id:'light',  label:'Leve',   icon:'🌀', focus:'Poder Mágico · MP · Conjuração',
+            roadmap:['+regen de MP','+velocidade de conjuração'] },
+  medium: { id:'medium', label:'Médio',  icon:'🍃', focus:'Crítico · Esquiva · Dano Ágil',
+            roadmap:['+chance de crítico','+esquiva'] },
+  heavy:  { id:'heavy',  label:'Pesado', icon:'⛰️', focus:'Vida · Defesa · Redução de Dano',
+            roadmap:['+redução de dano recebido'] },
+};
+// ESTILOS DE ARMA (trava por classe). Um item de mão comprime o estilo clássico.
+export const WEAPON_STYLES = {
+  twohand: { id:'twohand', label:'Duas Mãos',    icon:'🪓', desc:'+Dano massivo, -Velocidade',
+             roadmap:['-velocidade de ataque','+sangramento'] },
+  dual:    { id:'dual',    label:'Duplas',       icon:'🗡️', desc:'-Dano/hit, ++Velocidade, 2 acertos',
+             roadmap:['2 acertos por animação'] },
+  shield:  { id:'shield',  label:'Arma + Escudo',icon:'🛡️', desc:'+Dano moderado, ++Defesa, +Bloqueio',
+             roadmap:['+chance de bloqueio'] },
+  ranged:  { id:'ranged',  label:'Longo Alcance',icon:'🏹', desc:'Ataca da retaguarda',
+             roadmap:['ignora penalidade vs. voadores'] },
+  caster:  { id:'caster',  label:'Conjuração',   icon:'🔮', desc:'Ataque básico vira Dano Mágico, +Cura/Buff',
+             roadmap:['+eficácia de cura e buffs'] },
+};
+
+// weight: peso da armadura (head/chest/hands/feet). trinket = livre (sem peso).
+// img: arte recortada (fundo transparente). icon = emoji de fallback.
 export const ITEMS = {
   // cabeça
-  iron_helm:     { id:'iron_helm',     name:'Elmo de Ferro',    slot:'head',    icon:'🪖', rarity:'comum', bonus:{ def:2, hp:8 } },
-  arcane_hat:    { id:'arcane_hat',    name:'Chapéu Arcano',    slot:'head',    icon:'🎩', rarity:'raro',  bonus:{ mag:4 } },
+  iron_helm:     { id:'iron_helm',     name:'Elmo de Ferro',    slot:'head',    weight:'heavy',  icon:'🪖', img:'assets/item_iron_helm.png',     rarity:'comum', bonus:{ def:2, hp:8 } },
+  arcane_hat:    { id:'arcane_hat',    name:'Chapéu Arcano',    slot:'head',    weight:'light',  icon:'🎩', img:'assets/item_arcane_hat.png',    rarity:'raro',  bonus:{ mag:4 } },
   // peito
-  leather_armor: { id:'leather_armor', name:'Armadura de Couro',slot:'chest',   icon:'🦺', rarity:'comum', bonus:{ hp:20 } },
-  chain_mail:    { id:'chain_mail',    name:'Cota de Malha',    slot:'chest',   icon:'🛡️', rarity:'raro',  bonus:{ hp:35, def:3 } },
-  mage_robe:     { id:'mage_robe',     name:'Manto Arcano',     slot:'chest',   icon:'🥼', rarity:'raro',  bonus:{ hp:12, mag:5 } },
+  leather_armor: { id:'leather_armor', name:'Peitoral de Couro',slot:'chest',   weight:'medium', icon:'🦺', img:'assets/item_leather_armor.png', rarity:'comum', bonus:{ hp:16, spd:1 } },
+  chain_mail:    { id:'chain_mail',    name:'Cota de Malha',    slot:'chest',   weight:'heavy',  icon:'🛡️', img:'assets/item_chain_mail.png',    rarity:'raro',  bonus:{ hp:35, def:3 } },
+  mage_robe:     { id:'mage_robe',     name:'Manto Arcano',     slot:'chest',   weight:'light',  icon:'🥼', img:'assets/item_mage_robe.png',     rarity:'raro',  bonus:{ mag:5, mp:8 } },
   // mãos
-  leather_gloves:{ id:'leather_gloves',name:'Luvas de Couro',   slot:'hands',   icon:'🧤', rarity:'comum', bonus:{ atk:2 } },
-  power_gauntlet:{ id:'power_gauntlet',name:'Manopla de Força', slot:'hands',   icon:'✊', rarity:'raro',  bonus:{ atk:4 } },
+  leather_gloves:{ id:'leather_gloves',name:'Luvas de Couro',   slot:'hands',   weight:'medium', icon:'🧤', img:'assets/item_leather_gloves.png',rarity:'comum', bonus:{ atk:2, spd:1 } },
+  power_gauntlet:{ id:'power_gauntlet',name:'Manopla de Força', slot:'hands',   weight:'heavy',  icon:'✊', img:'assets/item_power_gauntlet.png',rarity:'raro',  bonus:{ atk:4 } },
   // pés
-  swift_boots:   { id:'swift_boots',   name:'Botas Velozes',    slot:'feet',    icon:'👢', rarity:'comum', bonus:{ spd:2 } },
-  // acessório
-  power_ring:    { id:'power_ring',    name:'Anel de Força',    slot:'trinket', icon:'💍', rarity:'comum', bonus:{ atk:3 } },
-  vital_amulet:  { id:'vital_amulet',  name:'Amuleto Vital',    slot:'trinket', icon:'📿', rarity:'raro',  bonus:{ hp:18, mp:10 } },
+  swift_boots:   { id:'swift_boots',   name:'Botas Velozes',    slot:'feet',    weight:'medium', icon:'👢', img:'assets/item_swift_boots.png',   rarity:'comum', bonus:{ spd:2 } },
+  // acessório (LIVRE — sem peso, qualquer classe usa)
+  power_ring:    { id:'power_ring',    name:'Anel de Força',    slot:'trinket', icon:'💍', img:'assets/item_power_ring.png',    rarity:'comum', bonus:{ atk:3 } },
+  vital_amulet:  { id:'vital_amulet',  name:'Amuleto Vital',    slot:'trinket', icon:'📿', img:'assets/item_vital_amulet.png',  rarity:'raro',  bonus:{ hp:18, mp:10 } },
 };
 // Itens que o jogador já começa possuindo (no inventário, não equipados).
-export const STARTER_INVENTORY = ['leather_armor','power_ring','swift_boots','iron_helm','leather_gloves'];
+export const STARTER_INVENTORY = ['iron_helm','chain_mail','leather_armor','swift_boots','leather_gloves','mage_robe','arcane_hat','power_ring','vital_amulet'];
 // Tabela de drop de itens ao limpar uma fase (chance por item).
 export const ITEM_DROPS = [
   { item:'leather_armor', chance:0.16 }, { item:'power_ring', chance:0.14 },

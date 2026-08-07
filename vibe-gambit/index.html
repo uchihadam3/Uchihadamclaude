@@ -141,6 +141,13 @@
   .d-face img{width:100%;height:100%;object-fit:cover;object-position:50% 16%;image-rendering:pixelated}
   .d-meta{flex:1;min-width:0}
   .d-nm{font-weight:900;font-size:16px;color:var(--ink)} .d-nm small{font-weight:700;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-left:4px}
+  /* perfil da classe: peso de armadura + estilo de arma */
+  .d-prof{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+  .prof-chip{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:999px;border:1px solid var(--line);background:var(--inset);color:var(--ink2);text-transform:uppercase;letter-spacing:.3px}
+  .prof-chip.w-light{background:#e6f0fb;border-color:#bcd6f0;color:#2c5f96}
+  .prof-chip.w-medium{background:#e6f6e9;border-color:#bfe3c6;color:#2f7a43}
+  .prof-chip.w-heavy{background:#f3ece1;border-color:#dcc9a8;color:#8a6a2a}
+  .prof-chip.sty{background:#efe8f7;border-color:#d5c6ee;color:#6a4b9e}
   .d-stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .d-stat{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:800;color:var(--ink2);background:var(--inset);border:1px solid var(--line);border-radius:7px;padding:2px 7px}
   .d-stat b{color:var(--ink)}
@@ -150,6 +157,8 @@
     border:1px solid var(--line);border-radius:11px;padding:0;box-shadow:none;min-width:0}
   .d-slot.on{background:#fff8e8;border-color:var(--acc);box-shadow:inset 0 0 0 1.5px var(--acc)}
   .ds-ic{font-size:24px;line-height:1}
+  .ds-img{width:80%;height:80%;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 1px 1px #0003)}
+  .ds-img.ghost{opacity:.30;filter:grayscale(.4)}
   .ds-badge{position:absolute;bottom:1px;right:3px;font-size:9px;font-weight:800;color:#fff;background:var(--acc);border-radius:6px;padding:0 3px;line-height:1.35}
   .ds-x{position:absolute;top:-4px;right:-4px;width:16px;height:16px;display:grid;place-items:center;font-size:9px;color:#fff;background:var(--enemy);border-radius:50%;font-weight:900;border:1.5px solid #fff}
   @media(max-width:360px){ .d-slots{grid-template-columns:repeat(6,1fr);gap:4px} .ds-ic{font-size:20px} }
@@ -159,12 +168,24 @@
   .inv-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
     background:#fff8e8;border:1px solid var(--line);border-radius:10px;padding:7px 3px 6px;box-shadow:none;min-width:0;aspect-ratio:1/.86}
   .inv-item .ii-ic{font-size:26px;line-height:1;filter:drop-shadow(0 1px 1px #0002)}
+  .inv-item .ii-img{width:42px;height:42px;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 1px 1px #0003)}
   .ii-bo{font-size:9.5px;font-weight:800;color:var(--heal);text-align:center;line-height:1.15;white-space:normal}
   .ii-slot,.ii-nm{display:none}
   .inv-item.r-raro{border-color:#a98be6;box-shadow:inset 0 0 0 1px #cbb8f0}
   .inv-item:active{transform:translateY(1px)}
+  /* item que a classe NÃO pode vestir (peso incompatível) */
+  .inv-item.locked{opacity:.55;filter:grayscale(.65)}
+  .inv-item.locked .ii-img{filter:grayscale(1) drop-shadow(0 1px 1px #0003)}
+  .ii-lock{position:absolute;top:3px;right:4px;font-size:11px;line-height:1}
+  .inv-item{position:relative}
   .inv-empty{grid-column:1/-1;text-align:center;color:var(--dim);font-size:12px;padding:12px}
   .loot .drop{color:var(--purple);font-weight:800}
+  /* toast de aviso */
+  #toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));transform:translate(-50%,140%);
+    max-width:88%;background:#241d2a;color:#fff;font-size:12.5px;font-weight:700;line-height:1.3;
+    padding:10px 15px;border-radius:12px;box-shadow:0 8px 26px #0006;z-index:200;text-align:center;
+    opacity:0;transition:transform .28s cubic-bezier(.2,.9,.3,1.4),opacity .28s;pointer-events:none}
+  #toast.show{transform:translate(-50%,0);opacity:1}
 
   /* --- Editor de Gambits — layout LIMPO tipo tabela/linhas --- */
   .gh-box{max-width:560px!important}
