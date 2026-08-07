@@ -397,6 +397,10 @@
  .h .hd.conta2 .hbr{color:#e8e2d0;opacity:.85}
  .h .hd.conta2 .hdf{color:#8fd8ff;font-size:9.5px}
  .h .hd.conta2 .hig{color:#6d7681;font-size:9px}
+ /* mesma conta, mesmo cinza: o golpe que morre na fechadura */
+ .h .hd.conta2.trav{color:#c9d2de}
+ .h .hd.conta2.trav .hbr{color:#8d97a5;text-decoration:line-through}
+ .h .hd.conta2.trav .hdf{color:#ffd24a}
  .h .hest{font-size:8px;letter-spacing:1.4px;color:#5f6874;text-transform:uppercase}
  /* ===== A CONTA DO GOLPE: quantos dados, soma e paridade ===== */
  .conta{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:center;
@@ -1125,6 +1129,12 @@
  .en .prev .pd.pconta i{font-style:normal;font-weight:800}
  .en .prev .pd.pconta .pbr{color:#ffd9d0;opacity:.9;font-size:11.5px}
  .en .prev .pd.pconta .pdf{color:#9fd6ff;font-size:10.5px}
+ /* O ZERO DA FECHADURA não é dano: sai do vermelho e vira o cinza-chumbo da
+    regra travada, com o golpe perdido riscado atrás. Assim ele não se
+    confunde, de relance, com um golpe pequeno que passou. */
+ .en .prev .pd.ptrav{background:#2b2f36;border-color:#7b8798;color:#c9d2de}
+ .en .prev .pd.ptrav .pbr{color:#8d97a5;text-decoration:line-through}
+ .en .prev .pd.ptrav .pdf{color:#ffd24a;font-size:10px}
  .en .prev.mata .pd{background:#a01020;border-color:#ff9a5a;animation:matap .7s infinite}
  @keyframes matap{0%,100%{box-shadow:0 0 0 #ff3b3b}50%{box-shadow:0 0 14px #ff3b3b}}
  .hpb{position:relative}

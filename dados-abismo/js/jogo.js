@@ -798,9 +798,19 @@ function pintar(){
       .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''}${v}</b>`).join(' ');
     const li=pi.linhas.find(l=>l.uid===e.uid);
     const pr=mapaPrev[e.uid];
+    /* GOLPE QUE NÃO VAI FERIR TEM QUE DIZER ZERO. Contra a fechadura fechada o
+       motor devolve dano 0 e defesa 0 — e a tela caía no ramo final, que só
+       desenha quando há dano. Resultado: uma etiqueta VAZIA sobre o inimigo.
+       O jogador via nada e não sabia se era "não fere" ou se a prévia tinha
+       falhado, justo no caso em que ela mais importa: a fechadura é a regra
+       central do jogo, e o preço de errar o golpe é o ataque inteiro. */
+    const zerado = pr && pr.travado && !pr.dano;
     // sobre o inimigo, a mesma conta: golpe cheio − defesa dele = o que entra
     const prevHTML = pr ? `<div class="prev ${pr.morre?'mata':''}">
-        ${pr.defesa>0
+        ${zerado
+          ? `<span class="pd pconta ptrav" title="a fechadura não abre com esta mão: o golpe inteiro é perdido"
+              ><i class="pbr">${pr.bruto}</i><i class="pdf">🔒</i>0</span>`
+          : pr.defesa>0
           ? `<span class="pd pconta"><i class="pbr">${pr.bruto}</i><i class="pdf">−${pr.defesa}🛡</i>${pr.dano}</span>`
           : (pr.dano?`<span class="pd">-${pr.dano}</span>`:'')}
         ${pr.estados.map(x=>`<span class="pe">${ICO[x.st]||'•'}${x.n}</span>`).join('')}
@@ -876,11 +886,16 @@ function pintar(){
        vida que o alvo ainda tinha — e aí "26 −1🛡 = 24" não fechava com nada,
        nem com a aritmética nem com o número que o recibo mostraria depois.
        Que o golpe mate está dito pela caveira, não por um resultado torto. */
-    const contaDano = !p2 ? '' : (feridos.length===1 && defesa>0)
+    /* E na carta, o mesmo zero. Antes, um golpe que ia bater só em alvos
+       trancados mostrava um "✖" mudo: nem número, nem o quanto se perdia. */
+    const soTravados = feridos.length>0 && travados===feridos.length && !dano;
+    const contaDano = !p2 ? '' : soTravados
+      ? `<b class="hd conta2 trav"><i class="hbr">${bruto}</i><i class="hdf">🔒</i><i class="hig">=</i>0</b>`
+      : (feridos.length===1 && defesa>0)
       ? `<b class="hd conta2"><i class="hbr">${bruto}</i><i class="hdf">−${defesa}🛡</i><i class="hig">=</i>${Math.max(0,bruto-defesa)}</b>`
       : `${dano?`<b class="hd">-${dano}</b>`:''}${
           defesa>0?`<b class="hb">🛡${defesa}</b>`:''}${
-          travados?`<b class="ht">✖${travados>1?travados:''}</b>`:''}`;
+          travados?`<b class="ht" title="${travados} alvo${travados>1?'s':''} de fechadura fechada: nestes o golpe dá 0">🔒0${travados>1?'×'+travados:''}</b>`:''}`;
     const selo = p2 ? `<div class="hsel">
         ${contaDano}
         ${p2.bloqueio?`<b class="hb">🛡${p2.bloqueio}</b>`:''}
