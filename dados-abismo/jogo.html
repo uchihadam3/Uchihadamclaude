@@ -59,15 +59,27 @@
    border-radius:20px;padding:2px 9px}
  #dica i{font-style:normal;font-size:11px;color:#8a7a50}
  /* rodapé: status à esquerda, ação principal no meio */
+ /* A BARRA DE AÇÃO NÃO ROLA. Ela é o único par de coisas que o jogador
+    sempre precisa alcançar — a sua vida e o botão de terminar — e ficava
+    no fim de uma faixa que rola. Com cinco inimigos e a trilha aberta a
+    lista de habilidades cresce para duas filas e empurrava o TERMINAR TURNO
+    para 130px abaixo da tela: era possível não achar como jogar. Grudada no
+    rodapé da faixa, ela fica onde está por mais que a lista cresça, e é a
+    lista que rola por baixo. */
  #acoes{display:grid;grid-template-columns:auto 1fr;gap:7px;align-items:center;
-   margin-top:4px;pointer-events:auto}
+   margin-top:4px;pointer-events:auto;
+   position:sticky;bottom:calc(-1px - env(safe-area-inset-bottom));z-index:8;
+   padding:4px 0 calc(4px + env(safe-area-inset-bottom));
+   background:linear-gradient(180deg,rgba(4,6,8,0),rgba(4,6,8,.96) 26%,rgba(4,6,8,.99))}
  #voceval{display:flex;flex-direction:column;gap:1px;font-size:11px;white-space:nowrap}
  #voceval span{display:flex;align-items:center;gap:4px}
  #voceval b{font-size:13px;font-weight:900}
  #acoes .b.pri{width:100%}
  /* legenda rápida, como o rodapé da referência */
  /* quando a mesa lota, o que é apoio sai — nunca a fechadura nem a intenção */
- #baixo.lotado #legenda,#baixo.lotado #dica{display:none}
+ /* a FICHA é exceção: ela é a única explicação que existe no celular, então
+    não some junto com o resto do apoio quando a mesa lota */
+ #baixo.lotado #legenda,#baixo.lotado #dica:not(.ficha){display:none}
  #baixo.lotado #habtit{margin-bottom:2px}
  #legenda{display:flex;flex-wrap:wrap;gap:2px 9px;justify-content:center;margin-top:3px;
    padding-top:3px;border-top:1px solid rgba(220,180,80,.14)}
@@ -159,6 +171,143 @@
  .popb.ver{flex:0 0 auto;font-size:10.5px;font-weight:600;color:#9aa6b2}
  .popb:active{transform:scale(.96)}
  #pop .gex{margin-top:8px;display:flex;flex-direction:column;gap:4px;font-size:11px}
+ /* =====================================================================
+    O DICIONÁRIO NA TELA — ícone desenhado + PALAVRA + número.
+
+    Cada conceito do jogo tem um chip só, e o chip é o MESMO na carta do
+    inimigo e na carta da habilidade. Antes eram duas linguagens: as
+    habilidades falavam por SVG, os inimigos por emoji — e emoji em Georgia
+    no Android desenha metade das vezes como um risquinho cinza. Agora é uma
+    linguagem só, e ela sempre traz a palavra junto: nada de glifo mudo que
+    o jogador tem que adivinhar.
+    ===================================================================== */
+ .sic{width:1em;height:1em;flex:none;vertical-align:-.14em}
+ .chip{display:inline-flex;align-items:center;gap:3px;max-width:100%;overflow:hidden;
+   background:#1b1f29;border:1px solid #2f3546;border-radius:5px;padding:2px 4px;
+   line-height:1.1;font-family:Georgia,serif}
+ .chip .cico{display:flex;font-size:12px;flex:none}
+ .chip .cpal{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:7.5px;
+   letter-spacing:.04em;text-transform:uppercase;color:#9aa0b2;
+   min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .chip .cval{margin-left:auto;flex:none;font-size:11px;font-weight:900;padding-left:2px}
+ .chip.fraco{opacity:.5}
+ .chip.c-dano {border-color:#5c2028;background:#241318}
+ .chip.c-dano  .cico,.chip.c-dano  .cval{color:#ff8a7a}
+ .chip.c-def  {border-color:#1d3d52;background:#111e28}
+ .chip.c-def   .cico,.chip.c-def   .cval{color:#8fd8ff}
+ .chip.c-bem  {border-color:#1e4634;background:#0f1f18}
+ .chip.c-bem   .cico,.chip.c-bem   .cval{color:#7ef2a8}
+ .chip.c-ruim {border-color:#3d2a52;background:#1a1424}
+ .chip.c-ruim  .cico,.chip.c-ruim  .cval{color:#c09aff}
+ .chip.c-regra{border-color:#4a3c1c;background:#1f1a10}
+ .chip.c-regra .cico,.chip.c-regra .cval{color:#ffd24a}
+ .chip.alerta{animation:chipal .9s infinite}
+ @keyframes chipal{0%,100%{box-shadow:0 0 0 rgba(255,90,74,0)}50%{box-shadow:0 0 9px rgba(255,90,74,.75)}}
+
+ /* A FAIXA "EXIGE" — a regra, em ouro, nos dois tipos de carta.
+    No inimigo é a fechadura; na habilidade é o que a mão precisa ter. Nos
+    dois, DUAS linhas: o nome da regra e a regra escrita por extenso. Era
+    isto que faltava — a carta dizia "Couraça" e não dizia de quanto. */
+ .exg{display:block;width:100%;border-radius:6px;padding:3px 4px;text-align:left;
+   background:rgba(217,180,90,.09);border:1px solid rgba(217,180,90,.34)}
+ .exg .e1{display:flex;align-items:center;gap:3px;color:#e8c86a;font-size:9.5px;
+   font-weight:700;letter-spacing:.02em;line-height:1.15}
+ .exg .e1 .sic{font-size:12px}
+ .exg .e2{color:#cfc09a;font-size:8.5px;line-height:1.25;margin-top:1px;
+   font-family:Georgia,serif;letter-spacing:0}
+ .exg.abre{background:rgba(111,216,154,.10);border-color:rgba(111,216,154,.48)}
+ .exg.abre .e1{color:#7ef2a8} .exg.abre .e2{color:#a9dcc0}
+ .exg.fecha{background:rgba(224,97,82,.09);border-color:rgba(224,97,82,.44)}
+ .exg.fecha .e1{color:#ff8a7a} .exg.fecha .e2{color:#dfaea6}
+ .exg.off{background:rgba(120,90,200,.18);border-color:#a07cff}
+ .exg.off .e1{color:#ddc8ff} .exg.off .e2{color:#bda8e8}
+ .exg.semtrava{background:rgba(255,255,255,.03);border-color:#2b3140}
+ .exg.semtrava .e1{color:#8d97a5} .exg.semtrava .e2{color:#6a7180}
+ .exg .egira{font-style:normal;font-size:8px;color:#ffb45e;margin-left:auto;flex:none}
+ /* a carta de habilidade usa a MESMA faixa, só que apertada e centrada */
+ .h .exg{padding:2px 4px;text-align:center}
+ .h .exg .e1{justify-content:center;font-size:9px}
+ .h .exg .e2{font-size:8px;text-align:center}
+ /* MÃO CHEIA (6+ habilidades, duas filas de cartas): a carta aperta sem
+    perder a palavra. A frase do requisito corta em uma linha, o selo de
+    "sem encaixe" sai (a carta já está apagada, o selo era redundante) e
+    entram dois chips em vez de três. O que não coube está na ficha, e a
+    ficha é um toque. Sem isto o TERMINAR TURNO saía da tela com 5 inimigos
+    e a trilha aberta — que é justamente quando a decisão é mais difícil. */
+ #hab.densa .h .exg{padding:1px 3px}
+ #hab.densa .h .exg .e1{font-size:8.5px}
+ #hab.densa .h .exg .e2{font-size:7.5px;-webkit-line-clamp:1}
+ #hab.densa .h .hest{display:none}
+ #hab.densa .h .hfaz{gap:1px}
+ #hab.densa .h .hfaz .chip{padding:1px 3px}
+ /* e a ficha encolhe junto: rola por dentro em vez de empurrar o botão */
+ #baixo.lotado #dica.ficha{max-height:76px}
+ /* a fileira de chips da carta e do inimigo */
+ .h .hfaz{display:flex;flex-direction:column;gap:2px;width:100%;align-items:stretch}
+ .h .hfaz .chip{width:100%;padding:2px 3px;gap:2px}
+ /* NA CARTA o chip aperta: 90px de largura num celular não perdoam. O ícone
+    encolhe e a palavra ganha o espaço, porque é a palavra que ensina — de
+    ARROMBA e ESPINHOS o jogador precisa ler a palavra inteira, não o desenho. */
+ .h .hfaz .cico{font-size:10.5px}
+ .h .hfaz .cpal{font-size:7px;letter-spacing:.01em}
+ .h .hfaz .cval{font-size:10px;padding-left:1px}
+ .h .hmais{font-style:normal;font-family:ui-monospace,Menlo,monospace;font-size:7.5px;
+   color:#7d8894;letter-spacing:.06em;align-self:center}
+ /* A FILEIRA NÃO PODE SERRILHAR. Inimigo sem fechadura (o Osso Solto não
+    tem) deixaria um buraco onde os outros têm a faixa dourada, e a fileira
+    ficaria com cards de alturas diferentes. O vão fica reservado. */
+ .en{justify-content:flex-start}
+ .en .exg{min-height:42px}
+ #ini.cheia .en .exg{min-height:36px}
+ /* e a regra composta ("abre com X OU gastando Y") corta em duas linhas: a
+    frase inteira está na ficha, que é onde ela se lê com calma */
+ .exg .e2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+   overflow:hidden}
+ .en .faz{display:flex;flex-direction:column;gap:2px;margin-top:3px;width:100%}
+ .en .faz .chip{width:100%}
+ #ini.cheia .en .faz .chip{padding:1px 3px}
+ #ini.cheia .en .faz .cico{font-size:10px}
+ #ini.cheia .en .faz .cval{font-size:9.5px}
+ #ini.cheia .exg .e1{font-size:8.5px} #ini.cheia .exg .e2{font-size:7.5px}
+ .en .it .passa{white-space:nowrap;font-size:9px;color:#9a9aad}
+ .en .it .passa.doi{color:#ff8a7a;font-weight:700}
+
+ /* =====================================================================
+    A FICHA — a carta inteira, aberta ao TOQUE.
+
+    É a metade que faltava. A carta compacta cabe em 90px e mostra o que
+    decide a jogada; a descrição inteira morava no atributo `title`, e no
+    celular não existe passar o mouse — quem joga no telefone nunca leu
+    aquelas frases. Aqui elas existem, a um toque, com TODOS os chips (não
+    só os três que couberam) e a regra por extenso.
+    ===================================================================== */
+ #dica.ficha{display:block;text-align:left;background:linear-gradient(180deg,#161a22,#0e1116);
+   border:1px solid #2c3444;border-left:3px solid var(--fc,#8a7440);border-radius:9px;
+   padding:7px 9px;margin:2px 0 0;max-height:146px;overflow-y:auto;scrollbar-width:none}
+ #dica.ficha::-webkit-scrollbar{display:none}
+ #dica.ficha .ftit{display:flex;align-items:center;gap:5px;font-family:Georgia,serif;
+   font-size:12.5px;font-weight:700;color:var(--fc,#e8e2d0);margin-bottom:3px}
+ #dica.ficha .ftit .sic{font-size:14px}
+ /* o ícone da habilidade vem com a classe da CARTA, que só ganha tamanho lá
+    dentro; solto na ficha ele nascia com a largura toda e virava um borrão
+    vermelho de 400px por cima do texto */
+ #dica.ficha .ftit .hico{width:15px;height:15px;flex:none}
+ #dica.ficha .fdesc{font-family:Georgia,serif;font-size:10.5px;line-height:1.35;color:#b9b3a4}
+ #dica.ficha .flin{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+ #dica.ficha .flin .chip{max-width:none}
+ #dica.ficha .fexp{display:flex;align-items:flex-start;gap:5px;margin-top:4px;
+   font-size:10px;line-height:1.3;color:#9aa0b2}
+ #dica.ficha .fexp .sic{font-size:12px;margin-top:1px}
+ #dica.ficha .fexp b{color:#d6d0c0;font-weight:700;font-family:ui-monospace,Menlo,monospace;
+   font-size:8.5px;letter-spacing:.06em;text-transform:uppercase}
+ #dica.ficha .freq{font-size:9.5px;color:#c9a24a;margin-top:4px;
+   display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+ #dica.ficha .freq em{display:inline-flex;align-items:center;gap:2px}
+ .ver{display:flex;align-items:center;gap:3px;margin-top:2px;
+   font-family:ui-monospace,Menlo,monospace;font-size:7.5px;letter-spacing:.05em}
+ .ver .sic{font-size:9px}
+ .ver.s{color:#7ef2a8} .ver.n{color:#ff8a7a}
+
  /* ===== FECHADURA: a regra do inimigo, sempre visível (§12) ===== */
  /* O SELO DA FECHADURA: ícone grande, nome curto, e o toque abre a regra
     inteira. Altura fixa — é o que faz todos os cards ficarem do mesmo
@@ -306,48 +455,6 @@
    background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
  .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
  #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
- .h .htopo{display:flex;align-items:center;gap:5px}
- /* O MULTIPLICADOR na carta: dá para ver de relance que o Colapso vale cinco
-    vezes a soma e o Raio três, que é o que decide onde gastar o dado grande. */
- .h .hmult{flex:none;font-size:10px;font-weight:900;letter-spacing:.3px;line-height:1;
-   padding:2px 4px;border-radius:5px;color:#ffb45e;
-   background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
- .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
- #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
- /* o título da etapa: o que está acontecendo agora */
- /* UM TERMO: valor + ícone em cima, nome embaixo */
- /* COLIDEM: deslizam para o meio e somem juntos */
- /* e NASCE o resultado, maior que os termos que o geraram */
- .h .htopo{display:flex;align-items:center;gap:5px}
- /* O MULTIPLICADOR na carta: dá para ver de relance que o Colapso vale cinco
-    vezes a soma e o Raio três, que é o que decide onde gastar o dado grande. */
- .h .hmult{flex:none;font-size:10px;font-weight:900;letter-spacing:.3px;line-height:1;
-   padding:2px 4px;border-radius:5px;color:#ffb45e;
-   background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
- .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
- #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
- /* cada número da conta */
- /* COLIDEM: os dois deslizam para o centro e somem juntos */
- /* e NASCE o resultado */
- .h .htopo{display:flex;align-items:center;gap:5px}
- /* O MULTIPLICADOR na carta: dá para ver de relance que o Colapso vale cinco
-    vezes a soma e o Raio três, que é o que decide onde gastar o dado grande. */
- .h .hmult{flex:none;font-size:10px;font-weight:900;letter-spacing:.3px;line-height:1;
-   padding:2px 4px;border-radius:5px;color:#ffb45e;
-   background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
- .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
- #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
- /* fica na FAIXA DOS INIMIGOS, onde o golpe está chegando — e não sobre o
-    feltro: os dados não podem ficar tapados, nem por meio segundo. */
- /* os dados entram UM A UM, e o parcial acompanha: dá para ler a conta,
-    não só perceber que houve uma. */
- /* o que as passivas e os estados somaram por cima da fórmula */
- /* ---- ATO 2: a soma recolhe e a defesa entra ----
-    Os dados e o Σ já cumpriram o papel; deixá-los na tela enquanto o
-    desconto acontece só divide o olho. Eles encolhem para fora e o golpe
-    cheio fica sozinho para apanhar da defesa. */
- /* golpe barrado pela fechadura: o zero não é dourado, é morto */
- /* sem defesa nenhuma: o golpe cheio JÁ é o dano, e é ele que brilha */
  .h .hico{width:17px;height:17px;flex:none;color:var(--hc,#cfd8e3);
    filter:drop-shadow(0 0 5px color-mix(in srgb,var(--hc,#888) 55%,transparent))}
  .h .hn{font-size:11.5px;font-weight:700;letter-spacing:.2px;color:var(--hc,#e8e2d0);
@@ -490,7 +597,9 @@
    #baixo{padding-top:3px}
  }
  @media (max-height:720px){
-   #dica{display:none}             /* a dica é para quem está aprendendo */
+   /* a DICA some em tela baixa, mas a FICHA não: ela é a única explicação
+      que existe no celular, e sumir com ela é voltar ao problema. */
+   #dica:not(.ficha){display:none}
    .h .hcusto{display:none}
    #consum{display:none!important} /* as ferramentas continuam nos botões da mesa */
  }

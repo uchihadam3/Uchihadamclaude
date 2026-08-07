@@ -25,6 +25,7 @@ import { spriteDe, spriteCanvas } from './sprites.js';
 import * as SFX from './sfx.js';
 import { tocarEfeito, tocarEfeitoInimigo } from './efeitos.js';
 import { iconeDe, reqChips } from './icones.js';
+import * as SIM from './data/simbolos.js';
 
 const MESA={x:3.4,z:2.0};
 const $=id=>document.getElementById(id);
@@ -113,6 +114,11 @@ function limparBandeja(){ BANDEJA.length=0; for(const m of malhas){ m.userData.n
 let cofre=META.carregar(), BON=META.bonus(cofre);
 let stats={andares:0, elites:0, chefes:0};
 let previa=null;                 // {skill, ids, pv} — telegrafia (§12)
+/* O QUE A FICHA ESTÁ MOSTRANDO. A carta compacta cabe em 90px de celular e
+   só dá para o que decide a jogada; o resto ia no atributo `title`, que no
+   telefone não existe. O último toque manda: tocou numa habilidade, a ficha
+   é dela; tocou num inimigo, é dele. */
+let foco=null;                   // {t:'hab'|'ini', uid}
 const ICO={veneno:'☠',sangramento:'🩸',queimadura:'🔥',congelado:'❄',fratura:'✖',marca:'🎯',
            maldicao:'☠',frenesi:'▲',espinhos:'✦',armadura:'⛊'};
 function calcPrevia(s){
@@ -724,6 +730,54 @@ function rolarVisual(soIds){
 }
 /* ---------- HUD ---------- */
 const nomeFace=f=> f.k==='num'? f.v : (FACE_KINDS[f.k].glifo);
+/* ===================================================================
+   A FICHA — a carta por extenso, aberta ao toque.
+
+   Cada chip vem acompanhado da PALAVRA e do que aquela palavra faz. É o
+   pedido em uma frase: nada de glifo mudo. Vale para os dois lados da mesa,
+   porque o vocabulário é o mesmo.
+   =================================================================== */
+function linhasConceito(chips){
+  const visto=new Set();
+  return chips.filter(c=>!visto.has(c.id) && visto.add(c.id))
+    .map(c=>{ const d=SIM.CONCEITO[c.id]; if(!d) return '';
+      return `<div class="fexp">${SIM.ico(c.id,'sic')}<span><b>${d.p}</b> · ${d.d}</span></div>`;
+    }).join('');
+}
+function fichaHTML(){
+  const el=$('dica'); if(!el) return;
+  const limpa=()=>{ el.className=''; el.style.removeProperty('--fc');
+    el.innerHTML='<i>ⓘ</i><span>Toque em uma habilidade ou num inimigo para ver a ficha</span>'; };
+  if(!foco || !cb){ limpa(); return; }
+  if(foco.t==='hab'){
+    /* pela ID, não pela prévia: a carta SEM ENCAIXE não gera prévia nenhuma,
+       e é exatamente nela que o jogador precisa ler o que a habilidade faz
+       para entender que dados ir buscar. */
+    const s=habilidadesAtuais().find(x=>x.id===foco.id) || (previa&&previa.skill);
+    if(!s){ limpa(); return; }
+    const chips=SIM.chipsHabilidade(s), fr=SIM.fraseRequisito(s.req);
+    el.className='ficha'; el.style.setProperty('--fc', CLASSES[P.classe]?.cor||'#8a7440');
+    el.innerHTML=`<div class="ftit">${iconeDe(s.id)}${s.nome}</div>
+      <div class="freq">${SIM.ico('dado','sic')}<b>${fr.titulo}</b> ${fr.frase}
+        <em style="font-style:normal;opacity:.7">${reqChips(s.req)}</em></div>
+      <div class="flin">${chips.map(c=>SIM.chip(c.id,c.v,{fraco:c.fraco})).join('')}</div>
+      ${linhasConceito(chips)}
+      <div class="fdesc">${s.desc||''}</div>`;
+    return;
+  }
+  const e=cb.enemies.find(x=>x.uid===foco.uid); if(!e){ limpa(); return; }
+  const sl=SIM.selo(cb.travaDe(e));
+  const chips=[...SIM.chipsIntencao(e.intent,e), ...SIM.chipsTraco(e)];
+  el.className='ficha'; el.style.setProperty('--fc','#c0392b');
+  el.innerHTML=`<div class="ftit">${e.nome}${e.elite?' · ELITE':''}</div>
+    ${sl?`<div class="freq">${SIM.ico(sl.ico,'sic')}<b>${sl.nome}</b> ${
+      e._arrombada?'— ARROMBADA neste turno':
+      e.travaOff>0?`— apagada por ${e.travaOff} turno${e.travaOff>1?'s':''}`:sl.frase}</div>`:''}
+    <div class="flin">${chips.map(c=>SIM.chip(c.id,c.v)).join('')}</div>
+    ${linhasConceito(chips)}
+    ${e.aura?`<div class="fexp">${SIM.ico('aura','sic')}<span><b>Aura</b> · ${e.aura.txt}</span></div>`:''}
+    <div class="fdesc">${e.desc||''}</div>`;
+}
 function pintar(){
   const es=cb.enemies;
   const pi=cb.previsaoInimigo();
@@ -779,23 +833,39 @@ function pintar(){
     const proxT = gira ? travaTxt(e.travaCiclo[(cb.turn + (e._giro||0)) % e.travaCiclo.length]) : null;
     // sem o prefixo: "muda para: só sofre dano com dado 4+" fica redundante
     const prox = proxT ? { curto: proxT.curto.replace(/^só sofre dano\s*/i,'') } : null;
-    /* A FECHADURA VIRA UM SELO, não um parágrafo. O texto inteiro ("só sofre
-       dano com ⚔ Lâmina no golpe OU gastando 2 dados") fazia cada card ter
-       uma altura diferente — e com fechadura composta esticava o card a ponto
-       de empurrar os inimigos seguintes para fora da fileira. Agora fica o
-       ícone e o nome curto da regra; o toque abre a explicação inteira, que é
-       onde ela se lê com calma. Todos os cards ficam do mesmo tamanho. */
-    const nomeCurto = e._arrombada ? 'ARROMBADA'
-      : e.travaOff>0 ? `DISSOLVIDA ${e.travaOff}`
-      : (tr && tr.t==='ou') ? '2 CHAVES' : (td?.nome || '');
-    const travaHTML = td ? `<div class="trava ${e._arrombada||e.travaOff>0?'off':(alocSel? (aberta?'abre':'fecha') : '')}"
-        data-tr="${tr?tr.t:''}" title="${td.txt}${prox?` — no próximo turno vira: ${prox.curto}`:''} — toque para entender"
-        ><span class="tico">${td.ico}</span><span class="ttx">${nomeCurto}${
-        gira&&!e._arrombada&&!(e.travaOff>0) ? '<i class="tgira">⟳</i>' : ''}</span>${
-        alocSel&&tr&&!e._arrombada&&!(e.travaOff>0) ? `<span class="tst">${aberta?'✓':'✕'}</span>`
-          : '<span class="tq">?</span>'}</div>` : '';
+    /* A FECHADURA EM DUAS LINHAS: o NOME e a REGRA ESCRITA.
+       Antes ficava só o nome — "Couraça", "Selo", "2 CHAVES" — e para saber
+       que Couraça pede um dado 4+ era preciso tocar no "?" de cada inimigo,
+       todo turno. O nome sozinho não ensina nada; a frase ensina de uma vez.
+       A altura continua fixa, que é o que mantém todos os cards do mesmo
+       tamanho mesmo quando a regra é composta. */
+    const sl = SIM.selo(tr);
+    const estadoTrava = e._arrombada ? 'off' : e.travaOff>0 ? 'off'
+      : (alocSel && tr) ? (aberta?'abre':'fecha') : '';
+    /* sem fechadura, a faixa vira uma nota — e não um buraco */
+    const travaHTML = !sl ? `<div class="exg semtrava"><div class="e1">${
+        SIM.ico('aberta')}SEM FECHADURA</div><div class="e2">qualquer golpe fere</div></div>`
+      : `<div class="exg ${estadoTrava}" data-tr="${tr?tr.t:''}"
+        ><div class="e1">${e._arrombada ? SIM.ico('aberta')+'ARROMBADA'
+          : e.travaOff>0 ? SIM.ico('dissolve')+`DISSOLVIDA ${e.travaOff}`
+          : SIM.ico(sl.ico)+sl.nome.toUpperCase()}${
+          gira&&!e._arrombada&&!(e.travaOff>0)?'<i class="egira">⟳ vira</i>':''}</div>
+        <div class="e2">${e._arrombada ? 'a regra caiu: pode ferir de qualquer jeito'
+          : e.travaOff>0 ? `a regra está apagada por ${e.travaOff} turno${e.travaOff>1?'s':''}`
+          : sl.frase}</div>${
+        alocSel && tr && !e._arrombada && !(e.travaOff>0)
+          ? `<div class="ver ${aberta?'s':'n'}">${SIM.ico(aberta?'sim':'nao')}${
+              aberta?'sua mão abre':'sua mão não abre'}</div>` : ''}</div>`;
+    /* O QUE ELE FAZ, em chips ícone+palavra: a intenção deste turno e os
+       traços que valem sempre (explode ao morrer, aura, invoca). O golpe da
+       Lasca de Fêmur no campo inteiro não estava escrito em lugar nenhum. */
+    const fazChips = [...SIM.chipsIntencao(e.intent, e), ...SIM.chipsTraco(e)];
+    const fazHTML = e.hp>0 && fazChips.length
+      ? `<div class="faz">${fazChips.map(c=>SIM.chip(c.id, c.v,
+          {classe:c.alerta?'alerta':''})).join('')}</div>` : '';
     const st=Object.entries(e.statuses||{}).filter(([,v])=>v>0)
-      .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''}${v}</b>`).join(' ');
+      .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${
+        SIM.temIcone(k)?SIM.ico(k,'sic'):''}${v}</b>`).join(' ');
     const li=pi.linhas.find(l=>l.uid===e.uid);
     const pr=mapaPrev[e.uid];
     /* GOLPE QUE NÃO VAI FERIR TEM QUE DIZER ZERO. Contra a fechadura fechada o
@@ -813,7 +883,7 @@ function pintar(){
           : pr.defesa>0
           ? `<span class="pd pconta"><i class="pbr">${pr.bruto}</i><i class="pdf">−${pr.defesa}🛡</i>${pr.dano}</span>`
           : (pr.dano?`<span class="pd">-${pr.dano}</span>`:'')}
-        ${pr.estados.map(x=>`<span class="pe">${ICO[x.st]||'•'}${x.n}</span>`).join('')}
+        ${pr.estados.map(x=>`<span class="pe">${SIM.temIcone(x.st)?SIM.ico(x.st,'sic'):'•'}${x.n}</span>`).join('')}
         ${pr.morre?'<span class="pk">☠</span>':''}</div>` : '';
     const barraPrev = pr&&pr.dano ? `<i class="perda" style="width:${Math.min(100,100*pr.dano/e.maxHp)}%;
         right:${Math.max(0,100-100*e.hp/e.maxHp)}%"></i>` : '';
@@ -824,13 +894,16 @@ function pintar(){
       <div class="nm">${e.nome}</div>${e.elite?'<div class="el">ELITE</div>':''}
       <div class="hpb"><i style="width:${Math.max(0,100*e.hp/e.maxHp)}%"></i>${barraPrev}</div>
       <div class="hp">${e.hp}/${e.maxHp}
-        ${e.block?`<b class="bloq" data-est="bloqueio" data-estn="${e.block}">🛡 ${e.block}</b>`:''}
-        ${e.armadura?`<b class="armad" data-est="armadura" data-estn="${e.armadura}">⛊ ${e.armadura}</b>`:''}</div>
+        ${e.block?`<b class="bloq" data-est="bloqueio" data-estn="${e.block}">${SIM.ico('bloqueio','sic')} ${e.block}</b>`:''}
+        ${e.armadura?`<b class="armad" data-est="armadura" data-estn="${e.armadura}">${SIM.ico('armadura','sic')} ${e.armadura}</b>`:''}</div>
       ${travaHTML}
+      ${fazHTML}
       ${adiante.length?`<div class="pres">↷ depois: ${adiante.join(' · ')}</div>`:''}
-      <div class="it clic ${li&&li.passa>0?'doi':''}" ${it?`data-int="${it.t}"`:''}>${e.hp>0?txt:'—'}${li&&li.bruto>0?`<span class="passa">→ ${li.passa} no HP</span>`:''}</div>
+      ${li&&li.bruto>0?`<div class="it clic" ${it?`data-int="${it.t}"`:''
+        }><span class="passa ${li.passa>0?'doi':''}">→ ${li.passa} na sua vida</span></div>`:''}
       ${st?`<div class="st">${st}</div>`:''}</div>`;}).join('');
   $('ini').querySelectorAll('.en').forEach(d=>d.onclick=()=>{ alvo=+d.dataset.i;
+    foco={t:'ini', uid:d.dataset.uid};        // e a ficha dele abre embaixo
     if(previa) previa=calcPrevia(previa.skill); SFX.pegar(); pintar(); });
   // onda cheia aperta as cartas para sobrar mesa (ver #ini.cheia no CSS)
   /* o modo compacto vale quando a fileira passa de UMA fila — com a grade de
@@ -838,7 +911,8 @@ function pintar(){
      encolhia os cards sem necessidade nenhuma. */
   $('ini').classList.toggle('cheia', naFila.length >= 5);
   const stp=Object.entries(P.statuses||{}).filter(([,v])=>v>0)
-    .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''} ${k} ${v}</b>`).join(' ');
+    .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${
+      SIM.temIcone(k)?SIM.ico(k,'sic'):''} ${SIM.CONCEITO[k]?.p||k} ${v}</b>`).join(' ');
   /* SEU STATUS, no painel do rodapé: vida e escudo em destaque, como na
      referência; o resto (essência, estados, perigo) fica na mesma coluna. */
   $('voceval').innerHTML=`<span id="php" class="vhp">❤ <b>${P.hp}</b>/${P.maxHp}</span>
@@ -904,23 +978,44 @@ function pintar(){
         ${mortes?`<b class="hk">☠${mortes>1?mortes:''}</b>`:''}</div>` : '';
     const estado = ok ? 'PRONTA' : poss ? '' : 'sem encaixe';
     const ativa = previa && previa.skill.id===s.id;
+    /* A CARTA PASSA A DIZER O QUE FAZ. Antes o rodapé escolhia UM verbo da
+       lista de efeitos e jogava o resto fora: Decapitar arromba, fere e
+       EXECUTA, e a carta escrevia só "ARROMBA"; a Guilhotina perfura e ainda
+       te custa 6 de vida, e a carta escrevia "ARROMBA". Agora sai um chip
+       ícone+palavra por efeito, em ordem de importância — os três primeiros
+       cabem na carta, e o toque abre a ficha com todos. */
+    const chips = SIM.chipsHabilidade(s);
+    /* três chips com a mão normal; dois quando a barra vira duas filas.
+       O que sai é sempre o último da ordem — o detalhe, nunca o golpe. */
+    const NA_CARTA = skills.length>=6 ? 2 : 3;
+    const fazHTML = chips.length ? `<span class="hfaz">${
+      chips.slice(0,NA_CARTA).map(c=>SIM.chip(c.id, c.v, {fraco:c.fraco})).join('')}${
+      chips.length>NA_CARTA?`<i class="hmais">+${chips.length-NA_CARTA}</i>`:''}</span>` : '';
+    /* e o REQUISITO vira frase. "≥ 5" é ótimo para quem já sabe e opaco para
+       quem não sabe, e o jogo inteiro depende de entender o que a carta pede. */
+    const fr = SIM.fraseRequisito(s.req);
     return `<button class="h ${ok?'ok':(poss?'pode':'off')} ${ativa?'pre':''}" data-i="${i}"
         style="--hc:${C.cor}" title="${s.desc.replace(/"/g,'&quot;')}">
       <span class="hbrilho"></span>
-      <span class="htopo">${iconeDe(s.id)}<span class="hn">${s.nome}</span>${
-        (()=>{ const f=formulaDano(s); return f && f.mult>1
-          ? `<span class="hmult${f.todos?' todos':''}" title="dano = ${SIMB_BASE[f.base]} × ${f.mult}${f.fixo?' + '+f.fixo:''}${f.todos?' em TODOS':''}">×${f.mult}</span>` : ''; })()}</span>
-      <span class="hlin"><u>REQUER</u><em>${reqChips(s.req)}</em></span>
+      <span class="htopo">${iconeDe(s.id)}<span class="hn">${s.nome}</span></span>
+      <span class="exg ${ok?'abre':(poss?'':'fecha')}"
+        ><span class="e1">${SIM.ico('dado')}${fr.titulo}</span
+        ><span class="e2">${fr.frase}</span></span>
+      ${fazHTML}
       <span class="hres">${selo || '<b class="hvazio">—</b>'}</span>
-      <span class="hpe">${custoTxt(s.req)}${bonusTxt(s)?` · <i>${bonusTxt(s)}</i>`:''}</span>
       ${estado?`<span class="hest">${estado}</span>`:''}
     </button>`;}).join('');
   $('hab').querySelectorAll('.h').forEach(d=>{
     const sk=skills[+d.dataset.i];
     d.onclick=()=>usar(sk);
     d.onpointerenter=()=>{ if(anima) return; const pv=calcPrevia(sk);
-      if(pv){ previa=pv; pintar(); } };
-    d.onpointerleave=()=>{ if(previa && previa.skill.id===sk.id){ previa=null; pintar(); } };
+      foco={t:'hab', id:sk.id};
+      if(pv) previa=pv;
+      pintar(); };
+    /* a ficha SOBREVIVE ao pointerleave. No celular o "sair" dispara assim que
+       o dedo levanta, e a explicação sumia antes de dar tempo de ler. */
+    d.onpointerleave=()=>{ if(previa && previa.skill.id===sk.id && foco?.id!==sk.id){
+      previa=null; pintar(); } };
   });
   const podePol = cb._polegar>0 && selEnts.length===1 && selEnts[0].face.k!=='wild' && selEnts[0].face.v!=null;
   const alvoEn = cb.aliveEnemies()[Math.min(alvo,Math.max(0,cb.aliveEnemies().length-1))];
@@ -959,16 +1054,20 @@ function pintar(){
       const t=e.intent?.t; if(t) vis.add(t);
       if(e.armadura||e.statuses?.armadura) vis.add('_arm');
       if(cb.travaDe(e)) vis.add('_trava'); }
-    const L=[['_trava','🗝','Fechadura'],['_arm','⛊','Armadura'],
-             ['roubar','✋','Rouba dado'],['congelar','❄','Congela dado'],
-             ['fraturar','✖','Fratura dado'],['curse','☠','Maldição'],
-             ['buff','▲','Fúria'],['heal','✚','Cura'],['block','🛡','Defende'],
-             ['contar','🕳','A Conta'],['drenar','🩸','Drena escudo'],
-             ['selar','🔒','Sela habilidade'],['taxa','💰','Pedágio']]
+    /* a legenda também fala a língua nova: ícone desenhado + palavra */
+    const L=[['_trava','fechadura'],['_arm','armadura'],
+             ['roubar','rouba'],['congelar','congelado'],
+             ['fraturar','fratura'],['curse','maldicao'],
+             ['buff','frenesi'],['heal','cura'],['block','bloqueio'],
+             ['contar','contagem'],['drenar','drena'],
+             ['selar','sela'],['taxa','taxa'],['enterrar','enterra'],
+             ['inverter','inverte'],['exigir','exige'],['crescer','cresce']]
       .filter(([k])=>vis.has(k));
     $('legenda').innerHTML = L.length
-      ? `<div class="lgt">LEGENDA RÁPIDA</div>` + L.map(([,i,n])=>`<span>${i} ${n}</span>`).join('')
+      ? `<div class="lgt">LEGENDA RÁPIDA</div>` + L.map(([,c])=>
+          `<span>${SIM.ico(c,'sic')} ${SIM.CONCEITO[c]?.p||c}</span>`).join('')
       : ''; }
+  fichaHTML();                  // a explicação por extenso, do que foi tocado
   /* DADOS USADOS: os que já foram gastos neste turno, apagados */
   { const gastos = cb.roll.filter(e=>cb.used.has(e.dieId));
     $('usadoslst').innerHTML = gastos.length
