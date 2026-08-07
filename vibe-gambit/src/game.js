@@ -122,23 +122,144 @@ function showPrep(stageId){
   $('prep-start').onclick = () => startExpedition(stageId);
 }
 
-// ================================================================ BASE
-let baseTab = 'gambits';
+// ================================================================ BASE (hub deitado — layout da referência)
+// Slots de equipamento por herói (item guardado em hs.equip[slot] = itemId|null)
+const EQUIP_SLOTS = [
+  { key:'weapon', icon:'⚔️', label:'Arma' },
+  { key:'armor',  icon:'🛡️', label:'Armadura' },
+  { key:'trinket',icon:'💍', label:'Acessório' },
+];
+function heroEquip(hs){ return hs.equip || (hs.equip = { weapon:null, armor:null, trinket:null }); }
+
 function renderBase(){
-  const tabs = [['gambits','menu_gambits','Gambits'],['forge','menu_forge','Forja'],['academy','menu_academy','Academia']];
   $('screen-base').innerHTML = `
-    <div class="base-frame">
+    <div class="base-frame base-hub">
       <div class="base-title"><span>Acampamento Base</span></div>
-      <div class="tabbar">${tabs.map(([k,ic,l])=>`<button class="tab ${baseTab===k?'on':''}" data-tab="${k}"><img class="ticon" src="assets/${ic}.png" alt="" />${l}</button>`).join('')}</div>
-      <div class="tabbody" id="base-body"></div>
+      <button class="hub-x" title="Ir ao Mapa">✕</button>
+      <div class="hub-grid">
+        <div class="hub-panel hub-left" id="hub-left"></div>
+        <div class="hub-center" id="hub-center"></div>
+        <div class="hub-panel hub-right" id="hub-right"></div>
+      </div>
+      <div class="hub-foot">
+        <button class="hub-gear" title="Opções">⚙️</button>
+        <button class="gold-cta" id="hub-cta">⚔️ Partir em Expedição</button>
+        <span class="hub-foot-spacer"></span>
+      </div>
     </div>`;
-  $('screen-base').querySelectorAll('.tab').forEach(b => b.onclick = () => { baseTab=b.dataset.tab; renderBase(); });
-  const body = $('base-body');
-  if(baseTab==='gambits'){ body.innerHTML = `<h3 style="padding:0 2px 8px">🧠 Programação de Gambits</h3><div id="gboard-mount"></div>
-    <p class="muted tiny" style="margin-top:8px">A cada turno, a IA lê de cima → baixo; a 1ª condição verdadeira executa e para. Compre condições e slots na Academia.</p>`;
-    renderGambitBoard($('gboard-mount')); }
-  else if(baseTab==='forge')   renderForge(body);
-  else if(baseTab==='academy') renderAcademy(body);
+  renderHubParty($('hub-left'));
+  renderHubCenter($('hub-center'));
+  renderHubShop($('hub-right'));
+  $('screen-base').querySelector('.hub-x').onclick   = () => show('map');
+  $('screen-base').querySelector('.hub-gear').onclick = () => openOptions();
+  $('hub-cta').onclick = () => show('map');
+}
+
+// ---- PAINEL ESQUERDO: 4 heróis (rosto) + ícones de equipamento ----
+function renderHubParty(mount){
+  mount.innerHTML = `<div class="panel-cap">🛡️ Sua Party</div>
+    <div class="party-cards">${S.heroes.map(hs=>{
+      const def = HERO_DEFS.find(h=>h.id===hs.id);
+      const {atk} = heroRuntimeStats(hs);
+      const eq = heroEquip(hs);
+      const slots = EQUIP_SLOTS.map(s=>{
+        const filled = s.key==='weapon';   // arma sempre equipada (Forja)
+        const badge  = s.key==='weapon' ? `<b>+${hs.weaponLevel}</b>` : '';
+        return `<button class="eq-slot ${filled?'on':''}" data-id="${hs.id}" data-slot="${s.key}" title="${s.label}">
+          <span class="eq-ic">${s.icon}</span>${badge}</button>`;
+      }).join('');
+      return `<div class="party-card" style="--acc:${accentOf(def.id)}">
+        <div class="pc-face"><img src="assets/${def.id}_face.png" alt=""></div>
+        <div class="pc-info">
+          <div class="pc-nm">${def.name}</div>
+          <div class="pc-st">⚔️${atk} · ❤️${def.base.hp}</div>
+          <div class="eq-row">${slots}</div>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  mount.querySelectorAll('.eq-slot').forEach(b => b.onclick = () => openEquip(b.dataset.id, b.dataset.slot));
+}
+
+// ---- COLUNA CENTRAL: ícones de menu (Forja · Academia · Mapa) ----
+function renderHubCenter(mount){
+  const items = [
+    { act:'forge',   img:'ic_forge',   label:'Forja' },
+    { act:'academy', img:'ic_academy', label:'Academia' },
+    { act:'map',     img:'ic_map',     label:'Mapa' },
+  ];
+  mount.innerHTML = items.map(it =>
+    `<button class="hub-ic" data-act="${it.act}"><img src="assets/${it.img}.png" alt=""><span>${it.label}</span></button>`).join('');
+  mount.querySelectorAll('.hub-ic').forEach(b => b.onclick = () => {
+    const a = b.dataset.act;
+    if(a==='forge')   openPanelModal('🔨 Forja', renderForge);
+    if(a==='academy') openPanelModal('🎓 Academia', renderAcademy);
+    if(a==='map')     show('map');
+  });
+}
+
+// ---- PAINEL DIREITO: NPC + LOJA DE GAMBITS ----
+function renderHubShop(mount){
+  const shopIds = Object.keys(ACADEMY.conditionShop);
+  mount.innerHTML = `<div class="panel-cap">📜 Loja de Gambits</div>
+    <div class="shop-wrap">
+      <div class="npc-box"><img class="npc" src="assets/npc.png" alt="">
+        <div class="npc-say">"Novas táticas, viajante?"</div></div>
+      <div class="shop-list">${shopIds.map(cid=>{
+        const owned = S.unlockedConditions.includes(cid); const cost = ACADEMY.conditionShop[cid];
+        return `<div class="shop-item ${owned?'owned':''}">
+          <div class="si-name">${CONDITIONS[cid].label}</div>
+          ${ owned ? `<span class="si-owned">✓ Adquirido</span>`
+                   : `<span class="si-cost">${costHTML(cost)}</span>
+                      <button class="small shop-buy" data-id="${cid}" ${canAfford(cost)?'':'disabled'}>Comprar</button>` }
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  mount.querySelectorAll('.shop-buy').forEach(b => b.onclick = () => {
+    const cid = b.dataset.id; const cost = ACADEMY.conditionShop[cid];
+    if(!canAfford(cost)) return; spend(cost); S.unlockedConditions.push(cid); save(S); bumpRes(); renderHubShop(mount);
+  });
+}
+
+// ---- MODAIS ----
+function closeModal(){ $('modal-root').innerHTML=''; }
+function openPanelModal(title, renderFn){
+  $('modal-root').innerHTML = `<div class="modal"><div class="box box-wide">
+    <h2>${title}</h2><div id="pm-body" style="text-align:left"></div>
+    <div class="row" style="justify-content:center;margin-top:12px"><button id="pm-close">Fechar</button></div>
+  </div></div>`;
+  renderFn($('pm-body'));
+  $('pm-close').onclick = closeModal;
+}
+function openEquip(heroId, slot){
+  const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
+  const s  = EQUIP_SLOTS.find(x=>x.key===slot);
+  const body = slot==='weapon'
+    ? `<div class="eq-cur"><span class="eq-ic big">⚔️</span>
+         <div><b>Arma da classe</b><div class="muted tiny">Nível ${hs.weaponLevel}/5 — melhore na Forja (ATK permanente)</div></div></div>
+       <div id="eq-forge"></div>`
+    : `<div class="eq-empty"><span class="eq-ic big" style="opacity:.5">${s.icon}</span>
+         <div><b>Slot de ${s.label}</b><div class="muted tiny">Sem itens ainda — o inventário de ${s.label.toLowerCase()} chega numa próxima atualização.</div></div></div>`;
+  $('modal-root').innerHTML = `<div class="modal"><div class="box box-wide" style="--acc:${accentOf(heroId)}">
+    <h2><img class="mh-face" src="assets/${def.id}_face.png"> ${def.name} · ${s.label}</h2>
+    <div style="text-align:left">${body}</div>
+    <div class="row" style="justify-content:center;margin-top:12px"><button id="eq-close">Fechar</button></div>
+  </div></div>`;
+  if(slot==='weapon'){ renderForge($('eq-forge'), heroId); }
+  $('eq-close').onclick = closeModal;
+}
+function openOptions(){
+  $('modal-root').innerHTML = `<div class="modal"><div class="box">
+    <h2>⚙️ Opções</h2>
+    <div class="row" style="justify-content:center;margin-top:10px">
+      <button class="primary" id="op-save">💾 Salvar agora</button>
+      <button class="danger" id="op-reset">🗑️ Reiniciar jogo</button>
+      <button id="op-close">Fechar</button>
+    </div>
+    <p class="muted tiny" id="op-msg" style="margin-top:10px">&nbsp;</p>
+  </div></div>`;
+  $('op-save').onclick  = () => { save(S); $('op-msg').textContent='Progresso salvo ✓'; };
+  $('op-reset').onclick = () => { if(confirm('Reiniciar todo o progresso?')){ const n=newGame(); Object.assign(S,n); save(S); closeModal(); renderHud(); renderBase(); } };
+  $('op-close').onclick = closeModal;
 }
 
 function heroRuntimeStats(hs){
@@ -146,9 +267,10 @@ function heroRuntimeStats(hs){
   return { def, atk: def.base.atk + forgeAtkBonus(hs.weaponLevel), hp:def.base.hp, mag:def.base.mag, spd:def.base.spd, mp:def.base.mp };
 }
 
-function renderForge(body){
-  body.innerHTML = `<h3 style="padding:0 2px 8px">🔨 Forja — melhore as armas (ATK permanente)</h3>
-    <div class="hero-cards">${S.heroes.map(hs=>{
+function renderForge(body, onlyId){
+  const list = onlyId ? S.heroes.filter(h=>h.id===onlyId) : S.heroes;
+  body.innerHTML = `${onlyId?'':'<h3 style="padding:0 2px 8px">🔨 Forja — melhore as armas (ATK permanente)</h3>'}
+    <div class="hero-cards">${list.map(hs=>{
       const {def, atk} = heroRuntimeStats(hs);
       const next = FORGE_LEVELS[hs.weaponLevel];
       const wl = Array.from({length:5},(_,i)=>`<i class="${i<hs.weaponLevel?'on':''}"></i>`).join('');
@@ -166,7 +288,8 @@ function renderForge(body){
   body.querySelectorAll('.forge-btn').forEach(b => b.onclick = () => {
     const hs = S.heroes.find(h=>h.id===b.dataset.id); const next = FORGE_LEVELS[hs.weaponLevel];
     if(!canAfford(next.cost)) return;
-    spend(next.cost); hs.weaponLevel++; save(S); bumpRes(); renderForge(body);
+    spend(next.cost); hs.weaponLevel++; save(S); bumpRes(); renderForge(body, onlyId);
+    if($('hub-left')) renderHubParty($('hub-left'));   // reflete +ATK/nível no hub
   });
 }
 
