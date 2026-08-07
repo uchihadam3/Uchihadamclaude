@@ -128,4 +128,17 @@ export const ICO_CHEFE = {
   rei:          S('<path d="M3.5 18.5 L5.5 7 L9.5 11.5 L12 4.5 L14.5 11.5 L18.5 7 '
                  +'L20.5 18.5 Z"/><path d="M3.5 21.5 h17"/>'),
 };
+/* ─────────── A ARTE PINTADA ───────────
+   Os desenhos em SVG acima continuam sendo a fonte da verdade: são eles que
+   garantem que TODA coisa nomeada no jogo tem uma marca própria, e é sobre
+   eles que o teste 16b passa. Quando chega arte pintada para um conceito, ela
+   entra por cima — e o que não tiver arte continua desenhado, então o jogo
+   nunca fica com um buraco no lugar de um ícone. */
+const PINTADOS = ['combate','elite','chefe','loja','evento','fogueira','tesouro',
+  'meta','virada','foco','combo','vista','conhecida','feito','orfa','curinga',
+  'semente','prova'];
+export const TEM_ARTE = new Set(PINTADOS);
+for(const id of PINTADOS)
+  ICO[id] = `<img class="gl art" src="arte/ico/${id}.png" alt="" aria-hidden="true">`;
+
 export default ICO;

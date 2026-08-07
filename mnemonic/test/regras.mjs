@@ -24,7 +24,8 @@ import { RELIQUIAS, POR_ID, sortearReliquias } from '../js/data/reliquias.js';
 import { BOSSES, LISTA_BOSSES, BOSS_DO_MUNDO } from '../js/data/bosses.js';
 import { EVENTOS } from '../js/data/eventos.js';
 import { glifo, POR_FAMILIA } from '../js/arte/glifos.js';
-import { ICO, ICO_CLASSE, ICO_CHEFE } from '../js/ui/icones.js';
+import { ICO, ICO_CLASSE, ICO_CHEFE, TEM_ARTE } from '../js/ui/icones.js';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { Sala, COMBOS, degrauCombo, pontosPerfeitos, colunasPara } from '../js/engine/tabuleiro.js';
 import { Run, verificar, planoDaSala, SALAS, MUNDOS, COMBATE, MAX_JOGADAS } from '../js/engine/run.js';
 import { jogarRun } from './bot.mjs';
@@ -739,11 +740,46 @@ secao('16b. Todo nome do jogo tem um desenho');
   for(const v of SALA_ICO) ok(!!ICO[v], `o tipo de sala "${v}" tem ícone desenhado`);
 
   const todos = [...Object.values(ICO), ...Object.values(ICO_CLASSE), ...Object.values(ICO_CHEFE)];
-  ok(todos.every(s=>s.startsWith('<svg') && s.includes('viewBox="0 0 24 24"')),
-     'todo ícone é svg no mesmo viewBox');
+  /* um ícone é DESENHADO (svg no mesmo viewBox) ou PINTADO (arte que chegou
+     como imagem). Os dois valem; o que não vale é um conceito sem marca. */
+  ok(todos.every(s=>(s.startsWith('<svg') && s.includes('viewBox="0 0 24 24"'))
+                 || s.startsWith('<img')), 'todo ícone é svg padronizado ou arte pintada');
+  /* e a arte pintada tem de existir mesmo no disco: um src quebrado deixaria
+     um buraco na tela sem ninguém perceber até alguém jogar */
+  for(const id of TEM_ARTE){
+    const marca = ICO[id];
+    ok(marca.startsWith('<img'), `${id} usa a arte pintada`);
+    const src = /src="([^"]+)"/.exec(marca)?.[1];
+    ok(src && existsSync(new URL('../'+src, import.meta.url)),
+       `o arquivo de ${id} existe: ${src}`);
+  }
   ok(todos.every(s=>!/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(s)),
      'nenhum ícone é emoji disfarçado');
   eq(new Set(todos).size, todos.length, 'nenhum ícone é cópia de outro');
+}
+
+/* ════════════════════════════════════════════════════════ 16c */
+secao('16c. Nenhuma arte apontada existe só no CSS');
+{
+  /* Arte quebrada não dá erro: o navegador desenha o buraco e segue. Um
+     border-image que não carrega some sem aviso e o botão volta a ser um
+     retângulo — exatamente o estado de que estamos saindo. Então o teste lê o
+     CSS de verdade e confere cada url(arte/...) no disco. */
+  const html = readFileSync(new URL('../jogo.html', import.meta.url), 'utf8');
+  const alvos = [...html.matchAll(/url\((arte\/[^)"']+)\)/g)].map(m=>m[1]);
+  ok(alvos.length >= 20, `o CSS aponta para ${alvos.length} arquivos de arte`);
+  for(const a of new Set(alvos))
+    ok(existsSync(new URL('../'+a, import.meta.url)), `existe no disco: ${a}`);
+
+  /* e o caminho contrário: arte recortada que ninguém usa é peso morto no
+     repositório e sinal de que o recorte saiu do lugar */
+  const usados = new Set([...alvos,
+    ...[...TEM_ARTE].map(id=>/src="([^"]+)"/.exec(ICO[id])?.[1])].filter(Boolean));
+  for(const pasta of ['ico','fx','ui']){
+    const dir = new URL('../arte/'+pasta+'/', import.meta.url);
+    for(const f of readdirSync(dir))
+      ok(usados.has('arte/'+pasta+'/'+f), `arte/${pasta}/${f} está em uso`);
+  }
 }
 
 /* ════════════════════════════════════════════════════════ 17 */

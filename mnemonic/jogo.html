@@ -63,6 +63,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 svg{display:block}
 .gl{width:100%;height:100%;stroke:currentColor;stroke-width:2.1;
     stroke-linecap:round;stroke-linejoin:round;fill:none}
+/* ícone pintado: é <img>, então não herda cor nem traço — só o tamanho */
+img.gl{object-fit:contain;stroke:none;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
 .num{font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 
 /* ───────── a letra de jogo ─────────
@@ -117,25 +120,26 @@ svg{display:block}
 .bt{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:9px;
     padding:14px 20px;border-radius:12px;font-weight:900;font-size:15px;letter-spacing:.05em;
     text-transform:uppercase;color:var(--osso);
-    background:linear-gradient(180deg,var(--alto),var(--placa2));
-    border:2px solid var(--traco);
+    background:none;border:0;
+    border-image:url(arte/ui/botao-azul.png) 62 fill / 31px / 0 stretch;
     text-shadow:0 2px 0 rgba(0,0,0,.8);
-    box-shadow:inset 0 2px 0 var(--luzT), inset 0 -4px 0 var(--escT),
-               0 5px 0 var(--traco), 0 10px 18px rgba(0,0,0,.5);
-    transition:transform .07s, box-shadow .07s}
-.bt:active{transform:translateY(5px);
-  box-shadow:inset 0 2px 0 var(--luzT), inset 0 -2px 0 var(--escT), 0 0 0 var(--traco)}
+    filter:drop-shadow(0 5px 10px rgba(0,0,0,.5));
+    transition:transform .07s, filter .07s}
+/* apertado é OUTRA placa, não a mesma com um filtro: a arte já vem com o
+   relevo afundado, então o botão realmente cede em vez de só escurecer */
+.bt:active{transform:translateY(4px);filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));
+  border-image-source:url(arte/ui/botao-azul-baixo.png)}
 .bt .gl{width:19px;height:19px;flex:0 0 19px}
-.bt.p{color:#3a2606;
-  background:linear-gradient(180deg,#ffe9b0,var(--ouro) 48%,#e09a15);
-  text-shadow:0 1px 0 rgba(255,255,255,.5);
-  box-shadow:inset 0 2px 0 rgba(255,255,255,.65), inset 0 -4px 0 rgba(120,80,10,.6),
-             0 5px 0 #6d4a08, 0 12px 26px rgba(255,194,60,.3)}
-.bt.p:active{box-shadow:inset 0 2px 0 rgba(255,255,255,.5), 0 0 0 #6d4a08}
+.bt.p{color:#3a2606;text-shadow:0 1px 0 rgba(255,255,255,.55);
+  border-image:url(arte/ui/botao-ouro.png) 62 fill / 31px / 0 stretch;
+  filter:drop-shadow(0 5px 12px rgba(255,194,60,.3)) drop-shadow(0 6px 12px rgba(0,0,0,.5))}
+.bt.p:active{border-image-source:url(arte/ui/botao-ouro-baixo.png)}
+.bt.perigo{border-image-source:url(arte/ui/botao-vermelho.png);color:#3a0808}
+.bt.bom{border-image-source:url(arte/ui/botao-verde.png);color:#062a15}
 .bt.g{width:100%}
 .bt[disabled]{filter:saturate(.25) brightness(.65);pointer-events:none}
-.bt.pq{padding:9px 13px;font-size:12px;border-radius:10px;
-  box-shadow:inset 0 2px 0 var(--luzT), inset 0 -3px 0 var(--escT), 0 3px 0 var(--traco)}
+.bt.pq{padding:11px 14px;font-size:12px;
+  border-image-width:22px;border-image-slice:62 fill}
 .bt.pq:active{transform:translateY(3px)}
 /* o brilho que atravessa o botão principal */
 .bt.p:before{content:'';position:absolute;inset:0;border-radius:9px;overflow:hidden;
@@ -144,7 +148,9 @@ svg{display:block}
 @keyframes varre{0%,60%{background-position:170% 0}90%,100%{background-position:-70% 0}}
 
 /* ═══════════ TÍTULO ═══════════ */
-#t-titulo{justify-content:center;align-items:center;text-align:center}
+#t-titulo{justify-content:center;align-items:center;text-align:center;
+  background:linear-gradient(180deg,rgba(5,12,24,.62),rgba(5,12,24,.86) 46%,rgba(5,12,24,.97)),
+             url(arte/capa.jpg) center/cover no-repeat}
 .logo{position:relative;font-size:clamp(38px,11.5vw,72px);font-weight:900;letter-spacing:.06em;
       margin:0;line-height:1;max-width:100%;color:var(--ouro2);
       text-shadow:0 4px 0 var(--ouroE), 0 7px 0 rgba(0,0,0,.85),
@@ -188,7 +194,10 @@ svg{display:block}
 .ico .gl{width:17px;height:17px}
 
 /* o QUADRO: o objetivo e o placar, na mesma peça */
-#quadro{display:flex;align-items:stretch;gap:0;padding:9px 12px 11px;overflow:hidden}
+#quadro{display:flex;align-items:stretch;gap:0;padding:13px 16px 15px;overflow:hidden;
+  background:none;border:0;box-shadow:none;
+  border-image:url(arte/ui/placa-azul.png) 68 fill / 34px / 0 stretch;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))}
 #quadro:before{content:'';position:absolute;inset:0;border-radius:10px;pointer-events:none;
   background:radial-gradient(80% 120% at 50% 120%, rgba(255,194,60,.14), transparent 62%)}
 .alvo{flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;gap:3px;
@@ -337,9 +346,17 @@ svg{display:block}
 .ct.feito .ff{filter:saturate(.2) brightness(.42);border-color:rgba(255,194,60,.5)}
 .ct.feito .ff .gl{filter:none;opacity:.5}
 .ct.feito .selo{opacity:.3}
-.ct.feito .ok{position:absolute;right:4px;top:4px;width:16px;height:16px;z-index:4;
-  color:var(--ouro);filter:drop-shadow(0 1px 2px #000)}
-.ct.feito .ok .gl{width:16px;height:16px;stroke-width:2.8}
+/* O CARIMBO. Não é um ícone de canto — é o selo batido em cima da peça, do
+   tamanho de quem fechou o assunto. Ele nasce grande e torto e se assenta:
+   é o gesto que diz "esta dupla acabou" sem escrever nada. */
+.ct.feito .ok{position:absolute;right:-5px;top:-5px;width:34px;height:34px;z-index:5;
+  background:url(arte/fx/selo.png) center/contain no-repeat;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.8));transform:rotate(9deg)}
+
+.ct.selando .ok{animation:bater .5s cubic-bezier(.3,1.6,.4,1) both;animation-delay:.1s}
+@keyframes bater{0%{transform:scale(2.6) rotate(-26deg);opacity:0}
+  55%{transform:scale(.88) rotate(12deg);opacity:1}
+  100%{transform:scale(1) rotate(9deg);opacity:1}}
 /* ③ SAIR de verdade */
 .ct.sai{z-index:5;animation:saiCarta .55s cubic-bezier(.4,0,.25,1) both}
 @keyframes saiCarta{0%{transform:scale(1);opacity:1;filter:brightness(1.7)}
@@ -384,22 +401,101 @@ svg{display:block}
 .selo.mi{right:4px;bottom:4px;color:var(--rosa)}
 .selo.eg{right:4px;top:4px;color:var(--ouro)}
 
-/* ───────── efeitos sobre a mesa ───────── */
-.onda{position:absolute;z-index:7;border-radius:50%;pointer-events:none;
-  border:3px solid var(--fc,#fff);animation:onda .68s cubic-bezier(.15,.7,.3,1) both}
-@keyframes onda{from{width:14px;height:14px;opacity:1;transform:translate(-50%,-50%)}
-  to{width:210px;height:210px;opacity:0;transform:translate(-50%,-50%)}}
-.raio{position:absolute;z-index:7;height:5px;transform-origin:0 50%;pointer-events:none;
-  border-radius:4px;
-  background:linear-gradient(90deg,transparent,var(--fc,#fff),#fff,var(--fc,#fff),transparent);
-  box-shadow:0 0 18px var(--fc,#fff);animation:raio .58s ease-out both}
-@keyframes raio{0%{opacity:0;filter:brightness(2.6);transform:scaleY(.2)}
-  22%{opacity:1;transform:scaleY(1.5)}100%{opacity:0;transform:scaleY(.3)}}
-.faisca{position:absolute;z-index:8;width:7px;height:7px;border-radius:50%;pointer-events:none;
-  background:#fff;box-shadow:0 0 12px var(--fc,#fff), 0 0 4px #fff;
+/* ───────── efeitos sobre a mesa ─────────
+   A FORMA vem da arte pintada; a COR vem do jogo. Por isso o PNG entra como
+   MÁSCARA e não como imagem: o desenho recorta um retângulo da cor da família,
+   e o mesmo arquivo serve para o par verde, o vermelho e o roxo. Se a arte
+   entrasse como imagem, cada efeito precisaria de uma cópia por cor — e o
+   dourado do desenho brigaria com a cor do combo. */
+.efx{position:absolute;pointer-events:none;background:var(--fc,#fff);
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  -webkit-mask-position:center;mask-position:center;
+  -webkit-mask-size:contain;mask-size:contain}
+.onda{z-index:7;
+  -webkit-mask-image:url(arte/fx/halo.png);mask-image:url(arte/fx/halo.png);
+  animation:onda .68s cubic-bezier(.15,.7,.3,1) both}
+@keyframes onda{from{width:26px;height:26px;opacity:1;transform:translate(-50%,-50%)}
+  to{width:230px;height:230px;opacity:0;transform:translate(-50%,-50%)}}
+/* o anel duro chega junto com o macio: dois tempos de choque, não um */
+.anel{z-index:7;
+  -webkit-mask-image:url(arte/fx/anel1.png);mask-image:url(arte/fx/anel1.png);
+  animation:anel .5s cubic-bezier(.1,.75,.3,1) both}
+@keyframes anel{from{width:20px;height:20px;opacity:.95;transform:translate(-50%,-50%)}
+  to{width:150px;height:150px;opacity:0;transform:translate(-50%,-50%)}}
+/* O FEIXE precisa da rotação DENTRO da animação. Fora dela, o keyframe
+   escreve `transform` de novo e apaga o `rotate` do style inline — o feixe
+   nascia sempre deitado e apontava para o nada em vez de ligar as duas
+   cartas. Por isso o ângulo entra como variável e é remontado a cada quadro. */
+.raio{z-index:7;height:26px;transform-origin:0 50%;
+  -webkit-mask-image:url(arte/fx/feixe.png);mask-image:url(arte/fx/feixe.png);
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;
+  filter:drop-shadow(0 0 14px var(--fc,#fff));animation:raio .58s ease-out both}
+@keyframes raio{0%{opacity:0;transform:rotate(var(--rot,0rad)) scaleY(.2)}
+  22%{opacity:1;transform:rotate(var(--rot,0rad)) scaleY(1.35)}
+  100%{opacity:0;transform:rotate(var(--rot,0rad)) scaleY(.3)}}
+.faisca{z-index:8;width:28px;height:28px;
+  -webkit-mask-image:url(arte/fx/brilho4.png);mask-image:url(arte/fx/brilho4.png);
+  filter:drop-shadow(0 0 8px var(--fc,#fff));
   animation:faisca .78s cubic-bezier(.2,.7,.3,1) both}
-@keyframes faisca{0%{transform:translate(-50%,-50%) scale(1.4);opacity:1}
-  100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(0);opacity:0}}
+@keyframes faisca{0%{transform:translate(-50%,-50%) scale(1.35) rotate(0);opacity:1}
+  100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(0) rotate(140deg);opacity:0}}
+/* o degrau de combo é acontecimento: estrela grande no meio do par */
+.estouro{z-index:8;width:64px;height:64px;
+  -webkit-mask-image:url(arte/fx/estrela.png);mask-image:url(arte/fx/estrela.png);
+  filter:drop-shadow(0 0 20px var(--fc,#fff));
+  animation:estouro .8s cubic-bezier(.15,.85,.3,1) both}
+@keyframes estouro{0%{transform:translate(-50%,-50%) scale(.2) rotate(-40deg);opacity:0}
+  22%{transform:translate(-50%,-50%) scale(1.5) rotate(0);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(2.6) rotate(30deg);opacity:0}}
+/* poeira de pontinhos — o resto que fica no ar depois do estouro. Ela abre
+   PARA FORA da carta e nunca fica opaca: o que a carta tem para dizer é o
+   desenho, e efeito que tapa o desenho está trabalhando contra o jogo. */
+.poeira{z-index:7;width:150px;height:150px;
+  -webkit-mask-image:url(arte/fx/pontos.png);mask-image:url(arte/fx/pontos.png);
+  animation:poeira .9s cubic-bezier(.1,.8,.3,1) both}
+@keyframes poeira{0%{transform:translate(-50%,-50%) scale(.45);opacity:0}
+  25%{opacity:.5}100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}}
+/* a camada de gelo que racha: anéis CONCÊNTRICOS, porque o que quebrou foi
+   uma casca de várias camadas e não um choque só */
+.gelo{z-index:7;
+  -webkit-mask-image:url(arte/fx/anel2.png);mask-image:url(arte/fx/anel2.png);
+  animation:gelo .6s cubic-bezier(.2,.8,.3,1) both}
+@keyframes gelo{from{width:96px;height:96px;opacity:.9;transform:translate(-50%,-50%) rotate(0)}
+  to{width:180px;height:180px;opacity:0;transform:translate(-50%,-50%) rotate(24deg)}}
+/* o orbe fica ATRÁS da carta apontada e respira. Piscar a borda avisa; o
+   orbe puxa o olho, que é o que uma dica precisa fazer. */
+.orbe{z-index:2;width:120px;height:120px;
+  -webkit-mask-image:url(arte/fx/orbe.png);mask-image:url(arte/fx/orbe.png);
+  transform:translate(-50%,-50%);opacity:.55;
+  animation:orbeResp 1.2s ease-in-out infinite alternate}
+@keyframes orbeResp{from{opacity:.28;transform:translate(-50%,-50%) scale(.85)}
+  to{opacity:.7;transform:translate(-50%,-50%) scale(1.15)}}
+/* o facho vertical: a carta que uma ferramenta acabou de revelar recebe luz
+   de cima, como peça posta no holofote */
+.facho{z-index:6;width:56px;height:190px;
+  -webkit-mask-image:url(arte/fx/risco.png);mask-image:url(arte/fx/risco.png);
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;
+  animation:facho .85s cubic-bezier(.2,.85,.3,1) both}
+@keyframes facho{0%{transform:translate(-50%,-50%) scaleY(.1);opacity:0}
+  25%{transform:translate(-50%,-50%) scaleY(1);opacity:.95}
+  100%{transform:translate(-50%,-50%) scaleY(1.1);opacity:0}}
+/* seis pontas para o que vale dinheiro — a estrela de quatro já é do combo,
+   e duas coisas diferentes não podem ter a mesma marca */
+.brilho{z-index:8;width:30px;height:30px;
+  -webkit-mask-image:url(arte/fx/brilho6.png);mask-image:url(arte/fx/brilho6.png);
+  filter:drop-shadow(0 0 10px var(--fc,#fff));
+  animation:brilhoGira .9s cubic-bezier(.2,.8,.3,1) both}
+@keyframes brilhoGira{0%{transform:translate(-50%,-50%) scale(0) rotate(-60deg);opacity:0}
+  30%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.2) rotate(0);opacity:1}
+  100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.3) rotate(80deg);opacity:0}}
+/* o X do erro cai por cima do par: é a resposta mais curta possível */
+.xis{z-index:9;width:52px;height:52px;background:none;
+  background-image:url(arte/fx/xis.png);background-size:contain;
+  background-repeat:no-repeat;background-position:center;
+  animation:xisCai .62s cubic-bezier(.25,1.5,.4,1) both}
+@keyframes xisCai{0%{transform:translate(-50%,-50%) scale(2.4) rotate(-22deg);opacity:0}
+  30%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}
+  75%{opacity:1}100%{transform:translate(-50%,-50%) scale(.94);opacity:0}}
 .voa{position:absolute;z-index:9;font-weight:900;pointer-events:none;text-align:center;
      animation:voa 1.1s cubic-bezier(.15,.85,.3,1) both;line-height:1}
 .voa .g{display:block;font-size:34px;color:#fff;
@@ -445,11 +541,10 @@ svg{display:block}
 .folha{position:fixed;inset:0;z-index:40;display:none;background:rgba(3,7,15,.86);
        backdrop-filter:blur(6px);padding:13px;overflow-y:auto;overscroll-behavior:contain}
 .folha.on{display:block;animation:entra .22s ease both}
-.cartao{max-width:520px;margin:auto;position:relative;padding:18px;border-radius:16px;
-        background:linear-gradient(170deg,var(--placa),var(--placa2));
-        border:2px solid var(--traco);
-        box-shadow:inset 0 3px 0 var(--luzT), inset 0 -5px 0 var(--escT),
-                   0 6px 0 var(--traco), 0 26px 60px rgba(0,0,0,.8)}
+.cartao{max-width:520px;margin:auto;position:relative;padding:22px;
+        background:none;border:0;
+        border-image:url(arte/ui/placa-azul.png) 68 fill / 34px / 0 stretch;
+        filter:drop-shadow(0 18px 40px rgba(0,0,0,.8))}
 
 /* ═══════════ VITRINE — a coleção ═══════════ */
 .vit{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
@@ -463,6 +558,7 @@ svg{display:block}
   transition:transform .08s, box-shadow .08s}
 .lad:active{transform:translateY(4px);
   box-shadow:inset 0 2px 0 color-mix(in srgb,var(--fc) 50%,transparent), 0 0 0 var(--traco)}
+.lad .ic:has(img.gl){background:none;border:0;box-shadow:none}
 .lad .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;
   color:#fff;flex:0 0 auto;position:relative;z-index:1;
   background:linear-gradient(180deg,var(--fc),color-mix(in srgb,var(--fc) 45%,#000));
@@ -560,6 +656,7 @@ svg{display:block}
 /* ───────── PEÇA ABERTA ───────── */
 .pecao{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
   padding:4px 0 2px}
+.pecao .ic:has(img.gl){background:none;border:0;box-shadow:none}
 .pecao .ic{width:84px;height:84px;border-radius:24px;display:grid;place-items:center;color:#fff;
   background:linear-gradient(180deg,var(--fc),color-mix(in srgb,var(--fc) 42%,#000));
   border:3px solid var(--traco);
@@ -575,16 +672,37 @@ svg{display:block}
 /* ═══════════ CARTÕES DE ESCOLHA ═══════════ */
 .grade{display:grid;gap:9px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
 .grade.um{grid-template-columns:1fr}
-.op{position:relative;overflow:hidden;text-align:left;padding:15px;border-radius:15px;
+.op{position:relative;overflow:hidden;text-align:left;padding:17px;
     --c:var(--fc,var(--ouro));display:flex;flex-direction:column;gap:7px;
-    background:linear-gradient(180deg,color-mix(in srgb,var(--fc,var(--ouro)) 26%,var(--placa)),
-                                      color-mix(in srgb,var(--fc,var(--ouro)) 4%,var(--placa2)));
-    border:2px solid var(--traco);
-    box-shadow:inset 0 2px 0 color-mix(in srgb,var(--fc,var(--ouro)) 45%,transparent),
-               inset 0 -4px 0 var(--escT), 0 5px 0 var(--traco), 0 10px 22px rgba(0,0,0,.5);
-    transition:transform .08s, box-shadow .08s}
-.op:active{transform:translateY(5px);
-  box-shadow:inset 0 2px 0 color-mix(in srgb,var(--fc,var(--ouro)) 45%,transparent), 0 0 0 var(--traco)}
+    background:none;border:0;
+    border-image:url(arte/ui/placa-azul.png) 68 fill / 34px / 0 stretch;
+    filter:drop-shadow(0 7px 16px rgba(0,0,0,.5));
+    transition:transform .08s, filter .08s}
+/* a folha veio com seis cores, e as seis são exatamente as do jogo */
+/* ─── PLACA CLARA PEDE TEXTO ESCURO ───
+   As placas pintadas vieram em seis cores, e três delas (ouro, verde, ciano)
+   são CLARAS. O texto do jogo foi desenhado para placa escura: em cima do
+   ouro ele sumia. Quem manda na cor do texto é o fundo, não o costume. */
+.op.claro{color:#17110a}
+.op.claro h3, .op.claro .pr, .op.claro .stats b{color:#120d05;
+  text-shadow:0 1px 0 rgba(255,255,255,.4)}
+.op.claro p, .op.claro .mini{color:rgba(18,13,5,.82);text-shadow:none}
+.op.claro .rot{color:rgba(18,13,5,.62);text-shadow:none}
+.op.claro .lm{color:rgba(18,13,5,.7)}
+.op.claro .stats span{background:rgba(0,0,0,.14);color:rgba(18,13,5,.88);
+  border-color:rgba(0,0,0,.32)}
+.op.claro .agua{color:#000;opacity:.07}
+.op.claro .ferc{background:rgba(0,0,0,.16);border-color:rgba(0,0,0,.42)}
+.op.claro .ferc .tx{color:rgba(18,13,5,.82)}
+.op.claro .ferc .tx b{color:#120d05;text-shadow:0 1px 0 rgba(255,255,255,.35)}
+.op.claro .metanum{color:#3a2a06;
+  text-shadow:0 2px 0 rgba(255,255,255,.4), 0 4px 0 rgba(0,0,0,.18)}
+.op.c-ouro{border-image-source:url(arte/ui/placa-ouro.png)}
+.op.c-vermelho{border-image-source:url(arte/ui/placa-vermelha.png)}
+.op.c-azul{border-image-source:url(arte/ui/placa-ciano.png)}
+.op.c-verde{border-image-source:url(arte/ui/placa-verde.png)}
+.op.c-roxo{border-image-source:url(arte/ui/placa-roxa.png)}
+.op:active{transform:translateY(4px);filter:drop-shadow(0 2px 5px rgba(0,0,0,.5))}
 .op[disabled]{filter:saturate(.2) brightness(.6)}
 .op h3{margin:0;font-size:17px;font-weight:900;letter-spacing:-.02em;
   color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.8)}
@@ -612,6 +730,7 @@ svg{display:block}
 .op .lm{font-size:11.5px;color:color-mix(in srgb,var(--fc,var(--ouro)) 60%,#fff);
   font-weight:800;font-style:italic}
 .op p{margin:0;font-size:13px;color:var(--osso2);line-height:1.5;font-weight:600}
+.op .gf:has(img.gl){background:none;border:0;box-shadow:none}
 .op .gf{position:relative;flex:0 0 44px;width:44px;height:44px;border-radius:13px;
   display:grid;place-items:center;color:#fff;
   background:linear-gradient(180deg,var(--fc,var(--ouro)),color-mix(in srgb,var(--fc,var(--ouro)) 45%,#000));
@@ -647,6 +766,8 @@ svg{display:block}
       position:relative;opacity:.42;transition:opacity .3s}
 .sala.feito{opacity:.85}
 .sala.atual{opacity:1}
+.sala .bl:has(img.gl){background:none;border:0;box-shadow:none}
+.sala .bl:has(img.gl) .gl{width:100%;height:100%}
 .sala .bl{width:min(44px,11.5vw);height:min(44px,11.5vw);border-radius:13px;display:grid;
   place-items:center;position:relative;z-index:1;color:#fff;
   background:linear-gradient(180deg,color-mix(in srgb,currentColor 38%,var(--placa)),var(--placa2));

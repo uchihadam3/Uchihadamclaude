@@ -1,0 +1,76 @@
+<!doctype html><meta charset="utf-8"><title>bancada de efeitos · Mnemonic</title>
+<!--
+  A BANCADA. Efeito de tela é a coisa mais difícil de julgar dentro do jogo:
+  ele dura meio segundo, aparece em cima de outra coisa e some antes de dar
+  para olhar. Aqui cada efeito fica PARADO no quadro mais cheio dele, lado a
+  lado com os outros, sobre um fundo escuro igual ao da mesa.
+
+  Foi assim que apareceram os três defeitos que ninguém via jogando: o halo
+  com um tampão no meio, o feixe que nascia deitado apontando para o nada, e a
+  névoa retangular que o magenta comprimido deixava em volta de tudo.
+
+  O CSS não é copiado — é lido do próprio jogo.html em tempo de abertura. Uma
+  cópia ia envelhecer no dia seguinte e a bancada passaria a mentir.
+  Abrir com um servidor na pasta do jogo:  python3 -m http.server 8123
+-->
+<style>
+  body{margin:0;background:#0a1424;color:#8fa6c8;
+       font:900 12px/1 system-ui,-apple-system,sans-serif}
+  h1{font-size:14px;letter-spacing:.18em;padding:16px 16px 0;color:#63789e}
+  .g{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+     gap:8px;padding:14px}
+  .q{position:relative;height:190px;background:#101f36;border-radius:10px;
+     display:flex;align-items:flex-end;justify-content:center;
+     padding-bottom:8px;overflow:hidden}
+  .q .efx{left:50%;top:45%}
+  .q b{opacity:.8;letter-spacing:.1em}
+  /* o congelamento: atraso negativo põe a animação no quadro escolhido, e a
+     pausa a segura ali */
+  .q .efx{animation-play-state:paused!important;animation-delay:var(--t)!important}
+  .cores{display:flex;gap:8px;padding:0 16px 16px}
+  .cores button{font:inherit;padding:8px 12px;border-radius:8px;border:0;
+     color:#0a1424;cursor:pointer}
+</style>
+<h1>BANCADA DE EFEITOS</h1>
+<div class="cores" id="cores"></div>
+<div class="g" id="g"></div>
+<script type="module">
+/* o CSS vem do jogo, não de uma cópia */
+const html = await (await fetch('../jogo.html')).text();
+const css = html.match(/<style>([\s\S]*?)<\/style>/)[1]
+  /* o jogo.html mora um nível acima desta pasta */
+  .replace(/url\(arte\//g, 'url(../arte/');
+document.head.insertAdjacentHTML('beforeend', '<style>'+css+'</style>');
+
+/* nome do efeito → em que segundo da animação ele está mais cheio */
+const EFEITOS = [
+  ['onda',-.25], ['anel',-.18], ['gelo',-.20], ['faisca',-.20],
+  ['poeira',-.28], ['estouro',-.20], ['brilho',-.28], ['orbe',-.60],
+  ['facho',-.25], ['xis',-.25], ['raio',-.15],
+];
+const CORES = ['#4fe08a','#ffc23c','#ff4f52','#4fb8ff','#b478ff','#ffffff'];
+let cor = CORES[0];
+
+const g = document.getElementById('g');
+function pintar(){
+  g.innerHTML = '';
+  for(const [n,t] of EFEITOS){
+    const q = document.createElement('div'); q.className = 'q';
+    const e = document.createElement('div'); e.className = 'efx ' + n;
+    /* o raio é o único que precisa de comprimento e de ângulo */
+    const extra = n==='raio' ? 'width:150px;left:18%;top:40%;--rot:0.6rad' : '';
+    e.style.cssText = `--fc:${cor};--t:${t}s;--dx:0px;--dy:0px;${extra}`;
+    q.append(e);
+    q.insertAdjacentHTML('beforeend', '<b>'+n+'</b>');
+    g.append(q);
+  }
+}
+const barra = document.getElementById('cores');
+for(const c of CORES){
+  const b = document.createElement('button');
+  b.style.background = c; b.textContent = c;
+  b.onclick = ()=>{ cor = c; pintar(); };
+  barra.append(b);
+}
+pintar();
+</script>

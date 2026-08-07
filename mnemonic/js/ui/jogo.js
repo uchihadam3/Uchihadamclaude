@@ -109,6 +109,24 @@ $('#folha').addEventListener('click', e=>{
     $('#folha').classList.remove('on');
 });
 
+/* a folha de placas veio nas seis cores do jogo. `classePlaca` diz qual
+   arquivo usar a partir da cor pedida, e cai na placa azul quando a cor não
+   é uma das seis — assim nenhuma tela fica sem moldura. */
+const PLACA_POR_COR = {
+  '#ffc23c':'c-ouro', '#ffe6a3':'c-ouro', '#ffa24d':'c-ouro', '#f0c14b':'c-ouro',
+  '#c9a227':'c-ouro', '#ffc93f':'c-ouro',
+  '#ff4f52':'c-vermelho', '#ff6fae':'c-vermelho', '#ff6a5a':'c-vermelho',
+  '#4fb8ff':'c-azul', '#a8e2ff':'c-azul', '#7fd4ff':'c-azul', '#6ba8ff':'c-azul',
+  '#4fe08a':'c-verde', '#8ad46a':'c-verde', '#7ee3a8':'c-verde',
+  '#b478ff':'c-roxo', '#b06bff':'c-roxo', '#a98bff':'c-roxo',
+};
+/* das seis, três são placas CLARAS e por isso pedem texto escuro */
+const PLACA_CLARA = new Set(['c-ouro','c-verde','c-azul']);
+const classePlaca = cor => {
+  const c = PLACA_POR_COR[String(cor).toLowerCase().trim()] || '';
+  return c ? (PLACA_CLARA.has(c) ? c+' claro' : c) : '';
+};
+
 /* ═══════════════════════════════════════════ VITRINE
    O jogo não tem uma lista em lugar nenhum. Toda coisa que ele nomeia é um
    LADRILHO que se toca, e o texto abre por cima. Uma lista o jogador varre
@@ -227,7 +245,7 @@ function telaClasse(){
     </div>
     <div class="rol"><div class="grade fila1">
     ${LISTA_CLASSES.map(c=>`
-      <button class="op" data-classe="${c.id}" style="--fc:${c.cor}">
+      <button class="op ${classePlaca(c.cor)}" data-classe="${c.id}" style="--fc:${c.cor}">
         <span class="agua">${ICO_CLASSE[c.id]||''}</span>
         <span class="cab">
           <span class="gf">${ICO_CLASSE[c.id]||''}</span>
@@ -283,11 +301,12 @@ function telaMapa(){
     <div class="hr"></div>
     <div class="rol">
       ${ehComb ? `
-        <div class="op" style="--fc:${cor};cursor:default;align-items:center;text-align:center">
+        <div class="op ${classePlaca(cor)}" style="--fc:${cor};cursor:default;align-items:center;text-align:center">
           <span class="agua">${ICO.meta}</span>
           <div class="rot">para vencer esta sala, faça</div>
-          <div class="num" style="font-size:clamp(46px,15vw,68px);font-weight:900;line-height:.95;
-               color:var(--ouro2);text-shadow:0 4px 0 var(--ouroE),0 7px 0 rgba(0,0,0,.7),
+          <div class="num metanum" style="font-size:clamp(46px,15vw,68px);font-weight:900;
+               line-height:.95;color:var(--ouro2);
+               text-shadow:0 4px 0 var(--ouroE),0 7px 0 rgba(0,0,0,.7),
                0 0 30px rgba(255,194,60,.5)">${nf(plano.meta)}</div>
           <div class="rot">pontos</div>
           <div class="stats" style="justify-content:center">
@@ -298,7 +317,7 @@ function telaMapa(){
           <p class="mini" style="text-align:center">Não precisa limpar o tabuleiro.</p>
         </div>
         ${tipo==='boss' ? `
-        <div class="op esc" style="--fc:#ff4f52;cursor:default;margin-top:9px">
+        <div class="op c-vermelho" style="--fc:#ff4f52;cursor:default;margin-top:9px">
           <span class="agua">${ICO_CHEFE[b.id]||''}</span>
           <div class="rot">chefe do mundo</div>
           <span class="cab"><span class="gf">${ICO_CHEFE[b.id]||''}</span>
@@ -469,9 +488,8 @@ function cartaHTML(c, pequena){
       style="--fc:${cor}" aria-label="carta ${c.pos+1}${curinga?' (curinga)':''}">
     <span class="fx">
       <span class="fr">${selos.join('')}</span>
-      <span class="ff">${desenho}${frente}${gelo}
-        ${selada ? `<span class="ok">${ICO.feito}</span>` : ''}</span>
-    </span></button>`;
+      <span class="ff">${desenho}${frente}${gelo}</span>
+    </span>${selada ? '<span class="ok"></span>' : ''}</button>`;
 }
 
 /* `refazer` reconstrói o HTML; `chegada` faz as cartas caírem uma a uma, e
@@ -509,9 +527,11 @@ function mesa(refazer, chegada){
       const selada = c.resolvida && !mostrando.has(c.id);
       if(selada && !e.classList.contains('feito')){
         e.classList.add('feito');
-        const ff = e.querySelector('.ff');
-        if(ff && !ff.querySelector('.ok'))
-          ff.insertAdjacentHTML('beforeend', `<span class="ok">${ICO.feito}</span>`);
+        /* o carimbo é IRMÃO da face, nunca filho: a face apaga (é o que diz
+           "esta dupla saiu do jogo") e o filtro que a apaga levaria o carimbo
+           junto — sobrava um selo cinza que ninguém via. */
+        if(!e.querySelector('.ok'))
+          e.insertAdjacentHTML('beforeend', '<span class="ok"></span>');
       }
     }
   }
@@ -540,13 +560,23 @@ function porElemento(el, ms){
   $('#area').appendChild(el);
   setTimeout(()=>el.remove(), ms);
 }
-/* anel de choque saindo da carta */
-function onda(id, cor){
-  const p = centro(id); if(!p) return;
+/* Todo efeito da mesa nasce aqui, com a mesma receita: um retângulo posto no
+   centro de uma carta, recortado pela arte pintada e tingido com a cor de quem
+   causou o efeito. Ter UM lugar só evita o que quase aconteceu — cada efeito
+   inventando o seu jeito de se posicionar e saindo um pixel fora do outro. */
+function efeito(id, cls, cor, ms, extra=''){
+  const p = centro(id); if(!p) return null;
   const e = document.createElement('div');
-  e.className = 'onda';
-  e.style.cssText = `left:${p.x}px;top:${p.y}px;--fc:${cor}`;
-  porElemento(e, 720);
+  e.className = 'efx ' + cls;
+  e.style.cssText = `left:${p.x}px;top:${p.y}px;--fc:${cor};${extra}`;
+  porElemento(e, ms);
+  return e;
+}
+/* choque em dois tempos: o halo macio abre largo e devagar, o anel duro sai
+   na frente e some antes. Um só dos dois lê como fumaça ou como risco. */
+function onda(id, cor){
+  efeito(id, 'onda', cor, 720);
+  efeito(id, 'anel', cor, 540);
 }
 /* o feixe que liga as duas cartas do par: é ele que DIZ "estas duas" */
 function raio(a, b, cor){
@@ -554,22 +584,38 @@ function raio(a, b, cor){
   if(!p || !q) return;
   const dx = q.x-p.x, dy = q.y-p.y;
   const e = document.createElement('div');
-  e.className = 'raio';
+  e.className = 'efx raio';
   e.style.cssText = `left:${p.x}px;top:${p.y}px;width:${Math.hypot(dx,dy)}px;`
-    + `transform:rotate(${Math.atan2(dy,dx)}rad);--fc:${cor}`;
+    + `margin-top:-13px;--rot:${Math.atan2(dy,dx)}rad;--fc:${cor}`;
   porElemento(e, 620);
 }
 function faiscas(id, cor, n=10){
-  const p = centro(id); if(!p) return;
+  if(!centro(id)) return;
   for(let i=0;i<n;i++){
     const a = (i/n)*Math.PI*2 + Math.random()*0.6;
     const d = 34 + Math.random()*46;
-    const e = document.createElement('div');
-    e.className = 'faisca';
-    e.style.cssText = `left:${p.x}px;top:${p.y}px;--fc:${cor};`
-      + `--dx:${(Math.cos(a)*d).toFixed(1)}px;--dy:${(Math.sin(a)*d).toFixed(1)}px;`
-      + `animation-delay:${(Math.random()*90).toFixed(0)}ms`;
-    porElemento(e, 850);
+    efeito(id, 'faisca', cor, 850,
+      `--dx:${(Math.cos(a)*d).toFixed(1)}px;--dy:${(Math.sin(a)*d).toFixed(1)}px;`
+      + `animation-delay:${(Math.random()*90).toFixed(0)}ms`);
+  }
+  efeito(id, 'poeira', cor, 950);
+}
+/* a estrela grande, guardada para o degrau novo de combo */
+const estouro = (id, cor) => efeito(id, 'estouro', cor, 860);
+/* o X do erro: cai em cima da carta e não pede leitura */
+const xis = id => efeito(id, 'xis', '#fff', 700);
+/* a casca de gelo rachando */
+const gelo = id => efeito(id, 'gelo', '#a8e2ff', 640);
+/* o facho de cima, quando uma ferramenta acende uma carta */
+const facho = (id, cor='#4fb8ff') => efeito(id, 'facho', cor, 900);
+/* faíscas de seis pontas: só para o que vira dinheiro */
+function brilhos(id, cor='#ffc23c', n=6){
+  for(let i=0;i<n;i++){
+    const a = (i/n)*Math.PI*2 + Math.random()*0.7;
+    const d = 22 + Math.random()*30;
+    efeito(id, 'brilho', cor, 950,
+      `--dx:${(Math.cos(a)*d).toFixed(1)}px;--dy:${(Math.sin(a)*d).toFixed(1)}px;`
+      + `animation-delay:${(Math.random()*140).toFixed(0)}ms`);
   }
 }
 function voa(id, grande, pequeno='', cls=''){
@@ -639,7 +685,7 @@ async function animar(rel){
     SFX.trinca();
     for(const id of trinca.cartas){
       el(id)?.classList.add('trinca');
-      onda(id, '#a8e2ff');
+      gelo(id);
       setTimeout(()=>el(id)?.classList.remove('trinca'), 560);
     }
     voa(trinca.cartas[0], 'TRINCOU', 'falta mais uma', 'frio');
@@ -670,10 +716,13 @@ async function animar(rel){
     $('#combo').classList.remove('sobe'); void $('#combo').offsetWidth;
     $('#combo').classList.add('sobe');
     medidores();
-    /* degrau novo é acontecimento: clarão na tela inteira */
+    /* degrau novo é acontecimento: clarão na tela inteira, e a estrela grande
+       em cima das duas cartas que causaram o degrau */
     if(acerto.combo>=2 && d.n===acerto.combo && acerto.por==='par'){
-      clarao(corDoCombo(acerto.combo)+'55');
-      aviso(d.nome, 'combo ×'+vg(d.mult.toFixed(1)), corDoCombo(acerto.combo));
+      const cc = corDoCombo(acerto.combo);
+      clarao(cc+'55');
+      for(const id of acerto.cartas) estouro(id, cc);
+      aviso(d.nome, 'combo ×'+vg(d.mult.toFixed(1)), cc);
     }
     await espera(560);
 
@@ -695,6 +744,10 @@ async function animar(rel){
       if(e){ e.classList.add('nao'); setTimeout(()=>e.classList.remove('nao'), 560); }
     }
     if(erro.custo>0){
+      /* o X só aparece quando o erro CUSTOU. Descobrir carta nova também é
+         "não fecharam", mas marcar aquilo com um X ensinaria a coisa errada:
+         que explorar é falha. */
+      for(const id of erro.cartas) xis(id);
       voa(erro.cartas[0], '−'+erro.custo, 'de foco', 'ruim');
       clarao('rgba(255,106,90,.34)');
     } else {
@@ -709,10 +762,13 @@ async function animar(rel){
   /* o resto dos eventos, na ordem em que o motor os produziu */
   const saindo = [];
   for(const e of rel.eventos){
-    if(e.e==='moedas'){ SFX.moeda(); voa(acerto?.cartas?.[0] ?? 0, '+'+e.n, 'moedas', 'moeda'); }
+    if(e.e==='moedas'){ SFX.moeda();
+      const onde = acerto?.cartas?.[0] ?? 0;
+      brilhos(onde); voa(onde, '+'+e.n, 'moedas', 'moeda'); }
     if(e.e==='virada_extra') aviso('+1 VIRADA', 'alquimia devolveu', '#4fe08a');
     if(e.e==='xadrez') aviso('DOBRADO', 'peça de xadrez', '#dbe4f5');
-    if(e.e==='runa') voa(acerto?.cartas?.[1] ?? 0, '+0,1', 'runa', 'moeda');
+    if(e.e==='runa'){ const onde = acerto?.cartas?.[1] ?? 0;
+      brilhos(onde, '#b478ff', 4); voa(onde, '+0,1', 'runa', 'moeda'); }
     if(e.e==='revelou'){ SFX.revelar(); for(const id of (e.cartas||[])) piscar(id); }
     if(e.e==='marcou'){ SFX.revelar(); aviso('CARTA FIXA', 'o Egito marcou uma', '#ffc23c'); }
     if(e.e==='explodiu'){ SFX.chefe(); clarao('rgba(255,106,90,.5)');
@@ -754,10 +810,16 @@ async function animar(rel){
     await espera(1000);
   }
 }
+/* APONTAR uma carta. A borda piscando avisa, mas não puxa o olho de quem
+   está varrendo a grade: o orbe atrás e o facho de cima é que fazem a carta
+   virar o único lugar da tela onde tem luz. */
 function piscar(id){
   const e = $('#mesa')?.querySelector(`[data-c="${id}"]`);
   if(!e) return;
   e.classList.add('pisca');
+  facho(id);
+  const o = efeito(id, 'orbe', '#4fb8ff', 2500);
+  if(o) o.style.zIndex = 2;
   setTimeout(()=>e.classList.remove('pisca'), 2500);
 }
 
@@ -916,7 +978,7 @@ function telaPremio(){
       <div class="rot">${tesouro ? 'tesouro' : 'sala vencida'}</div>
       <h2 class="tit">${tesouro ? 'Alguém deixou isto aqui.' : 'Pegue uma para levar.'}</h2>
     </div></div>
-    ${u && !tesouro ? `<div class="op esc" style="--fc:var(--ouro);cursor:default;margin-bottom:10px">
+    ${u && !tesouro ? `<div class="op c-ouro" style="--fc:#ffc23c;cursor:default;margin-bottom:10px">
       <div class="stats">
         <span>pontos <b style="color:var(--ouro)">${nf(u.pontos)}</b></span>
         ${u.sobra>0 ? `<span>viradas de sobra <b>${u.sobra}</b></span>` : ''}
@@ -924,8 +986,8 @@ function telaPremio(){
       </div></div>` : ''}
     <div class="rol"><div class="grade">
       ${ofertas.length ? ofertas.map((r,i)=>`
-        <button class="op esc ${r.r!=='comum'?'brilha':''}" data-pega="${r.id}"
-                style="--fc:${RARIDADE[r.r]};animation-delay:${i*70}ms">
+        <button class="op ${classePlaca(RARIDADE[r.r])} ${r.r!=='comum'?'brilha':''}"
+                data-pega="${r.id}" style="--fc:${RARIDADE[r.r]};animation-delay:${i*70}ms">
           ${r.r==='lendaria' ? '<span class="fita">lendária</span>' : ''}
           <span class="agua">${ICO.reliquia}</span>
           <span class="cab"><span class="gf">${ICO.reliquia}</span>
@@ -958,8 +1020,8 @@ function telaLoja(){
           const cor = RARIDADE[i.r] || 'var(--ouro)';
           const caro = !i.vendido && run.moedas < i.preco;
           return `
-          <button class="op esc ${i.r==='lendaria'?'brilha':''}" data-compra="${i.id}"
-            style="--fc:${cor}" ${i.vendido || caro ? 'disabled' : ''}>
+          <button class="op ${classePlaca(cor)} ${i.r==='lendaria'?'brilha':''}"
+            data-compra="${i.id}" style="--fc:${cor}" ${i.vendido || caro ? 'disabled' : ''}>
             ${i.vendido ? '<span class="vendido">vendido</span>' : ''}
             <span class="agua">${i.id.startsWith('__') ? ICO.tesouro : ICO.reliquia}</span>
             <span class="cab"><span class="gf">${i.id.startsWith('__') ? ICO.tesouro : ICO.reliquia}</span>
@@ -994,13 +1056,13 @@ function telaEvento(){
       <h2 class="tit">${esc(ev.nome)}</h2>
     </div></div>
     <div class="rol">
-      <div class="op esc" style="--fc:${cor};cursor:default">
+      <div class="op ${classePlaca(cor)}" style="--fc:${cor};cursor:default">
         <span class="agua">${fogo ? ICO.fogueira : ICO.evento}</span>
         <p style="font-size:14.5px;line-height:1.6;color:var(--osso)">${esc(ev.txt)}</p>
       </div>
       <div class="hr"></div>
       <div class="grade um">${ev.ops.map((o,i)=>`
-        <button class="op esc" data-op="${i}" style="--fc:${cor}">
+        <button class="op ${classePlaca(cor)}" data-op="${i}" style="--fc:${cor}">
           <h3>${esc(o.txt)}</h3><p>${esc(o.d)}</p></button>`).join('')}</div>
     </div>`;
   t.querySelectorAll('[data-op]').forEach(b=>b.onclick = ()=>{
@@ -1008,7 +1070,7 @@ function telaEvento(){
     SFX.premio();
     if(r.ok){
       t.querySelector('.rol').innerHTML =
-        `<div class="op esc" style="--fc:${cor};cursor:default">
+        `<div class="op ${classePlaca(cor)}" style="--fc:${cor};cursor:default">
            <p style="font-size:15px;line-height:1.6;color:var(--osso)">${esc(r.txt)}</p></div>`;
       setTimeout(()=>seguir(), 1500);
     }
