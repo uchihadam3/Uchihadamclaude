@@ -730,6 +730,10 @@ function rolarVisual(soIds){
 }
 /* ---------- HUD ---------- */
 const nomeFace=f=> f.k==='num'? f.v : (FACE_KINDS[f.k].glifo);
+/* a moldura de cada classe é a que já casa com a cor dela: o Carrasco é
+   #c0392b, a Lâmina #6c3fa0, o Arcanista #2f7ec4, a OráculA #b08a2e */
+const MOLDURA_CLASSE = { carrasco:'m-vermelho', lamina:'m-roxo',
+                         arcanista:'m-azul', oracula:'m-ouro' };
 /* ===================================================================
    A FICHA — a carta por extenso, aberta ao toque.
 
@@ -888,6 +892,7 @@ function pintar(){
     const barraPrev = pr&&pr.dano ? `<i class="perda" style="width:${Math.min(100,100*pr.dano/e.maxHp)}%;
         right:${Math.max(0,100-100*e.hp/e.maxHp)}%"></i>` : '';
     return `<div class="en ${e.hp<=0?'morto':''} ${i===alvo?'alvo':''} ${pr?'napre':''}" data-i="${i}" data-uid="${e.uid}">
+      <div class="moldura ${e.elite?'m-ouro':'m-cinza'}"></div>
       ${prevHTML}
       <div class="spr"><img src="${spriteDe(e.id)}" alt=""
            onerror="__semArte(this,'${e.id}')"></div>
@@ -997,6 +1002,7 @@ function pintar(){
     return `<button class="h ${ok?'ok':(poss?'pode':'off')} ${ativa?'pre':''}" data-i="${i}"
         style="--hc:${C.cor}" title="${s.desc.replace(/"/g,'&quot;')}">
       <span class="hbrilho"></span>
+      <span class="moldura ${MOLDURA_CLASSE[P.classe]||'m-cinza'}"></span>
       <span class="htopo">${iconeDe(s.id)}<span class="hn">${s.nome}</span></span>
       <span class="exg ${ok?'abre':(poss?'':'fecha')}"
         ><span class="e1">${SIM.ico('dado')}${fr.titulo}</span

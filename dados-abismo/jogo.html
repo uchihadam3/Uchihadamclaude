@@ -182,6 +182,46 @@
     o jogador tem que adivinhar.
     ===================================================================== */
  .sic{width:1em;height:1em;flex:none;vertical-align:-.14em}
+ /* A ARTE PINTADA no lugar do traço, onde ela existe. Vem 1.35× maior que o
+    desenho de linha: a placa octogonal tem margem em volta do glifo, então no
+    mesmo tamanho de caixa ela parece menor do que é. */
+ img.sic.art{width:1.35em;height:1.35em;object-fit:contain;vertical-align:-.3em;
+   filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}
+ /* NO CHIP APERTADO a arte volta ao tamanho da caixa. Ela é mais bonita
+    grande, mas cada pixel que ela toma sai da PALAVRA — e a palavra é o que
+    ensina. "BLOQUEIO" virando "BLOQUE…" é perder exatamente o que a moldura
+    veio somar. Aqui manda a palavra. */
+ .h .hfaz img.sic.art, .en .faz img.sic.art{width:1.12em;height:1.12em;vertical-align:-.22em}
+ .h .hfaz .chip, .en .faz .chip{gap:2px}
+ .h .hfaz .cpal, .en .faz .cpal{letter-spacing:0}
+ .h .exg img.sic.art, .en .exg img.sic.art{width:1.2em;height:1.2em}
+
+ /* =====================================================================
+    AS MOLDURAS NA BATALHA.
+
+    Entram como border-image de uma camada sobreposta — nunca como borda do
+    próprio card. É isso que permite pôr um ornamento de carta grande numa
+    carta de 90px: o desenho é comprimido para 8px de espessura, mas os
+    CANTOS continuam inteiros (border-image nunca deforma canto, só estica
+    aresta) e o conteúdo não perde um pixel de largura.
+    ===================================================================== */
+ .moldura{position:absolute;inset:0;pointer-events:none;z-index:4;
+   border:8px solid transparent;border-image-slice:26;border-image-width:8px;
+   border-image-repeat:stretch}
+ .h .moldura{opacity:.85} .h.ok .moldura,.h.pre .moldura{opacity:1}
+ .h.off .moldura{opacity:.32;filter:grayscale(.7)}
+ .en .moldura{opacity:.8} .en.alvo .moldura{opacity:1}
+ .en.morto .moldura{opacity:.2}
+ /* a moldura por CLASSE na sua carta, e por perigo na do inimigo */
+ .m-vermelho{border-image-source:url(arte/molduras/vermelho.png)}
+ .m-roxo    {border-image-source:url(arte/molduras/roxo.png)}
+ .m-azul    {border-image-source:url(arte/molduras/azul.png)}
+ .m-ouro    {border-image-source:url(arte/molduras/ouro.png)}
+ .m-cinza   {border-image-source:url(arte/molduras/cinza.png)}
+ .m-verde   {border-image-source:url(arte/molduras/verde.png)}
+ /* tela apertada: o ornamento afina junto com o resto */
+ #ini.cheia .en .moldura{border-width:6px;border-image-width:6px}
+ #hab.densa .h .moldura{border-width:6px;border-image-width:6px}
  .chip{display:inline-flex;align-items:center;gap:3px;max-width:100%;overflow:hidden;
    background:#1b1f29;border:1px solid #2f3546;border-radius:5px;padding:2px 4px;
    line-height:1.1;font-family:Georgia,serif}
@@ -1074,9 +1114,7 @@
     habilidades: aqui a carta ocupa a largura toda e o ornamento tem onde
     respirar. O recorte de 26 é a região dos cantos na arte de 125×154.
     ===================================================================== */
- .rec .moldura{position:absolute;inset:0;pointer-events:none;z-index:3;
-   border:15px solid transparent;border-image-slice:26;border-image-width:15px;
-   border-image-repeat:stretch;opacity:.92}
+ .rec .moldura{z-index:3;border-width:15px;border-image-width:15px;opacity:.92}
  .rec.r-comum .moldura{border-image-source:url(arte/molduras/cinza.png)}
  .rec.r-rara  .moldura{border-image-source:url(arte/molduras/ouro.png)}
  .rec.r-amaldicoada .moldura{border-image-source:url(arte/molduras/vermelho.png)}

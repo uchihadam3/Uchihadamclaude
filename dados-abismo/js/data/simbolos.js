@@ -87,7 +87,25 @@ const D = {
   nao:     `<path d="M6 6l12 12M18 6L6 18"/>`,
 };
 
+/* ===================================================================
+   A ARTE RECORTADA DA FOLHA. Doze conceitos têm o desenho pintado, com placa
+   e bisel; o resto continua no traço vetorial. Onde existe a arte, ela entra
+   — e onde não existe, o traço mantém o desenho legível. As duas famílias
+   convivem porque o CHIP é o mesmo: mesma caixa, mesma cor, mesma palavra ao
+   lado. O que muda é só o miolo do quadradinho.
+   =================================================================== */
+const ARTE = {
+  dano:'ataque', bloqueio:'defesa', cura:'cura', fratura:'fratura',
+  executa:'execucao', frenesi:'furia', armadura:'muralha', espinhos:'armadilha',
+  arromba:'arromba', dado:'dados', respirar:'respirar', fechadura:'arromba',
+};
+export const temArte = id => !!ARTE[id];
 export function ico(id, cls='sic'){
+  /* a arte pintada tem prioridade; o traço é o que sustenta os outros 33 */
+  if(ARTE[id]) return `<img class="${cls} art" src="arte/icones/${ARTE[id]}.png" alt="" aria-hidden="true">`;
+  return icoTraco(id, cls);
+}
+export function icoTraco(id, cls='sic'){
   const d = D[id]; if(!d) return '';
   return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
     stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
