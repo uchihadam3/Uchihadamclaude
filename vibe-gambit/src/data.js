@@ -157,6 +157,8 @@ export const WEAPON_STYLES = {
              roadmap:['ignora penalidade vs. voadores'] },
   caster:  { id:'caster',  label:'Conjuração',   icon:'🔮', desc:'Ataque básico vira Dano Mágico, +Cura/Buff',
              roadmap:['+eficácia de cura e buffs'] },
+  fists:   { id:'fists',   label:'Punhos',       icon:'👊', desc:'Sem arma: ++Velocidade, gera Ki p/ buffs próprios',
+             roadmap:['acumula Ki por acerto','gasta Ki em buffs/golpes especiais'] },
 };
 
 // weight: peso da armadura (head/chest/hands/feet). trinket = livre (sem peso).
