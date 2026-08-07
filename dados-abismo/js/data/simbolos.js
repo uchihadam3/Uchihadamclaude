@@ -80,6 +80,14 @@ const D = {
   casal:   `<circle cx="7.5" cy="12" r="4.5"/><circle cx="16.5" cy="12" r="4.5"/>`,
   espelho: `<path d="M12 3v18"/><path d="M8 8L4 12l4 4"/><path d="M16 8l4 4-4 4"/>`,
   ou:      `<path d="M4 8h6l4 8h6"/><path d="M4 16h6"/><path d="M17 5l3 3-3 3"/><path d="M17 13l3 3-3 3"/>`,
+  /* o MAPA DA MASMORRA fala a mesma língua: ícone + palavra, como as cartas */
+  comum:   `<path d="M4 20L17 7"/><path d="M14 4h6v6"/><path d="M20 4l-6.5 6.5"/><path d="M3 21l3-3"/>`,
+  elite:   `<path d="M4 18h16"/><path d="M4 18L3 7l5 4 4-6 4 6 5-4-1 11z"/><path d="M12 13v.01"/>`,
+  chefe:   `<path d="M5 6C3.5 4 4 2.5 4 2.5S7 3 8 5"/><path d="M19 6c1.5-2 1-3.5 1-3.5S17 3 16 5"/><path d="M4.5 11a7.5 7.5 0 0 1 15 0c0 2.6-1.6 3.7-1.6 5.8V19H6.1v-2.2C6.1 14.7 4.5 13.6 4.5 11z"/><path d="M9 11h.01M15 11h.01"/><path d="M9 19v3M12 19v3M15 19v3"/>`,
+  santuario:`<path d="M7 4h10l-1 5a4 4 0 0 1-8 0z"/><path d="M12 13v5"/><path d="M8 21h8"/>`,
+  rerrolagem:`<path d="M20 11a8 8 0 1 0-1.5 5.5"/><path d="M20 5v6h-6"/>`,
+  reliquia:`<path d="M12 2l2.2 5.4L20 9l-4.4 3.2L17 18l-5-3-5 3 1.4-5.8L4 9l5.8-1.6z"/><path d="M12 18v4"/>`,
+  fardo:   `<path d="M12 2.5L21.5 12 12 21.5 2.5 12z"/><path d="M12 7.5v5.5M12 16.2v.01"/>`,
   /* utilidade */
   dado:    `<rect x="3" y="3" width="18" height="18" rx="3.5"/><circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>`,
   soma:    `<path d="M5 5h14l-7 7 7 7H5"/>`,
@@ -155,6 +163,17 @@ export const CONCEITO = {
   ceifa:      { p:'Ceifa',       d:'converte o veneno acumulado em dano agora',f:'dano' },
   cego:       { p:'Cego',        d:'não abre fechadura nenhuma',              f:'regra' },
   custa:      { p:'Custa',       d:'você paga esta vida para usar',           f:'ruim' },
+  /* o DADO tinha desenho mas não tinha verbete, e chip() só emite o que está
+     no dicionário: o "6 DADOS" do mapa saía como string vazia. */
+  dado:       { p:'Dados',       d:'quantos dados a sua bolsa tem',           f:'regra' },
+  /* o mapa da masmorra */
+  comum:      { p:'Comum',       d:'onda de inimigos comuns',                 f:'dano' },
+  elite:      { p:'Elite',       d:'um inimigo mais forte lidera a onda',     f:'regra' },
+  chefe:      { p:'Chefe',       d:'o dono da masmorra',                      f:'dano' },
+  santuario:  { p:'Santuário',   d:'descanso e escolha antes de seguir',      f:'bem' },
+  rerrolagem: { p:'Re-rolagens', d:'quantas vezes pode rolar de novo por turno', f:'def' },
+  reliquia:   { p:'Relíquias',   d:'os objetos que você carrega',             f:'regra' },
+  fardo:      { p:'Fardo',       d:'a regra extra que esta masmorra impõe',   f:'ruim' },
 };
 
 /* ---- as FECHADURAS: ícone, palavra e a REGRA EM FRASE ----

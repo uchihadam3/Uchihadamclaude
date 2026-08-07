@@ -591,7 +591,13 @@ function telaGrimorio(foco, voltar){
    Ao adicionar a arte, acrescente o id aqui. */
 const HEROIS_COM_ARTE = new Set(['carrasco','lamina','arcanista','oracula']);
 const TIPO_ANDAR = a => a===10?'chefe' : a===5?'subchefe' : (a===3||a===4||a>=6)?'elite':'comum';
-const ICO_ANDAR = { comum:'⚔', elite:'☠', subchefe:'👹', chefe:'💀' };
+/* O MAPA FALA A MESMA LÍNGUA DA BATALHA: ícone desenhado + PALAVRA. Antes o
+   andar era só um emoji (⚔ ☠ 👹 💀) e um número — o jogador tinha que
+   decorar qual caveira era subchefe e qual era chefe, e no Android metade
+   deles nem desenhava. */
+const CONC_ANDAR = { comum:'comum', elite:'elite', subchefe:'chefe', chefe:'chefe' };
+const NOME_ANDAR = { comum:'COMUM', elite:'ELITE', subchefe:'SUBCHEFE', chefe:'CHEFE' };
+const MOLD_ANDAR = { comum:'', elite:'m-ouro', subchefe:'m-roxo', chefe:'m-vermelho' };
 function previaOnda(m,a){
   const M = (a===10) ? [MASM(m).chefe] : (a===5) ? [MASM(m).subchefe] : null;
   if(M) return M.map(x=>x.nome);
@@ -607,10 +613,12 @@ function telaMapa(entrando){
     const a=i+1, t=TIPO_ANDAR(a), feito=a<andar, atual=a===andar;
     const nome=previaOnda(masmorra,a);
     return `<div class="mno ${t} ${feito?'feito':''} ${atual?'atual':''}" data-a="${a}">
-      <div class="mic">${feito?'✓':ICO_ANDAR[t]}</div>
+      ${MOLD_ANDAR[t]&&!feito?`<div class="moldura ${MOLD_ANDAR[t]}"></div>`:''}
+      <div class="mic">${feito?SIM.ico('sim'):SIM.ico(CONC_ANDAR[t])}</div>
       <div class="mnum">${a}</div>
+      <div class="mtipo">${feito?'LIMPO':NOME_ANDAR[t]}</div>
       ${nome?`<div class="mnome">${nome[0]}</div>`:''}
-      ${(a===5||a===10)?'<div class="msant">santuário</div>':''}
+      ${(a===5||a===10)?`<div class="msant">${SIM.ico('santuario')}SANTUÁRIO</div>`:''}
     </div>`;}).join('<div class="mlig"></div>');
   /* Antes de entrar, o jogador decide com o que tem. Isso não estava na tela:
      ele via a masmorra e não a própria situação. */
@@ -619,24 +627,26 @@ function telaMapa(entrando){
   msg.innerHTML=`<div class="mapwrap">
     <div class="maphd"><div class="mapm">MASMORRA ${masmorra} <i>de 10</i></div>
       <h2>${esc.nome}</h2>
-      <div class="mesc">inimigos deste andar: <b>❤ ×${(esc.hp*(1+(andar-1)*0.070)).toFixed(1)}</b>
-        <b>⚔ ×${(esc.dano*(1+(andar-1)*0.055)).toFixed(1)}</b></div>
-      ${esc.fardoTxt&&esc.fardoTxt!=='—'?`<div class="mfardo">⚠ ${esc.fardoTxt}</div>`:''}</div>
+      <div class="mesc"><u>inimigos deste andar</u>
+        ${SIM.chip('cura','×'+(esc.hp*(1+(andar-1)*0.070)).toFixed(1),{palavra:'Vida deles'})}
+        ${SIM.chip('dano','×'+(esc.dano*(1+(andar-1)*0.055)).toFixed(1),{palavra:'Dano deles'})}</div>
+      ${esc.fardoTxt&&esc.fardoTxt!=='—'
+        ?`<div class="mfardo">${SIM.ico('fardo')}<b>FARDO</b> ${esc.fardoTxt}</div>`:''}</div>
     <div class="mapvoce">
       <div class="mvhp"><u>VIDA</u>
         <div class="mvbar"><span style="width:${pct}%" class="${pct<35?'baixo':''}"></span></div>
         <b>${P.hp}<i>/${P.maxHp}</i></b></div>
       <div class="mvpast">
-        <span><b>${P.bag.length}</b>dados</span>
-        <span><b>${(P.rerollsBase||0)+(P.relicMods?.rerollBonus||0)}</b>re-rolagens</span>
-        ${relq?`<span><b>${relq}</b>relíquia${relq>1?'s':''}</span>`:''}
+        ${SIM.chip('dado', P.bag.length, {palavra:'Dados'})}
+        ${SIM.chip('rerrolagem', (P.rerollsBase||0)+(P.relicMods?.rerollBonus||0))}
+        ${relq?SIM.chip('reliquia', relq):''}
       </div>
     </div>
     <!-- o marcador vive DENTRO da trilha: estava num .mpe abaixo dela e o JS
          posicionava com coordenadas da trilha, então ele parava no canto -->
     <div class="mtrilha">${nos}<span class="mmarc" id="marc">◈</span></div>
     <button class="mb pri" data-a="entrar">▶ ENTRAR NO ANDAR ${andar}
-      <em>${andar===10?'CHEFE':andar===5?'SUBCHEFE':TIPO_ANDAR(andar)==='elite'?'com elite':'inimigos comuns'}</em></button>
+      <em>${SIM.ico(CONC_ANDAR[TIPO_ANDAR(andar)])}${NOME_ANDAR[TIPO_ANDAR(andar)]}</em></button>
   </div>`;
   bindA(msg,{ entrar:()=>{ msg.classList.add('off'); novoCombate(); } });
   // marcador anda até o andar atual

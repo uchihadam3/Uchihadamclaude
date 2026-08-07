@@ -1376,7 +1376,37 @@
  .mvbar>span.baixo{background:linear-gradient(90deg,#8a2230,#ff3a2a);animation:pisc 1s infinite}
  .mvhp>b{font-size:14px;color:#f0ead8;flex:none;font-variant-numeric:tabular-nums}
  .mvhp>b i{font-style:normal;font-size:10px;color:#6b6250}
- .mvpast{display:flex;gap:6px;flex-wrap:wrap}
+ /* =====================================================================
+    O MAPA NO PADRÃO DA BATALHA. Os mesmos chips, os mesmos ícones, a mesma
+    regra: nada de glifo mudo. Antes o andar era um emoji e um número — dava
+    para confundir a caveira do subchefe com a do chefe, e no Android metade
+    dos emoji nem desenhava.
+    ===================================================================== */
+ .mvpast{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+ .mvpast .chip{font-size:11px}
+ .mvpast .cpal{font-size:8px} .mvpast .cval{font-size:12px}
+ .mesc .chip{font-size:11px}
+ .mesc .cpal{font-size:8px} .mesc .cval{font-size:12.5px}
+ .mno .mtipo{font-family:ui-monospace,Menlo,monospace;font-size:6.5px;letter-spacing:.1em;
+   color:#7a7466;line-height:1.1}
+ .mno.elite .mtipo{color:#e8c86a} .mno.subchefe .mtipo{color:#c9a6ff}
+ .mno.chefe .mtipo{color:#ff8a7a} .mno.feito .mtipo{color:#4ad88a}
+ .mno .msant{display:flex;align-items:center;gap:2px;justify-content:center}
+ .mno .msant .sic{font-size:9px}
+ .mno .mic .sic{width:19px;height:19px}
+ .mno .mic img.sic.art{width:22px;height:22px}
+ .mno{overflow:hidden}
+ /* o andar é maior que a carta de habilidade, então a moldura pode respirar:
+    a 5px a joia do topo virava um borrão escuro em vez de ornamento */
+ .mno .moldura{border-width:9px;border-image-width:9px;opacity:.9}
+ .mb.pri em .sic{width:12px;height:12px;vertical-align:-.15em;margin-right:3px}
+ .mfardo{display:flex;align-items:center;justify-content:center;gap:5px}
+ .mfardo .sic{width:13px;height:13px;color:#c09aff;flex:none}
+ .mfardo b{color:#c09aff;font-family:ui-monospace,Menlo,monospace;font-size:8.5px;
+   letter-spacing:.1em}
+ .mesc u{display:block;width:100%;text-decoration:none;font-size:8px;letter-spacing:.16em;
+   text-transform:uppercase;color:#6a6456;margin-bottom:3px}
+ .mesc{flex-wrap:wrap;align-items:center}
  .mvpast span{font-size:9.5px;letter-spacing:1px;color:#8d8672;background:#141822;
    border:1px solid #232b38;border-radius:20px;padding:3px 10px}
  .mvpast span b{color:#e8e2d0;font-size:11.5px;margin-right:3px}
@@ -1406,9 +1436,19 @@
  .mno.feito{opacity:.35}.mno.feito .mic{color:#4ad88a;filter:none}
  .mno.atual{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a55,0 0 20px #ffd24a33;transform:scale(1.06)}
  .mno.atual .mic{opacity:1;filter:none}
- .mmarc{position:absolute;font-size:20px;color:#ffd24a;text-shadow:0 0 14px #ffd24a;
-   transform:translate(-50%,-50%);pointer-events:none;z-index:3;animation:marcp 1s ease-in-out infinite}
- @keyframes marcp{0%,100%{opacity:1}50%{opacity:.5}}
+ /* O MARCADOR PASSA A SER UM HALO ATRÁS, não um losango em cima. Com o andar
+    ganhando a palavra ("COMUM", "ELITE"), o losango no centro caía justo em
+    cima dela. Como brilho de fundo ele continua dizendo "você está aqui" e
+    ainda faz a viagem de um andar ao outro, sem tapar nada. */
+ .mmarc{position:absolute;width:54px;height:54px;font-size:0;color:transparent;
+   border-radius:12px;background:radial-gradient(circle,#ffd24a55,#ffd24a00 70%);
+   transform:translate(-50%,-50%);pointer-events:none;z-index:0;
+   animation:marcp 1.6s ease-in-out infinite}
+ @keyframes marcp{0%,100%{opacity:1}50%{opacity:.42}}
+ /* o conteúdo sobe acima do halo do marcador — MENOS a moldura, que é
+    absoluta: um `position:relative` aqui a jogava de volta para o fluxo e ela
+    virava um quadradinho ornamentado empilhado acima do ícone. */
+ .mno>*:not(.moldura){position:relative;z-index:1}
  /* ===== etiqueta do valor sobre cada dado ===== */
  #lbls{position:fixed;inset:0;pointer-events:none;z-index:7}
  /* o número do dado, com o halo violeta da referência — os dados livres
