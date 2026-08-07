@@ -135,6 +135,14 @@
     <div class="grid" id="grid-equip"></div>
   </section>
 
+  <section>
+    <div class="eyebrow"><h2>Progressão de Armaduras</h2><span class="rule">3 pesos × 3 tiers · fundo magenta</span><span class="count">9 folhas</span></div>
+    <div class="callout" style="border-left-color:#8ee0a0;border-color:#2f6a45;background:linear-gradient(180deg,#122016,#0e1712);color:#cfebd6">
+      <b>🪜 Sets completos p/ progressão:</b> cada folha é uma <b>linha com 4 peças</b> — <b>cabeça · peito · mãos · pés</b> — de <b>um peso</b> (Leve/Médio/Pesado) num <b>tier</b> (I → II → III). Mantém o material coeso dentro do set e vai <b>subindo</b> de humilde (T1) a majestoso (T3). Fundo <b>magenta</b> (<code>#FF00FF</code>), bem espaçadas. Assim eu fecho os sets travados por classe e crio a escada de upgrade.
+    </div>
+    <div class="grid" id="grid-armorsets"></div>
+  </section>
+
   <div class="specs">
     <h3>📐 Especificações técnicas</h3>
     <ul>
@@ -237,9 +245,37 @@
     {emoji:'💍', name:'Itens B — mãos, pés & acessórios (folha · 5)', file:'icons_items_b.png', chip:'Ícones', chipClass:'bonus',
       prompt:"16-bit pixel art RPG equipment ITEM icons, a set of 5 icons arranged in ONE horizontal row, evenly spaced with WIDE empty gaps between them, each roughly square and centered in its own cell. From left to right: (1) a pair of brown LEATHER GLOVES, (2) a spiked steel POWER GAUNTLET, (3) a pair of brown leather BOOTS, (4) a gold RING with a red gem, (5) a glowing blue VITAL AMULET pendant on a chain. Chunky readable pixel art, thin dark outline, bold cohesive colors matching the fantasy RPG character style. On a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow, no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons."},
   ];
+  // ---- Progressão de armaduras: 3 pesos × 3 tiers (cada folha = 4 peças cabeça/peito/mãos/pés) ----
+  const ROW = "a set of 4 icons in ONE horizontal row, evenly spaced with WIDE empty gaps between them, each roughly square and centered in its own cell. From left to right: (1) a HEAD piece, (2) a CHEST/body piece, (3) a pair of GLOVES (hands), (4) a pair of BOOTS (feet).";
+  const BG  = "Chunky readable pixel art, thin dark outline, bold cohesive colors matching the fantasy RPG character style, all 4 pieces clearly the SAME matching set. On a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow, no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons.";
+  const armorSheet = (weight,tier,desc)=>`16-bit pixel art RPG ${weight} ARMOR set icons, ${ROW} ${desc} ${BG}`;
+  const ARMORSETS = [
+    // LEVE (pano/arcano) — azul→violeta
+    {emoji:'🌀', name:'Leve I — Aprendiz', file:'arm_light_t1.png', chip:'Leve', chipClass:'scene',
+      prompt:armorSheet('LIGHT (cloth/arcane)','I',"A humble low-tier apprentice cloth set in soft blue-grey linen: a plain cloth hood, a simple belted cloth tunic, cloth wrap gloves, and soft cloth shoes. Modest and worn.")},
+    {emoji:'🌀', name:'Leve II — Adepto', file:'arm_light_t2.png', chip:'Leve', chipClass:'scene',
+      prompt:armorSheet('LIGHT (cloth/arcane)','II',"A mid-tier enchanted robe set in royal blue with subtle gold trim and faint arcane glyphs: a pointed hood, an ornamented flowing robe, fingerless arcane gloves, and soft boots with gold cuffs.")},
+    {emoji:'🌀', name:'Leve III — Arquimago', file:'arm_light_t3.png', chip:'Leve', chipClass:'scene',
+      prompt:armorSheet('LIGHT (cloth/arcane)','III',"A high-tier luxurious archmage regalia in deep violet and gold with glowing cyan runes and small gems: a grand pointed wizard hat, a flowing rune-embroidered robe, jeweled gloves, and elegant runed slippers.")},
+    // MÉDIO (couro/ágil) — marrom→verde
+    {emoji:'🍃', name:'Médio I — Batedor', file:'arm_medium_t1.png', chip:'Médio', chipClass:'bonus',
+      prompt:armorSheet('MEDIUM (leather)','I',"A humble low-tier scout set in plain brown leather: a simple leather cap, a plain leather vest, plain leather gloves, and plain leather boots.")},
+    {emoji:'🍃', name:'Médio II — Caçador', file:'arm_medium_t2.png', chip:'Médio', chipClass:'bonus',
+      prompt:armorSheet('MEDIUM (studded leather)','II',"A mid-tier reinforced studded-leather hunter set in brown with metal studs and green cloth accents: a hooded leather cap, a studded leather jerkin, bracered gloves, and buckled boots.")},
+    {emoji:'🍃', name:'Médio III — Mestre', file:'arm_medium_t3.png', chip:'Médio', chipClass:'bonus',
+      prompt:armorSheet('MEDIUM (elite leather)','III',"A high-tier elite ranger set in dark brown and forest green with fur trim and steel buckles: a feathered hood, a layered leather-and-fur coat, reinforced gauntlet-gloves, and tall knee-high boots.")},
+    // PESADO (placa/metal) — ferro→aço→ouro
+    {emoji:'⛰️', name:'Pesado I — Recruta', file:'arm_heavy_t1.png', chip:'Pesado', chipClass:'hero',
+      prompt:armorSheet('HEAVY (iron plate)','I',"A humble low-tier iron set in dull grey iron: a plain iron helmet, an iron breastplate, iron gauntlets, and iron sabatons (armored boots).")},
+    {emoji:'⛰️', name:'Pesado II — Cavaleiro', file:'arm_heavy_t2.png', chip:'Pesado', chipClass:'hero',
+      prompt:armorSheet('HEAVY (steel plate)','II',"A mid-tier polished steel plate set in bright silver-steel with blue-grey shading: a visored knight helm, a fluted steel breastplate, articulated steel gauntlets, and steel sabatons.")},
+    {emoji:'⛰️', name:'Pesado III — Guardião', file:'arm_heavy_t3.png', chip:'Pesado', chipClass:'hero',
+      prompt:armorSheet('HEAVY (ornate plate)','III',"A high-tier majestic gold-trimmed guardian plate in silver steel with gold filigree and a glowing rune crest: a crowned great-helm, an ornate breastplate with pauldrons, golden gauntlets, and ornate sabatons.")},
+  ];
   document.getElementById('grid-menus').innerHTML   = MENUS.map(m=>card({icon:m.emoji,    name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
   document.getElementById('grid-frames').innerHTML  = FRAMES.map(m=>card({icon:m.emoji,   name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
   document.getElementById('grid-equip').innerHTML   = EQUIP.map(m=>card({icon:m.emoji,    name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
+  document.getElementById('grid-armorsets').innerHTML = ARMORSETS.map(m=>card({icon:m.emoji, name:m.name, file:m.file, chip:m.chip, chipClass:m.chipClass, prompt:m.prompt})).join('');
 
   function fallbackCopy(text){
     const ta=document.createElement('textarea');
