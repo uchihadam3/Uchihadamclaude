@@ -80,6 +80,11 @@ const D = {
   casal:   `<circle cx="7.5" cy="12" r="4.5"/><circle cx="16.5" cy="12" r="4.5"/>`,
   espelho: `<path d="M12 3v18"/><path d="M8 8L4 12l4 4"/><path d="M16 8l4 4-4 4"/>`,
   ou:      `<path d="M4 8h6l4 8h6"/><path d="M4 16h6"/><path d="M17 5l3 3-3 3"/><path d="M17 13l3 3-3 3"/>`,
+  /* três conceitos que a auditoria do dicionário pegou sem desenho — e a
+     regra da casa é que NÃO existe palavra sem ícone */
+  area:    `<path d="M12 12m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/><path d="M6.3 6.3l2.1 2.1M17.7 6.3l-2.1 2.1M6.3 17.7l2.1-2.1M17.7 17.7l-2.1-2.1"/>`,
+  cego:    `<path d="M3 12s3.6-6 9-6c1.7 0 3.2.6 4.5 1.4"/><path d="M21 12s-3.6 6-9 6c-1.7 0-3.2-.6-4.5-1.4"/><path d="M4 4l16 16"/>`,
+  custa:   `<path d="M12 20s-7-4.5-7-9.5A3.6 3.6 0 0 1 12 8a3.6 3.6 0 0 1 7 2.5c0 5-7 9.5-7 9.5z"/><path d="M8.5 13.5h7"/>`,
   /* o MAPA DA MASMORRA fala a mesma língua: ícone + palavra, como as cartas */
   comum:   `<path d="M4 20L17 7"/><path d="M14 4h6v6"/><path d="M20 4l-6.5 6.5"/><path d="M3 21l3-3"/>`,
   elite:   `<path d="M4 18h16"/><path d="M4 18L3 7l5 4 4-6 4 6 5-4-1 11z"/><path d="M12 13v.01"/>`,

@@ -182,6 +182,11 @@
     o jogador tem que adivinhar.
     ===================================================================== */
  .sic{width:1em;height:1em;flex:none;vertical-align:-.14em}
+ /* o ícone dentro do GRIMÓRIO tem tamanho próprio: ali há espaço e ele é o
+    que o verbete está ensinando, então vale maior que na carta */
+ .gsic{width:22px;height:22px;flex:none;vertical-align:-.34em;margin-right:5px}
+ img.gsic{object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}
+ .gitem b{display:flex;align-items:center;gap:2px;flex-wrap:wrap}
  /* A ARTE PINTADA no lugar do traço, onde ela existe. Vem 1.35× maior que o
     desenho de linha: a placa octogonal tem margem em volta do glifo, então no
     mesmo tamanho de caixa ela parece menor do que é. */

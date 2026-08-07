@@ -130,6 +130,31 @@ export const SECOES = [
       { t:'Multiplicadores que se somam à conta', d:'Marca deixa o alvo tomando +50% do próximo golpe. Frenesi dá +50% no que você causa. As passivas somam dano fixo por golpe e multiplicam o total. Tudo isso entra antes da defesa.' },
     ],
   },
+  /* ================= 3.5 · VOCABULÁRIO ================= */
+  {
+    id:'vocab', ico:'🔑', nome:'AS PALAVRAS', sub:'abrir, fechar, chave, arrombar',
+    intro:'Estas oito palavras aparecem na tela o tempo todo e são o esqueleto do jogo. Sem elas, metade das mensagens não faz sentido.',
+    itens:[
+      { id:'v-fechadura', t:'FECHADURA — a regra do inimigo',
+        d:'Cada inimigo carrega uma regra escrita sobre COMO ele pode ser ferido. Essa regra é a fechadura, e ela fica sempre à vista na faixa dourada da carta dele. Ela NÃO é armadura: armadura reduz o dano, a fechadura é liga-desliga.' },
+      { id:'v-chave', t:'CHAVE — os dados que o golpe gasta',
+        d:'Quando você usa uma habilidade, ela GASTA alguns dados. Só esses contam para a fechadura — os que ficaram na mesa não. É por isso que a mesma mão pode abrir um inimigo e não abrir o do lado: depende de quais dados você põe no golpe.' },
+      { id:'v-abrir', t:'ABRIR — os dados gastos cumpriram a regra',
+        d:'Cumpriu, a fechadura abre e o dano acontece inteiro. Na carta do inimigo aparece em verde "os dados que você marcou ABREM".',
+        ex: ex('Inimigo PAR, você gasta 3 e 5: soma 8, é par, ABRE',
+               'Inimigo PAR, você gasta 3 e 6: soma 9, é ímpar, NÃO abre') },
+      { id:'v-fechada', t:'FECHADA — o dano é ZERO, não é reduzido',
+        d:'Não cumpriu, o golpe inteiro se perde. Não é "menos dano": é zero. A prévia mostra isso antes de você gastar, com o golpe riscado e um 0 ao lado do cadeado. Se dois inimigos pedem coisas opostas, você vai ter que escolher qual ferir neste turno — esse é o quebra-cabeça.' },
+      { id:'v-arrombar', t:'ARROMBAR — quebrar a fechadura na força',
+        d:'Algumas habilidades (as do Carrasco, sobretudo) DERRUBAM a regra do alvo por este turno. Enquanto está ARROMBADA, qualquer golpe fere aquele inimigo, não importa o que a regra pedia.' },
+      { id:'v-dissolver', t:'DISSOLVER — apagar a regra por alguns turnos',
+        d:'O Arcanista não quebra: apaga. A carta passa a dizer DISSOLVIDA 2, e por dois turnos aquele inimigo não tem fechadura nenhuma. É mais duradouro que arrombar, e por isso custa mais para montar.' },
+      { id:'v-contornar', t:'CONTORNAR — ferir sem abrir',
+        d:'VENENO e SANGRAMENTO atravessam a fechadura. Eles não abrem nada — passam por fora. É a resposta inteira da Lâmina-Sombra: ela não resolve o quebra-cabeça, ela corrói o inimigo enquanto ele continua trancado.' },
+      { id:'v-perfurar', t:'PERFURAR — ignorar armadura e bloqueio',
+        d:'Cuidado para não confundir com abrir. PERFURA ignora a DEFESA do inimigo (armadura e bloqueio), mas NÃO ignora a fechadura: um golpe que perfura e não abre continua causando zero.' },
+    ],
+  },
   /* ================= 4 · FECHADURAS ================= */
   {
     id:'travas', ico:'🗝', nome:'FECHADURAS', sub:'por que meu golpe deu zero',
@@ -305,6 +330,32 @@ export const SECOES = [
 ];
 
 /* devolve a seção + item de uma fechadura, pra abrir o Grimório já no lugar */
+/* ===================================================================
+   DICIONÁRIO — gerado de simbolos.js, não escrito à mão.
+
+   A auditoria achou onze conceitos que existiam no jogo e não apareciam em
+   lugar nenhum do "como jogar": Área, Taxa, Contagem, Exige, Explode,
+   Reergue, Aura, Custa, Santuário, Relíquias e Fardo. Uma lista escrita à
+   mão sempre atrasa em relação ao jogo; esta sai da mesma fonte que desenha
+   os chips na batalha, então conceito novo nasce explicado.
+   =================================================================== */
+const FAMILIA = [
+  ['dano', 'O QUE FERE',        'Tudo que tira vida — sua ou deles.'],
+  ['def',  'O QUE SEGURA',      'A diferença entre bloqueio e armadura decide muita luta.'],
+  ['bem',  'O QUE AJUDA VOCÊ',  'O que você ganha e o que fica grudado em você, do lado bom.'],
+  ['ruim', 'O QUE ATRAPALHA',   'Estados que apodrecem com o tempo e ataques ao seu material — os que mexem nos DADOS costumam doer mais que os que mexem no HP.'],
+  ['regra','AS REGRAS',         'As palavras que ligam e desligam fechadura, e o que só as suas habilidades sabem fazer.'],
+];
+SECOES.splice(SECOES.length-1, 0, {
+  id:'dicionario', ico:'📖', nome:'DICIONÁRIO', sub:'todo ícone e toda palavra do jogo',
+  intro:'Toda coisa do jogo tem UM ícone e UMA palavra, e são as mesmas na carta do inimigo, na sua habilidade e no mapa. Quem aprende o chip uma vez lê os dois lados da mesa. Esta lista é gerada do próprio jogo: se aparecer um conceito novo lá, ele aparece aqui.',
+  grupos: FAMILIA.map(([f, titulo, nota])=>({
+    titulo, nota,
+    itens: Object.entries(SIM.CONCEITO).filter(([,v])=>v.f===f)
+      .map(([k,v])=>({ id:'dic-'+k, t:`${SIM.ico(k,'gsic')} ${v.p}`, d:v.d })),
+  })).filter(g=>g.itens.length),
+});
+
 export function acharTrava(tipo){
   const sec = SECOES.find(s=>s.id==='travas');
   return { secao:'travas', item: sec.itens.find(i=>i.id===tipo) || null };

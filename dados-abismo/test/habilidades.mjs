@@ -17,6 +17,7 @@ import { recalcRelics, gerarOpcoes, aplicar } from '../js/engine/rewards.js';
 import { satisfies, ajustarRegras } from '../js/engine/requirements.js';
 import { travaAberta, travaTxt, ALTERNATIVAS, mesmaTrava, seAnulam, TRAVAS } from '../js/data/travas.js';
 import * as SIM from '../js/data/simbolos.js';
+import * as GRIM from '../js/grimorio.js';
 import * as DUNGEONS2 from '../js/data/dungeons2.js';
 import { buildWave } from '../js/engine/encounter.js';
 import { MASMORRAS, ESCALADA } from '../js/data/dungeons.js';
@@ -1509,6 +1510,46 @@ console.log('\n=== NOMES DAS FECHADURAS ===');
     'traz os dois ícones', JSON.stringify(comp.ico));
   check(/Ímpar/.test(comp.nome) && /Enxuto/.test(comp.nome), 'Fechadura composta',
     'o nome cita as duas partes', comp.nome);
+}
+
+/* =====================================================================
+   19. O GRIMÓRIO EXPLICA TUDO QUE EXISTE NO JOGO
+
+   Uma auditoria achou onze conceitos que o jogo mostrava na tela e que o
+   "como jogar" não citava em lugar nenhum — Área, Taxa, Contagem, Exige,
+   Explode, Reergue, Aura, Custa, Santuário, Relíquias e Fardo. Lista escrita
+   à mão sempre atrasa em relação ao jogo; este teste é o que impede a
+   próxima de atrasar.
+   ===================================================================== */
+console.log('\n=== O GRIMÓRIO COBRE O JOGO ===');
+{
+  const texto = JSON.stringify(GRIM.SECOES);
+  const cobre = (rot, itens) => {
+    const fora = itens.filter(x=>!texto.includes(x));
+    check(fora.length===0, 'Grimório', rot,
+      fora.length ? 'SEM EXPLICAÇÃO: '+fora.slice(0,6).join(', ') : itens.length+' explicados');
+  };
+  cobre('explica todo conceito do dicionário',
+    Object.values(SIM.CONCEITO).map(v=>v.p));
+  /* a regra da casa: não existe palavra sem ícone */
+  const semIco = Object.keys(SIM.CONCEITO).filter(k=>!SIM.ico(k));
+  check(semIco.length===0, 'Dicionário', 'todo conceito tem desenho',
+    semIco.length ? 'SEM ÍCONE: '+semIco.join(', ')
+                  : Object.keys(SIM.CONCEITO).length+' conceitos, todos desenhados');
+  cobre('explica toda fechadura', Object.values(TRAVAS).map(v=>v.nome));
+  const skills=[]; for(const c of Object.values(CLASSES)) for(const sk of c.skills) skills.push(sk.nome);
+  skills.push(RESPIRAR.nome);
+  cobre('explica toda habilidade', skills);
+  cobre('explica toda classe', Object.values(CLASSES).map(c=>c.nome.toUpperCase()));
+  cobre('explica toda masmorra', ESCALADA.map(e=>e.nome));
+  /* e o vocabulário que a fechadura exige para ser entendida */
+  cobre('explica o vocabulário da fechadura',
+    ['ABRIR','FECHADA','CHAVE','ARROMBAR','DISSOLVER','CONTORNAR','PERFURAR']);
+  /* toda aba tem conteúdo — aba vazia é pior que aba nenhuma */
+  const vazias = GRIM.SECOES.filter(s =>
+    !(s.itens?.length) && !(s.grupos||[]).some(g=>g.itens.length)).map(s=>s.nome);
+  check(vazias.length===0, 'Grimório', 'nenhuma aba vazia',
+    vazias.length ? vazias.join(', ') : GRIM.SECOES.length+' abas com conteúdo');
 }
 
 /* ---------------------------------------------------------------- */
