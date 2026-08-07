@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>bancada dos dados</title>
+<style>html,body{margin:0;background:#0b0d12}canvas{display:block}</style></head><body>
+<canvas id="c"></canvas>
+<script type="module">
+/* BANCADA — os cinco sólidos lado a lado, parados, na pose de repouso.
+   Serve para olhar a gravação das faces sem depender de uma partida. */
+import * as THREE from '../vendor/three.module.js';
+import { criarMalhaDado, luzes, destacarResultado } from '../js/dice3d/render.js';
+import { raioDe, assentar, poliedro, faceParaCima } from '../js/dice3d/geometry.js';
+import { FACE_KINDS } from '../js/data/faces.js';
+
+const W=1200, H=280;
+const cv=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setSize(W,H); renderer.setPixelRatio(2);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x10141c);
+const camera=new THREE.PerspectiveCamera(26, W/H, 0.1, 100);
+camera.position.set(0,3.1,4.4); camera.lookAt(0,0.15,0);
+luzes(scene);
+
+const params=new URLSearchParams(location.search);
+/* ?só=d4 põe cinco poses do MESMO dado na fileira — é assim que se confere se
+   o número da ponta de cima cai em pé nas três faces em qualquer rolagem */
+const so=params.get('so');
+const TIPOS = so ? [so,so,so,so,so] : ['d4','d6','d8','d10','d12'];
+const N={d4:4,d6:6,d8:8,d10:10,d12:12};
+const mat=params.get('mat')||'osso';
+const semente=+(params.get('s')||0);
+if(so){ camera.position.set(0,2.3,3.2); camera.lookAt(0,0.10,0); }
+function rnd(i){ let x=Math.sin(semente*97.13+i*37.7)*10000; return x-Math.floor(x); }
+
+TIPOS.forEach((tipo,i)=>{
+  const faces=[]; for(let k=0;k<N[tipo];k++) faces.push({k:'num', v:k+1});
+  const die={ id:'t'+i, tipo, material:mat, faces };
+  const raio=raioDe(tipo);
+  const m=criarMalhaDado(die, raio);
+  // uma pose aleatória, depois ASSENTADA — igual ao fim de uma rolagem real
+  const a=rnd(i)*6.28, b=rnd(i+9)*6.28, c2=rnd(i+21)*6.28;
+  const e=new THREE.Euler(a,b,c2);
+  const q0=new THREE.Quaternion().setFromEuler(e);
+  const { q, y }=assentar(tipo, [q0.x,q0.y,q0.z,q0.w], raio);
+  m.quaternion.set(q[0],q[1],q[2],q[3]);
+  m.position.set((i-2)*0.86, y, 0);
+  scene.add(m);
+  const topo=faceParaCima(tipo, q);
+  destacarResultado(m, topo);      // o resultado em ouro, igual ao fim da rolagem
+  console.log(tipo, 'topo =', topo+1);
+});
+const chao=new THREE.Mesh(new THREE.PlaneGeometry(20,20),
+  new THREE.MeshStandardMaterial({color:0x1a2b22, roughness:.95}));
+chao.rotation.x=-Math.PI/2; chao.receiveShadow=true; scene.add(chao);
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.render(scene,camera);
+window.pronto=true;
+</script></body></html>

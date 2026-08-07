@@ -5,11 +5,17 @@
 const norm = v => { const m=Math.hypot(v[0],v[1],v[2])||1; return [v[0]/m,v[1]/m,v[2]/m]; };
 const centro = ps => { const c=[0,0,0]; for(const p of ps){c[0]+=p[0];c[1]+=p[1];c[2]+=p[2];} return c.map(x=>x/ps.length); };
 
-/* d4 — tetraedro */
+/* d4 — tetraedro.
+
+   AS FACES SAEM DO FECHO CONVEXO, não de uma tabela escrita à mão. A tabela
+   que morava aqui estava com o giro INVERTIDO: os quatro triângulos nasciam
+   no sentido horário visto de fora, o three descartava todos por backface
+   culling e o que sobrava na tela era o lado de DENTRO do dado — um triângulo
+   chapado, vazado e sem sombreamento, com os números espelhados. O fecho
+   convexo já ordena cada face no sentido certo, como o d10 e o d12 fazem. */
 function tetra(){
   const V=[[1,1,1],[-1,-1,1],[-1,1,-1],[1,-1,-1]].map(norm);
-  const F=[[0,1,2],[0,3,1],[0,2,3],[1,3,2]];
-  return build(V,F);
+  return build(V, facesDoFecho(V));
 }
 /* d6 — cubo */
 function cubo(){
@@ -97,8 +103,17 @@ function build(V,F){
    ficarem do mesmo porte na mesa — como num conjunto de dados de verdade. */
 const INRAIO={d4:0.333,d6:0.577,d8:0.577,d10:0.537,d12:0.795};
 export function raioDe(tipo, alvo=0.335){
+  /* O d4 NÃO ENTRA NESTA RÉGUA — ele é uma pirâmide baixa, e o inraio do
+     tetraedro é só 1/3 do raio. Igualar a altura de repouso dele à dos outros
+     pedia um raio enorme, e o teto de 0.78 que existia para conter isso ainda
+     deixava um dado com quase o DOBRO da largura do d6 e, mesmo assim, mais
+     baixo que ele: o triângulo gigante e chapado que aparecia na mesa.
+     Entre um d4 e um d6 de verdade o que casa é a ARESTA. A do d6 aqui dá
+     0.67 (raio 0.58 × 1.155) e um d4 de mesa é um tanto maior — 1.633×raio
+     igual a 0.82 põe os dois no mesmo conjunto. */
+  if(tipo==='d4') return 0.53;
   const ir=INRAIO[tipo]||0.577;
-  // mesma ALTURA DE REPOUSO p/ todos = mesmo porte na mesa; teto p/ o d4 não virar torre
+  // mesma ALTURA DE REPOUSO p/ todos = mesmo porte na mesa
   return Math.min(alvo/ir, 0.78);
 }
 const CACHE={};

@@ -15,7 +15,7 @@ import { RELIQUIAS } from './data/relics.js';
 const RELIQ_COMUNS=RELIQUIAS.filter(r=>r.r==='comum');
 import { criarMalhaDado, criarMesa, luzes, destacarResultado } from './dice3d/render.js';
 import { rolarPara } from './dice3d/roll.js';
-import { raioDe, pontoDeCima } from './dice3d/geometry.js';
+import { raioDe, pontoDeCima, poliedro } from './dice3d/geometry.js';
 import { ESCALADA, MASMORRAS } from './data/dungeons.js';
 import * as PASS from './data/passivas.js';
 import { travaTxt } from './data/travas.js';
@@ -72,7 +72,15 @@ function atualizarBadges(){
        empurrou para baixo sem redimensionar: os números continuaram sendo
        desenhados na altura antiga e foram parar em cima dos inimigos,
        enquanto os dados na mesa ficavam sem número nenhum. */
-    const x=(v.x*0.5+0.5)*rc.width + rc.left, y=rc.top+(-v.y*0.5+0.5)*rc.height;
+    const x=(v.x*0.5+0.5)*rc.width + rc.left;
+    /* O d4 PRECISA DE MAIS FOLGA. Nos outros dados a âncora é o centro de uma
+       face inteira e a etiqueta pousa numa área larga; no d4 é a PONTA, que é
+       ao mesmo tempo o ponto mais alto e o lugar onde o resultado está gravado
+       em ouro. A etiqueta caía exatamente em cima dela: comia a ponta do dado
+       — que na tela virava um triângulo sem topo — e o número junto. A folga é
+       em pixels, depois da projeção, para não depender do ângulo da câmera. */
+    const folga = poliedro(tp).porVertice ? 18 : 0;
+    const y=rc.top+(-v.y*0.5+0.5)*rc.height - folga;
     const f=e.face, txt = f.k==='num'? f.v : (FACE_KINDS[f.k]?.glifo||'?');
     b.textContent=txt;
     b.className='lbl'+(cb.used.has(id)?' usado':'')+(sel.has(id)?' sel':'')

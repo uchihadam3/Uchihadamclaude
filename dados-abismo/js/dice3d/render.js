@@ -29,29 +29,39 @@ function atlasFaces(faces, corBase, corTinta, layouts, vencedor){
     grd.addColorStop(0,'rgba(255,255,255,0.10)'); grd.addColorStop(1,'rgba(0,0,0,0.16)');
     g.fillStyle=grd; g.fillRect(cx,cy,S,S);
     g.textAlign='center'; g.textBaseline='middle';
-    const marcar=(txt, kind, px, py, esc, destaque)=>{
+    /* `canto` é o que separa os dois mundos aqui. Nulo: o glifo mora no meio da
+       face, como no d6 e no d12, e pode crescer à vontade. Preenchido ({ang}):
+       o glifo mora num canto de 60° do d4, gira para apontar pra ponta dele e
+       NÃO cresce nem espalha halo — o que sair do canto é decepado pela aresta
+       e não se grava. O desenho acontece na origem depois do translate; o
+       save/restore devolve fonte, cor e sombra sozinho. */
+    const marcar=(txt, kind, px, py, esc, destaque, canto)=>{
       const K2 = FACE_KINDS[kind] || FACE_KINDS.num;
-      const fs = (kind==='num' ? (txt.length>1?S*0.5:S*0.62) : S*0.55) * esc * (destaque?1.5:1);
+      const fs = (kind==='num' ? (txt.length>1?S*0.5:S*0.62) : S*0.55)
+               * esc * (destaque && !canto ? 1.5 : 1);
+      g.save(); g.translate(px, py); if(canto) g.rotate(canto.ang);
       g.font = `900 ${fs}px Georgia, serif`;
       if(destaque){                      // o RESULTADO fica em ouro, com halo
-        g.shadowColor='#ffb02b'; g.shadowBlur=S*0.22;
-        g.fillStyle='#ffcf4a'; g.fillText(txt, px, py);
+        g.shadowColor='#ffb02b'; g.shadowBlur=S*(canto?0.10:0.22);
+        g.fillStyle='#ffcf4a'; g.fillText(txt, 0, 0);
         g.shadowBlur=0; g.fillStyle='#5a3a00'; g.font=`900 ${fs*0.98}px Georgia, serif`;
-        g.fillText(txt, px, py); g.fillStyle='#ffe9a0'; g.font=`900 ${fs*0.86}px Georgia, serif`;
-        g.fillText(txt, px, py); return;
+        g.fillText(txt, 0, 0); g.fillStyle='#ffe9a0'; g.font=`900 ${fs*0.86}px Georgia, serif`;
+        g.fillText(txt, 0, 0); g.restore(); return;
       }
-      g.fillStyle='rgba(255,255,255,0.16)'; g.fillText(txt, px, py + S*0.016*esc);
+      g.fillStyle='rgba(255,255,255,0.16)'; g.fillText(txt, 0, S*0.016*esc);
       g.fillStyle = kind==='num' ? corTinta : K2.cor;
-      g.fillText(txt, px, py);
-      if(kind!=='num'){ g.shadowColor=K2.cor; g.shadowBlur=S*0.09; g.fillText(txt, px, py); g.shadowBlur=0; }
+      g.fillText(txt, 0, 0);
+      if(kind!=='num'){ g.shadowColor=K2.cor; g.shadowBlur=S*0.09; g.fillText(txt, 0, 0); }
+      g.restore();
     };
     const lay = layouts && layouts[i];
     if(lay){                       // d4: um número em CADA CANTO (como o dado real)
-      for(const it of lay) marcar(it.txt, it.k, cx+it.u*S, cy+it.v*S, 0.40, vencedor!=null && it.vi===vencedor);
+      for(const it of lay) marcar(it.txt, it.k, cx+it.u*S, cy+it.v*S, 0.46,
+                                  vencedor!=null && it.vi===vencedor, it);
     } else {
       const K = FACE_KINDS[f.k] || FACE_KINDS.num;
       const txt = f.k==='num' ? String(f.v) : (K.glifo || '?');
-      marcar(txt, f.k, cx+S/2, cy+S/2, 1, false);
+      marcar(txt, f.k, cx+S/2, cy+S/2, 1, false, null);
     }
   });
   const tex = new THREE.CanvasTexture(cv);
@@ -79,7 +89,15 @@ function geometriaDado(tipo, faces, raio, outLayouts){
       const mx=(a[0]+b[0])/2-c[0], my=(a[1]+b[1])/2-c[1], mz=(a[2]+b[2])/2-c[2];
       Rin=Math.min(Rin, Math.hypot(mx,my,mz));
     }
-    const Rface = Rin * 1.34;   // o glifo ocupa ~75% do incírculo
+    let Rvert = 0;
+    for(const p of pts) Rvert = Math.max(Rvert, Math.hypot(p[0]-c[0], p[1]-c[1], p[2]-c[2]));
+    /* NO d4 A RÉGUA É OUTRA. Onde o número mora no centro da face, encaixar o
+       incírculo no nicho é o certo: o glifo fica grande e o que passa do nicho
+       é canto vazio. No d4 o número mora no CANTO, e num triângulo o vértice
+       está a DUAS VEZES o incírculo do centro — o canto caía 25% para dentro
+       do nicho vizinho e o dado se gravava com pedaço da face ao lado. Aqui o
+       que entra no nicho é o círculo dos VÉRTICES, com uma folga de 6%. */
+    const Rface = g.porVertice ? Rvert * 1.06 : Rin * 1.34;   // o glifo ocupa ~75% do incírculo
     // base ortonormal ESTÁVEL do plano da face
     let ax0 = [pts[0][0]-c[0], pts[0][1]-c[1], pts[0][2]-c[2]];
     const m0 = Math.hypot(...ax0)||1; ax0 = ax0.map(x=>x/m0);
@@ -92,13 +110,33 @@ function geometriaDado(tipo, faces, raio, outLayouts){
       return [ u0+du*(0.5+x*0.5), v0+dv*(0.5+y*0.5) ];
     };
     if(outLayouts && g.porVertice){
-      // o número de cada VÉRTICE fica no canto correspondente, puxado pro centro
+      /* O d4 DE VERDADE: cada canto da face leva o número do vértice que está
+         ali, e o número fica GIRADO de modo a apontar para esse canto. É isso
+         que faz o dado funcionar — quando o d4 pousa, a ponta de cima é a
+         mesma nas três faces visíveis, e o número dela aparece no alto de cada
+         uma, em pé, pronto pra ler. Sem o giro os três números caíam todos na
+         mesma direção do atlas e o dado pousava com o resultado deitado ou de
+         cabeça pra baixo, que era o que estava acontecendo.
+
+         O ângulo: no canvas o texto nasce com o "pra cima" em (0,−1) e o giro
+         é horário, então levar (0,−1) até a direção (x,−y) do vértice — o −y
+         porque o eixo do canvas desce — pede ângulo atan2(x, y). */
+      /* ONDE O NÚMERO PARA. Empurrado até o canto ele é DECEPADO: o glifo é um
+         retângulo e o canto do triângulo tem 60°, então a largura que sobra a
+         uma distância d da ponta é só d/2. O que passa disso cai fora da face
+         e simplesmente não se grava — era daí que vinham os números pela
+         metade. A conta que amarra os dois: T ≤ 1 − 1.20·esc. Com o glifo em
+         0.46 (ver marcar, adiante) sobra T ≤ 0.45. Mexeu num, mexa no outro. */
+      const T = 0.45;                       // fração do caminho centro → vértice
       outLayouts[fi] = f.idx.map((vi,k)=>{
-        const uv=uvDe(pts[k]);
-        const fu=(uv[0]-u0)/du, fv=(uv[1]-v0)/dv;          // 0..1 dentro do nicho
+        const p=pts[k], d=[p[0]-c[0],p[1]-c[1],p[2]-c[2]];
+        const x=(d[0]*ax0[0]+d[1]*ax0[1]+d[2]*ax0[2])/Rface;   // −1..1 no nicho
+        const y=(d[0]*ay0[0]+d[1]*ay0[1]+d[2]*ay0[2])/Rface;
         const face = faces[vi] || {k:'num', v:vi+1};
         return { vi, txt: face.k==='num'?String(face.v):(FACE_KINDS[face.k]?.glifo||'?'),
-                 k: face.k, u: 0.5+(fu-0.5)*0.52, v: 1-(0.5+(fv-0.5)*0.52) };
+                 k: face.k,
+                 u: 0.5 + x*T*0.5, v: 0.5 - y*T*0.5,           // canvas: v desce
+                 ang: Math.atan2(x, y) };
       });
     }
     for(let i=0;i<pts.length;i++){
