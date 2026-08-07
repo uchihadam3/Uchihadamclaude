@@ -145,6 +145,80 @@ for(const [nome, mundo, indice] of [['combate',0,0], ['chefe',3,7], ['chefe',2,7
   await pg.close();
 }
 
+/* ════════════════════════════════════════════════════════ 4 */
+secao('4. A fila de baixo fica no meio, e não encostada na esquerda');
+{
+  const { pg } = await entrarNaSala(navegador, 0, 0);
+  for(const pares of [7,8,9,11,13,16,25,30]){
+    const info = await pg.evaluate(async n=>{
+      const { Sala } = await import('./js/engine/tabuleiro.js');
+      const { makeRNG } = await import('./js/rng.js');
+      const s = new Sala({ rng:makeRNG('grade'+n), pares:n, meta:1e9, viradas:99,
+                           foco:9, dificuldade:0, mods:{}, boss:null, ferramenta:null });
+      window.MN.run.sala = s; window.MN.redesenhar();
+      return { cartas:s.cartas.length, cols:s.colunas };
+    }, pares);
+    await pg.waitForTimeout(140);
+    const g = await pg.evaluate(()=>{
+      const filas = new Map();
+      for(const e of document.querySelectorAll('#mesa .ct')){
+        const r = e.getBoundingClientRect();
+        const y = Math.round(r.y/5)*5;
+        (filas.get(y) || filas.set(y,[]).get(y)).push({x:r.x, w:r.width});
+      }
+      const ord = [...filas.entries()].sort((a,b)=>a[0]-b[0]).map(([,v])=>v.sort((a,b)=>a.x-b.x));
+      const meio = f => (f[0].x + f[f.length-1].x + f[f.length-1].w) / 2;
+      const gap = ord[0].length > 1 ? ord[0][1].x - (ord[0][0].x + ord[0][0].w) : 0;
+      return { filas:ord.length, ultima:ord[ord.length-1].length,
+               desvio: Math.abs(meio(ord[ord.length-1]) - meio(ord[0])),
+               cel: ord[0][0].w, coluna: ord[0][0].w + gap };
+    });
+    /* O CENTRO NEM SEMPRE EXISTE. Cinco colunas com duas cartas na fila de
+       baixo não têm meio: sobram três colunas para dois lados. O melhor que
+       uma grade de colunas inteiras faz é errar meia coluna — e é isso que se
+       cobra aqui. Mais que isso é a fila encostada na esquerda. */
+    ok(g.desvio <= g.coluna/2 + 2,
+       `${info.cartas} cartas (${info.cols}×${g.filas}, fila de baixo com ${g.ultima}): `
+       + `desvio ${g.desvio.toFixed(0)}px, no máximo meia coluna (${(g.coluna/2).toFixed(0)}px)`);
+  }
+  await pg.close();
+}
+
+/* ════════════════════════════════════════════════════════ 5 */
+secao('5. Grade de lado ímpar guarda a casa do meio para o ornamento');
+{
+  const { pg } = await entrarNaSala(navegador, 0, 0);
+  for(const pares of [12, 24]){       /* 24 cartas → 5×5 · 48 → 7×7 */
+    const info = await pg.evaluate(async n=>{
+      const { Sala } = await import('./js/engine/tabuleiro.js');
+      const { makeRNG } = await import('./js/rng.js');
+      const s = new Sala({ rng:makeRNG('meio'+n), pares:n, meta:1e9, viradas:99,
+                           foco:9, dificuldade:0, mods:{}, boss:null, ferramenta:null });
+      window.MN.run.sala = s; window.MN.redesenhar();
+      return { cartas:s.cartas.length, cols:s.colunas };
+    }, pares);
+    await pg.waitForTimeout(140);
+    const g = await pg.evaluate(()=>{
+      const mesa = document.getElementById('mesa').getBoundingClientRect();
+      const orn = document.querySelector('#mesa .ornato');
+      if(!orn) return { tem:false };
+      const r = orn.getBoundingClientRect();
+      const cs = getComputedStyle(orn);
+      return { tem:true, pe:cs.pointerEvents,
+               dx: Math.abs((r.x + r.width/2) - (mesa.x + mesa.width/2)),
+               dy: Math.abs((r.y + r.height/2) - (mesa.y + mesa.height/2)) };
+    });
+    const lado = info.cols;
+    ok(g.tem, `${info.cartas} cartas em ${lado}×${lado}: o ornamento existe`);
+    if(!g.tem) continue;
+    /* no centro exato da mesa, nos dois eixos */
+    ok(g.dx < 3 && g.dy < 3,
+       `${info.cartas} cartas: o ornamento está no meio (${g.dx.toFixed(0)}, ${g.dy.toFixed(0)}px de desvio)`);
+    ok(g.pe === 'none', `${info.cartas} cartas: o ornamento não recebe toque`);
+  }
+  await pg.close();
+}
+
 await navegador.close();
 console.log('\n' + '─'.repeat(56));
 if(falhou){ console.log('\x1b[31m✗ '+falhou+' de '+(passou+falhou)+' verificações falharam\x1b[0m');

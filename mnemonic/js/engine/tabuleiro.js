@@ -75,22 +75,43 @@ export function pontosEsperados(pares){
 
 /* A GRADE é em pé, não deitada.
 
-   A conta óbvia (colunas ≈ √n, grade quadrada) devolve 4 colunas para 12
-   cartas e 9 para 60 — e numa tela de celular, que é alta e estreita, isso
-   espreme cada carta na largura e desperdiça a altura toda. Com 60 cartas a
-   diferença é grosseira: a grade quadrada dá carta de 37px, a grade em pé dá
-   49px.
+   A conta óbvia — colunas ≈ √n — deixa a grade quadrada, e a razão pela qual
+   ela foi trocada por √(n×0,74) continua valendo: a tela do celular é alta e
+   estreita, e a grade em pé dá carta maior. Só que o 0,74 sozinho produzia
+   grades feias e, pior, TORTAS: 16 cartas viravam 3 colunas por 6 filas, com
+   a última fila carregando UMA carta sozinha. Ninguém enxerga um tabuleiro
+   assim como um tabuleiro.
 
-   O 0,74 não é chute: a tela útil de um celular é de razão ~0,55 e a carta
-   é 1:1,34, então colunas/filas ideal = 0,55 × 1,34 ≈ 0,74, e colunas =
-   √(n × 0,74). Errei isso na primeira tentativa usando 0,62, e um tabuleiro
-   de 32 cartas saía em 4 colunas com carta de 61px quando cabiam 5 colunas
-   com carta de 70px.
+   Agora a escolha é uma pontuação, e o que ela cobra, em ordem:
 
-   A última fila pode ficar incompleta — centralizar uma fila torta é
-   problema de CSS, não motivo para proibir número de pares. */
+     1. FILA TORTA é o pior defeito. Grade que não fecha exata paga por cada
+        casa vazia, e paga em dobro quando a última fila fica com menos da
+        metade das colunas — que é o caso da carta órfã no canto.
+     2. GRADE COMPRIDA vem em seguida. Mais de uma fila de diferença entre
+        colunas e filas já parece uma coluna de cartas, não uma mesa.
+     3. Entre duas grades igualmente honestas, ganha a EM PÉ, pela mesma razão
+        de sempre: numa tela alta, mais filas que colunas dá carta maior.
+
+   Com isso 16 cartas viram 4×4, 25 viram 5×5, e o pior caso do jogo inteiro
+   fica com uma fila de diferença. */
 export function colunasPara(n){
-  return Math.max(3, Math.min(10, Math.round(Math.sqrt(n*0.74))));
+  if(n <= 4) return 2;
+  let melhor = null, melhorNota = Infinity;
+  for(let c = 2; c <= Math.min(8, n); c++){
+    const f = Math.ceil(n / c);
+    const dif = Math.abs(f - c);
+    if(dif > 1) continue;                        /* mais que isso não é mesa */
+    const vazias = c * f - n;
+    const ultima = n - (f - 1) * c;               /* quantas na fila de baixo */
+    const nota = vazias * 4                       /* casa vazia incomoda */
+               + (ultima * 2 < c ? 6 : 0)         /* fila de baixo pela metade */
+               + dif * 2                          /* comprida incomoda menos */
+               + (c > f ? 3 : 0);                 /* deitada, só em empate */
+    if(nota < melhorNota){ melhorNota = nota; melhor = c; }
+  }
+  /* nenhuma grade quase quadrada serve (tabuleiro enorme): volta à razão da
+     tela, que ao menos aproveita a altura */
+  return melhor ?? Math.max(3, Math.min(10, Math.round(Math.sqrt(n * 0.74))));
 }
 
 export class Sala {

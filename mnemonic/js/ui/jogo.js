@@ -578,8 +578,21 @@ function mesa(refazer, chegada){
   el.toggleAttribute('data-chefe', !!s.boss);
   const peq = el.dataset.pequena === '1';
   const todas = s.porPos();
-  const monta = ()=>{ el.innerHTML = todas.map(c=>cartaHTML(c, peq)).join(''); };
-  if(refazer || el.children.length !== todas.length){
+  /* O SÍMBOLO DO MEIO.
+     Grade de lado ímpar quase nunca fecha: 24 cartas numa 5×5 deixam uma casa
+     sobrando, e as cartas vêm sempre em número par, então a sobra é certa. Se
+     essa casa fica na ponta da última fila, o tabuleiro parece incompleto.
+     Posta no CENTRO, com uma marca gravada na mesa, ela vira o contrário: um
+     ponto de simetria, e as vinte e quatro cartas passam a girar em volta dele.
+
+     A marca não é carta e não pode parecer uma: nada de verso, nada de
+     moldura, nada que se possa tocar. É um ornamento do feltro. */
+  const centro = casaDoMeio(s);
+  const monta = ()=>{
+    el.innerHTML = todas.map(c=>cartaHTML(c, peq)).join('')
+      + (centro >= 0 ? '<span class="ornato" aria-hidden="true"></span>' : '');
+  };
+  if(refazer || el.children.length !== todas.length + (centro>=0 ? 1 : 0)){
     monta();
     if(chegada) el.querySelectorAll('.ct').forEach((e,i)=>{
       e.classList.add('chega'); e.style.setProperty('--d', Math.min(650, i*16)+'ms');
@@ -616,12 +629,48 @@ function mesa(refazer, chegada){
   ordenar();
 }
 /* o embaralho do chefe mexe em `pos`; a grade tem que seguir */
+/* A ÚLTIMA FILA FICA NO MEIO.
+   A grade escolhe o formato mais quadrado que existe, mas nem todo número de
+   cartas fecha exato: 26 cartas em 5 colunas deixam uma sozinha na fila de
+   baixo. Encostada à esquerda, essa carta lê como erro de montagem — o
+   tabuleiro parece ter escorregado. Centralizada, lê como o que é: a última
+   peça. Quem faz isso é um deslocamento na PRIMEIRA carta da fila incompleta,
+   com `grid-column-start`, e não espaçadores — espaçador seria um elemento a
+   mais que o resto do código teria de aprender a ignorar. */
+/* qual casa da grade fica reservada para o ornamento, ou −1 se nenhuma.
+   Só vale quando os dois lados são ímpares E a sobra é ímpar: aí existe um
+   centro de verdade, e tirar uma casa dele deixa o resto par dos dois lados. */
+function casaDoMeio(s){
+  const cols = s.colunas;
+  const n = s.cartas.length;
+  const filas = Math.ceil(n / cols);
+  const sobra = cols * filas - n;
+  if(cols % 2 === 0 || filas % 2 === 0 || sobra % 2 === 0 || sobra < 1) return -1;
+  return Math.floor(cols * filas / 2);
+}
+
 function ordenar(){
   const el = $('#mesa');
-  (run.sala || salaViva).porPos().forEach((c,i)=>{
+  const s = run.sala || salaViva;
+  const cartas = s.porPos();
+  const cols = s.colunas;
+  const centro = casaDoMeio(s);
+  /* com o centro reservado, as cartas depois dele andam uma casa para a
+     frente — daí `slot` não ser mais o mesmo que o índice da carta */
+  const slot = i => (centro >= 0 && i >= centro) ? i + 1 : i;
+  const casas = slot(cartas.length - 1) + 1;
+  const sobra = casas % cols;                      /* quantas na fila de baixo */
+  const recuo = sobra ? Math.floor((cols - sobra) / 2) : 0;
+  const primeiroDaUltima = casas - (sobra || cols);
+  cartas.forEach((c,i)=>{
     const e = el.querySelector(`[data-c="${c.id}"], [data-v="${c.id}"]`);
-    if(e) e.style.order = i;
+    if(!e) return;
+    const k = slot(i);
+    e.style.order = k;
+    e.style.gridColumnStart = (recuo && k === primeiroDaUltima) ? (recuo + 1) : '';
   });
+  const orn = el.querySelector('.ornato');
+  if(orn) orn.style.order = centro;
 }
 
 /* ═══════════════════ efeitos sobre a mesa ═══════════════════ */
@@ -1167,47 +1216,76 @@ function telaEvento(){
 }
 
 /* ═══════════════════════════════════════════ FIM */
+/* ═══════════════════════════════════════════ FIM
+   A ÚLTIMA TELA É A QUE MAIS SE OLHA. Ela chega no momento em que a pessoa
+   parou de jogar e está decidindo se joga de novo, e era a mais fraca do
+   jogo: um selo cortado no topo, um número solto encostado na margem
+   esquerda, seis fichas com uma barrinha de cor e as relíquias reduzidas a
+   comprimidos que não deixavam ver a arte que elas ganharam.
+
+   Agora ela é montada com as mesmas peças do resto: a marca do desfecho
+   dentro de uma CARTA de verdade (moldura pintada e tudo), o placar numa
+   placa 9-slice, as estatísticas em placas e a coleção na mesma VITRINE que
+   o catálogo usa — tocar numa relíquia abre a ficha dela, igualzinho. */
 function telaFim(){
   const p = run.placar();
   const venceu = run.venceu;
   const u = run.ultimaSala;
   (venceu ? SFX.vitoria : SFX.derrota)();
   clarao(venceu ? 'rgba(102,230,166,.4)' : 'rgba(255,106,90,.4)');
-  const cor = venceu ? 'var(--verde)' : 'var(--vermelho)';
+  const cor  = venceu ? '#4fe08a' : '#ff4f52';
+  /* a carta do desfecho usa a moldura que já existe: ouro para quem chegou,
+     coral para quem caiu */
+  const mold = venceu ? 'm-ouro' : 'm-coral';
+  const porque = venceu ? `Seis mundos, ${p.est.salas} salas vencidas.`
+    : `Caiu no mundo ${run.mundo+1}, sala ${run.indice+1}`
+      + (u?.motivo==='foco'      ? ' — o foco acabou.'
+       : u?.motivo==='viradas'   ? ' — as viradas acabaram.'
+       : u?.motivo==='tabuleiro' ? ' — o tabuleiro acabou antes da meta.' : '.');
+
   $('#t-fim').innerHTML = `
-    <div class="rol" style="display:flex;flex-direction:column;justify-content:center">
-      <div class="selao" style="--fc:${cor};align-self:flex-start">
-        ${venceu ? ICO.meta : ICO.recusa}${venceu ? 'run completa' : 'a run acabou'}</div>
-      <h2 class="grandao" style="color:${cor};--brilho:${cor};margin-top:11px">
-        ${venceu ? 'VOCÊ LEMBROU' : 'VOCÊ ESQUECEU'}</h2>
-      <p class="sub">${venceu
-        ? `Seis mundos, ${p.est.salas} salas vencidas.`
-        : `Caiu no mundo ${run.mundo+1}, sala ${run.indice+1}`
-          + (u?.motivo==='foco' ? ' — o foco acabou.'
-           : u?.motivo==='viradas' ? ' — as viradas acabaram.'
-           : u?.motivo==='tabuleiro' ? ' — o tabuleiro acabou antes da meta.' : '.')}</p>
-      <div class="hr"></div>
-      <div class="placarfim">${nf(p.pontos)}</div>
-      <div class="rot">pontos da run</div>
-      <div class="hr"></div>
-      <div class="rot" style="margin-bottom:6px">o que ficou da run</div>
+    <div class="rol">
+      <div class="fimtopo">
+        <div class="ct temold ${mold} fimsel" style="--fc:${cor}">
+          <span class="fx"><span class="ff">${venceu ? ICO.meta : ICO.recusa}</span></span>
+        </div>
+        <h2 class="grandao" style="color:${cor};--brilho:${cor}">
+          ${venceu ? 'VOCÊ LEMBROU' : 'VOCÊ ESQUECEU'}</h2>
+        <p class="sub">${esc(porque)}</p>
+      </div>
+
+      <div class="op ${classePlaca(venceu ? '#4fe08a' : '#ff4f52')} fimplacar"
+           style="--fc:${cor};cursor:default">
+        <span class="agua">${venceu ? ICO.meta : ICO.recusa}</span>
+        <div class="rot">pontos da run</div>
+        <div class="placarfim">${nf(p.pontos)}</div>
+        <div class="fimlinha">
+          <span>${ICO.semente}${esc(p.semente)}</span>
+          <span>${ICO.prova}${p.jogadas} jogadas</span>
+        </div>
+      </div>
+
+      <div class="rot fimrot">o que ficou da run</div>
       <div class="meds">
         ${medalha(ICO.combate, p.est.salas, 'salas', '#4fe08a')}
-        ${medalha(ICO.feito, p.est.acertos, 'pares', 'var(--ouro)')}
-        ${medalha(ICO.recusa, p.est.erros, 'erros', 'var(--vermelho)')}
+        ${medalha(ICO.feito, p.est.acertos, 'pares', '#ffc23c')}
+        ${medalha(ICO.recusa, p.est.erros, 'erros', '#ff4f52')}
         ${medalha(ICO.combo, p.est.maiorCombo, esc(degrauCombo(p.est.maiorCombo).nome),
-                  corDoCombo(p.est.maiorCombo))}
+                  corDoCombo(p.est.maiorCombo), true)}
         ${medalha(ICO.moeda, nf(p.est.moedasGanhas), 'moedas', '#ffc23c')}
         ${medalha(ICO.virada, p.est.viradasSobrando, 'viradas de sobra', '#4fb8ff')}
       </div>
-      <div class="rot" style="margin:13px 0 6px">a coleção desta run</div>
-      ${chipsReliquias(p.reliquias)}
-      <div class="chips" style="margin-top:9px">
-        <span class="chip" style="--fc:${cor}"><span class="ic">${ICO_CLASSE[run.classeId]||''}</span>
-          <span>${esc(run.C.nome)}</span></span>
-        <span class="chip" style="--fc:#5b6683"><span class="ic">${ICO.semente}</span>
-          <span>${esc(p.semente)}</span></span>
+
+      <div class="rot fimrot">quem jogou</div>
+      <div class="op ${classePlaca(run.C.cor)} fimclasse" style="--fc:${run.C.cor};cursor:default">
+        <span class="cab"><span class="gf">${ICO_CLASSE[run.classeId]||''}</span>
+          <h3>${esc(run.C.nome)}</h3></span>
+        <p class="lm">${esc(run.C.lema)}</p>
       </div>
+
+      ${p.reliquias.length ? `
+        <div class="rot fimrot">a coleção desta run</div>
+        ${vitrine('reliquia', p.reliquias)}` : ''}
     </div>
     <div class="pe">
       <button class="bt p g" id="enviar">MANDAR PARA O RANKING</button>
@@ -1268,31 +1346,60 @@ function telaRank(){
   carregarRank();
 }
 
-async function carregarRank(){
-  const alvo = $('#rlista'); if(!alvo) return;
-  let linhas = [];
-  try { linhas = await RANK.buscar({ aba:abaRank, semente:semeanteDoDia() }); }
-  catch(e){ alvo.innerHTML = semRanking('Não deu para falar com os relays.',
-    'Verifique a conexão e tente de novo.'); return; }
-  if(!$('#t-rank').classList.contains('on')) return;
+/* ═══════ O QUADRO APARECE ANTES DE ESTAR PRONTO ═══════
+   A tela ficava em branco por até dez segundos: primeiro esperava os cinco
+   relays (ou sete segundos de prazo), e só então recalculava a run de CADA
+   linha, uma atrás da outra, na mesma thread que desenha. Do lado de quem
+   olha isso é indistinguível de travado.
 
-  /* AQUI mora o anti-cheat: nada entra no quadro sem ser recalculado */
+   Agora são três coisas ao mesmo tempo:
+
+     · o quadro da última visita aparece INSTANTANEAMENTE, do cache, com um
+       aviso de que está atualizando;
+     · cada lote que chega dos relays já é desenhado, sem esperar o resto;
+     · a conferência anti-cheat roda em fatias, cedendo a vez para o navegador
+       entre elas, e guarda o que já conferiu — a mesma linha não é recalculada
+       duas vezes.
+
+   O que NÃO mudou: nenhuma linha entra no quadro sem ser recalculada. A
+   pressa é só na ordem das coisas. */
+const RANK_CACHE = 'mnemonic.rank.';
+const jaConferido = new Map();          // id do evento → passou ou não
+
+/* recalcula em fatias: a cada 6 linhas devolve a vez para a tela respirar */
+async function conferirLinhas(linhas){
   const bons = [];
-  for(const l of linhas) if(verificar(l.placar, l.registro).ok) bons.push(l);
-  bons.sort((a,b)=>b.placar.pontos - a.placar.pontos);
+  for(let i = 0; i < linhas.length; i++){
+    const l = linhas[i];
+    const id = l.ev?.id;
+    let passa = id != null ? jaConferido.get(id) : undefined;
+    if(passa === undefined){
+      passa = verificar(l.placar, l.registro).ok;
+      if(id != null) jaConferido.set(id, passa);
+    }
+    if(passa) bons.push(l);
+    if(i % 6 === 5) await new Promise(r=>setTimeout(r, 0));
+  }
+  bons.sort((x,y)=>y.placar.pontos - x.placar.pontos);
+  return bons;
+}
+
+function pintarRank(bons, atualizando){
+  const alvo = $('#rlista'); if(!alvo) return;
   if(!bons.length){
-    alvo.innerHTML = semRanking('Ninguém conferido ainda nesta aba.',
-      linhas.length ? `${linhas.length} placares chegaram, e nenhum bateu com as próprias jogadas.`
-                    : 'Jogue uma run e seja o primeiro do quadro.');
+    alvo.innerHTML = semRanking(
+      atualizando ? 'Procurando nos relays…' : 'Ninguém conferido ainda nesta aba.',
+      atualizando ? 'O quadro aparece assim que o primeiro placar chegar.'
+                  : 'Jogue uma run e seja o primeiro do quadro.');
     return;
   }
   const eu = localStorage.getItem('mnemonic.nome');
   const CORP = ['#ffc23c','#cfd6e4','#c08a4a'];
   const topo = bons.slice(0,3);
   const resto = bons.slice(3,60);
-  /* pódio: 2º, 1º, 3º — a ordem que o olho espera num pódio */
   const ordem = [1,0,2].filter(i=>topo[i]);
   alvo.innerHTML = `
+    ${atualizando ? '<div class="atz">atualizando…</div>' : ''}
     <div class="podio">${ordem.map(i=>{
       const l = topo[i];
       return `<div class="pod p${i+1}" style="--fc:${CORP[i]}">
@@ -1313,6 +1420,57 @@ async function carregarRank(){
         </div>
         <div class="pt num">${nf(l.placar.pontos)}</div>
       </div>`).join('')}</div>` : ''}`;
+}
+
+/* o quadro da última visita, para a tela nunca abrir vazia. Guarda só o que
+   se desenha — nunca o registro de jogadas, que é grande e já foi conferido */
+function lerCache(aba){
+  try { const c = JSON.parse(localStorage.getItem(RANK_CACHE+aba) || 'null');
+        return Array.isArray(c?.linhas) ? c.linhas : []; } catch(e){ return []; }
+}
+function gravarCache(aba, bons){
+  try { localStorage.setItem(RANK_CACHE+aba, JSON.stringify({ quando:Date.now(),
+    linhas: bons.slice(0,60).map(l=>({ nome:l.nome, placar:l.placar })) })); }
+  catch(e){}
+}
+
+let rankRodada = 0;
+async function carregarRank(){
+  const alvo = $('#rlista'); if(!alvo) return;
+  const aba = abaRank;
+  const rodada = ++rankRodada;
+  const viva = ()=> rodada === rankRodada && abaRank === aba
+                 && $('#t-rank').classList.contains('on');
+
+  pintarRank(lerCache(aba), true);
+
+  let ultimo = 0;
+  const aoChegar = linhas => {
+    if(!viva()) return;
+    const agora = Date.now();
+    if(agora - ultimo < 250) return;      /* um redesenho a cada quarto de segundo */
+    ultimo = agora;
+    conferirLinhas(linhas).then(bons=>{ if(viva()) pintarRank(bons, true); });
+  };
+
+  let linhas = [];
+  try { linhas = await RANK.buscar({ aba, semente:semeanteDoDia(), aoChegar }); }
+  catch(e){
+    if(viva() && !lerCache(aba).length)
+      alvo.innerHTML = semRanking('Não deu para falar com os relays.',
+        'Verifique a conexão e tente de novo.');
+    return;
+  }
+  if(!viva()) return;
+  const bons = await conferirLinhas(linhas);
+  if(!viva()) return;
+  gravarCache(aba, bons);
+  if(!bons.length && linhas.length){
+    alvo.innerHTML = semRanking('Ninguém conferido ainda nesta aba.',
+      `${linhas.length} placares chegaram, e nenhum bateu com as próprias jogadas.`);
+    return;
+  }
+  pintarRank(bons, false);
 }
 const semRanking = (titulo, sub) => `
   <div class="pecao" style="--fc:#5b6683;padding-top:30px">
@@ -1436,4 +1594,7 @@ window.MN = { get run(){ return run; }, Run, verificar, planoDaSala, RANK,
      travamento vira adivinhação: não dá para separar "a regra recusou" de "a
      tela ainda estava animando" olhando de fora. */
   get travado(){ return travado; }, get mostrando(){ return [...mostrando]; },
-  get alvoPendente(){ return alvoPendente; }, toques: MN_TOQUES, perguntar };
+  get alvoPendente(){ return alvoPendente; }, toques: MN_TOQUES, perguntar,
+  /* remonta a mesa a partir do estado atual — é por aqui que o teste de tela
+     consegue conferir a grade de vários tamanhos sem jogar quarenta salas */
+  redesenhar(){ salaViva = run.sala; mesa(true); } };

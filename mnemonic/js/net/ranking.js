@@ -75,6 +75,12 @@ export function janela(aba){
   const agora = Date.now();
   if(aba==='semana') return Math.floor((agora - 7*DIA)/1000);
   if(aba==='mes')    return Math.floor((agora - 30*DIA)/1000);
+  /* o diário é do DIA DE HOJE em UTC — a mesma virada de dia que decide a
+     semente. Sem isto o relay devolvia os 300 placares mais recentes de todo
+     mundo e os de hoje simplesmente não cabiam no lote: a aba Diário ficava
+     vazia mesmo com gente tendo jogado. */
+  if(aba==='diario'){ const d = new Date();
+    return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())/1000); }
   return 0;
 }
 
@@ -130,13 +136,25 @@ function enviar(ev){
    Devolve as linhas CRUAS. Quem chama é que roda `verificar()` — este
    módulo não tem opinião sobre quem é honesto, de propósito: assim é
    impossível o transporte "esquecer" de conferir. */
-export async function buscar({ aba='mundial', semente=null, limite=300 } = {}){
-  const filtro = { kinds:[KIND], '#t':[ETIQUETA], limit:limite };
+export async function buscar({ aba='mundial', semente=null, limite=300,
+                               aoChegar=null } = {}){
+  /* PEDIR SÓ O QUE INTERESSA. O diário tem etiqueta própria desde que é
+     publicado; pedir a etiqueta geral e filtrar depois obrigava o relay a
+     mandar tudo, e o que interessava não cabia no limite. */
+  const filtro = { kinds:[KIND], '#t':[aba==='diario' ? 'mn-diario' : ETIQUETA],
+                   limit:limite };
   const desde = janela(aba);
   if(desde) filtro.since = desde;
 
-  const eventos = await coletar(filtro);
-  const porChave = new Map();          // uma linha por pubkey+d, a mais nova
+  /* enquanto os relays respondem, cada lote já vira lista e sobe para a tela */
+  const eventos = await coletar(filtro, aoChegar
+    ? evs => aoChegar(montar(evs, aba, semente)) : null);
+  return montar(eventos, aba, semente);
+}
+
+/* dos eventos crus para as linhas do quadro: uma por aparelho, a mais nova */
+function montar(eventos, aba, semente){
+  const porChave = new Map();
   for(const ev of eventos){
     if(!conferirAssinatura(ev)) continue;
     let c; try { c = JSON.parse(ev.content); } catch(e){ continue; }
@@ -155,6 +173,7 @@ export async function buscar({ aba='mundial', semente=null, limite=300 } = {}){
                         placar:c.placar, registro:c.registro });
   }
   let linhas = [...porChave.values()];
+  linhas.sort((x,y)=>y.placar.pontos - x.placar.pontos);
   if(aba==='classe'){
     /* melhor de cada classe: o quadro fica útil para quem quer comparar
        build, e não só para quem quer ver o topo */
@@ -169,24 +188,45 @@ export async function buscar({ aba='mundial', semente=null, limite=300 } = {}){
   return linhas;
 }
 
-function coletar(filtro){
+/* COLETAR SEM ESPERAR O MAIS LENTO.
+   Antes isto só devolvia quando TODOS os cinco relays fechassem, ou depois de
+   sete segundos — e a tela ficava em branco esse tempo todo por causa de um
+   relay morto. Agora há três mudanças, e as três importam:
+
+     · cada lote de eventos é entregue na hora, por `aoChegar`, e a tela vai
+       se preenchendo enquanto o resto chega;
+     · a promessa resolve no PRIMEIRO relay que termina de mandar o que tem
+       (EOSE). Os outros continuam chegando pelos lotes;
+     · o prazo caiu para quatro segundos, que é mais do que um relay vivo leva.
+
+   Nada disso muda o que o quadro aceita: quem julga continua sendo
+   `verificar()`, no aparelho de quem lê. */
+function coletar(filtro, aoChegar=null){
   const urls = relays();
   return new Promise(resolve=>{
     const vistos = new Map();
-    let fechados = 0;
-    const acabar = ()=>resolve([...vistos.values()]);
-    const prazo = setTimeout(acabar, 7000);
-    const fim = ()=>{ if(++fechados >= urls.length){ clearTimeout(prazo); acabar(); } };
+    let fechados = 0, respondido = false, aviso = null;
+    const lista = ()=>[...vistos.values()];
+    const acabar = ()=>{ if(respondido) return; respondido = true; resolve(lista()); };
+    const prazo = setTimeout(acabar, 4000);
+    /* um respiro entre os lotes: relay manda evento a evento e redesenhar a
+       cada um deles gastaria mais tempo em tela do que em rede */
+    const avisar = ()=>{ if(!aoChegar || aviso) return;
+      aviso = setTimeout(()=>{ aviso = null; try{ aoChegar(lista()); }catch(e){} }, 140); };
+    const fim = ()=>{ if(++fechados >= urls.length){ clearTimeout(prazo);
+      if(aviso){ clearTimeout(aviso); aviso = null; }
+      if(aoChegar){ try{ aoChegar(lista()); }catch(e){} }
+      acabar(); } };
     for(const u of urls){
       let ws;
       try { ws = new WebSocket(u); } catch(e){ fim(); continue; }
-      const t = setTimeout(()=>{ try{ws.close();}catch(e){} }, 6500);
+      const t = setTimeout(()=>{ try{ws.close();}catch(e){} }, 4000);
       ws.onopen = ()=>{ try { ws.send(JSON.stringify(['REQ','mn',filtro])); } catch(e){} };
       ws.onmessage = m=>{
         try {
           const d = JSON.parse(m.data);
-          if(d[0]==='EVENT' && d[2]?.id) vistos.set(d[2].id, d[2]);
-          if(d[0]==='EOSE'){ clearTimeout(t); ws.close(); }
+          if(d[0]==='EVENT' && d[2]?.id){ vistos.set(d[2].id, d[2]); avisar(); }
+          if(d[0]==='EOSE'){ clearTimeout(t); acabar(); ws.close(); }
         } catch(e){}
       };
       ws.onerror = ()=>{ clearTimeout(t); try{ws.close();}catch(e){} };

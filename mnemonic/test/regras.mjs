@@ -103,11 +103,21 @@ secao('2. Montagem do tabuleiro');
   const d = salaTeste({ cru:true, semente:'outra' });
   const arranjo = s => s.porPos().map(c=>c.simbolo+c.tipo).join(' ');
   ok(arranjo(a) !== arranjo(d), 'semente diferente muda o tabuleiro');
-  for(const n of [12,20,34,48,60]){
-    const c = colunasPara(n);
+  /* A GRADE PRECISA PARECER UMA MESA. A conta antiga botava 16 cartas em 3
+     colunas por 6 filas, com UMA carta sozinha na fila de baixo — e uma carta
+     sozinha num canto lê como erro de montagem, não como tabuleiro. */
+  for(let n = 12; n <= 60; n += 2){
+    const c = colunasPara(n), f = Math.ceil(n/c);
     ok(c>=3 && c<=10, `grade de ${n} cartas tem entre 3 e 10 colunas (${c})`);
-    /* em pé: mais filas que colunas, que é o formato de uma tela de celular */
-    ok(Math.ceil(n/c) >= c, `a grade de ${n} cartas é mais alta que larga (${c}×${Math.ceil(n/c)})`);
+    ok(Math.abs(f - c) <= 1,
+       `a grade de ${n} é quase quadrada — no máximo uma fila de diferença (${c}×${f})`);
+    ok(c*f - n < c, `a grade de ${n} não desperdiça uma fila inteira (${c*f-n} casas vazias)`);
+  }
+  /* número quadrado fecha quadrado, sem sobra nenhuma */
+  for(const n of [16,36]){
+    const c = colunasPara(n);
+    eq(c, Math.sqrt(n), `${n} cartas viram ${Math.sqrt(n)}×${Math.sqrt(n)}`);
+    eq(c*Math.ceil(n/c), n, `${n} cartas não deixam casa vazia`);
   }
 }
 
