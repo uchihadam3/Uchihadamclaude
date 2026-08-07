@@ -1184,11 +1184,42 @@
  /* faixa fina no topo: as cartas começam ABAIXO dela, então nunca a cobrem */
  /* CABEÇALHO: três blocos separados por losango, e a contagem de inimigos
     puxada para a direita em vermelho — dá para ler a situação sem procurar. */
+ /* =====================================================================
+    TELA CHEIA. No celular a barra de endereço e a barra de navegação comem
+    quase 15% da altura — e altura é o recurso mais disputado desta tela, que
+    empilha fileira de inimigos, mesa de dados e barra de habilidades. O botão
+    fica FORA do #topo porque o cabeçalho só existe no combate, e a tela cheia
+    tem que estar à mão no título, no mapa e no grimório também.
+    ===================================================================== */
+ /* ACIMA DE TUDO, inclusive do #msg (z-index 20), que é o painel que cobre a
+    tela inteira no título, no mapa, na recompensa e no grimório. Com 14 o
+    botão existia mas ficava por baixo deles: só dava para tocar durante o
+    combate, que é justamente onde já se tem menos vontade de mexer no chrome
+    do navegador. */
+ #btela{position:fixed;z-index:30;top:calc(3px + env(safe-area-inset-top));
+   right:calc(5px + env(safe-area-inset-right));
+   width:27px;height:27px;padding:0;display:grid;place-items:center;cursor:pointer;
+   background:rgba(12,15,20,.72);border:1px solid rgba(220,180,80,.30);border-radius:7px;
+   color:#c9a24a;-webkit-tap-highlight-color:transparent;transition:.14s}
+ #btela svg{width:15px;height:15px}
+ #btela .fechar{display:none}
+ #btela:hover{background:rgba(30,36,46,.9);border-color:rgba(220,180,80,.6);color:#ffd24a}
+ #btela:active{transform:scale(.92)}
+ /* dentro da tela cheia o botão vira "sair" e o desenho se inverte */
+ body.telacheia #btela .abrir{display:none}
+ body.telacheia #btela .fechar{display:block}
+ /* navegador sem a API (iPhone é o caso) não ganha um botão que não faz nada */
+ body.semtelacheia #btela{display:none}
  #topo{position:fixed;top:0;left:0;right:0;z-index:12;font-size:11px;text-align:center;
    padding:calc(5px + env(safe-area-inset-top)) 10px 5px;pointer-events:none;line-height:1.3;
    display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;
    background:linear-gradient(180deg,rgba(6,8,11,.97) 55%,transparent);
    border-bottom:1px solid rgba(220,180,80,.10)}
+ /* o cabeçalho recua à direita para o "N inimigos" não passar por baixo do
+    botão de tela cheia. Depois do bloco acima de propósito: o `padding`
+    resumido de lá zeraria este recuo se ele viesse antes. */
+ #topo{padding-right:calc(38px + env(safe-area-inset-right))}
+ body.semtelacheia #topo{padding-right:calc(10px + env(safe-area-inset-right))}
  #topo b{font-weight:700;color:#e8e2d0;letter-spacing:.4px}
  #topo i{font-style:normal;font-size:6px;color:#8a7a50;transform:translateY(-1px)}
  #topo .tnome{color:#9a927e;font-style:italic}
@@ -1533,6 +1564,12 @@
  /* habilidade pronta pulsa */
  @keyframes pulsa{0%,100%{box-shadow:0 0 12px #4ad98a44}50%{box-shadow:0 0 22px #4ad98a99}}
 </style></head><body>
+<button id="btela" type="button" aria-label="Tela cheia" title="Tela cheia">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path class="abrir" d="M9 4H4v5M15 4h5v5M15 20h5v-5M9 20H4v-5"/>
+    <path class="fechar" d="M4 9h5V4M20 9h-5V4M20 15h-5v5M4 15h5v5"/>
+  </svg></button>
 <div id="topo"></div>
 <div id="ini" class="lay"></div>
 <div id="mesa">

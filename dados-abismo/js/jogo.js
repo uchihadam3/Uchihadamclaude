@@ -1821,6 +1821,52 @@ function fim(){
    28px chapados para ele: quando ele crescia, o primeiro card ia parar por
    baixo — e com ele a etiqueta do dano, que era o que aparecia escrita atrás
    do título. A folga passa a ser medida do elemento, não chutada. */
+/* ===================================================================
+   TELA CHEIA.
+
+   O navegador só entra em tela cheia dentro de um gesto do usuário, então
+   não dá para lembrar a preferência e restaurar sozinho: é sempre um toque.
+   O que dá para fazer é manter o botão honesto — ele muda de desenho quando
+   o estado muda, inclusive quando o jogador sai pelo ESC ou pelo gesto do
+   sistema, que não passam por aqui.
+
+   Onde a API não existe (o iPhone é o caso: o Safari do iOS só a oferece
+   para vídeo), o botão some em vez de ficar ali sem fazer nada.
+   =================================================================== */
+{
+  const b=document.getElementById('btela');
+  const raiz=document.documentElement;
+  const pede = raiz.requestFullscreen || raiz.webkitRequestFullscreen;
+  const sai  = document.exitFullscreen || document.webkitExitFullscreen;
+  if(!b || !pede){ document.body.classList.add('semtelacheia'); }
+  else{
+    const cheia = ()=> !!(document.fullscreenElement || document.webkitFullscreenElement);
+    const pintarBotao = ()=>{
+      const c=cheia();
+      document.body.classList.toggle('telacheia', c);
+      b.setAttribute('aria-label', c?'Sair da tela cheia':'Tela cheia');
+      b.title = c?'Sair da tela cheia':'Tela cheia';
+      /* a altura útil mudou: a mesa 3D e a folga do cabeçalho precisam refazer
+         a conta, senão o canvas fica do tamanho antigo até o próximo toque */
+      setTimeout(()=>{ medirTopo(); resize(); }, 120);
+    };
+    b.onclick=()=>{
+      /* a TELA CHEIA vem primeiro e o som depois. O som é enfeite e pode
+         falhar — se o navegador ainda não liberou o áudio, um erro aqui
+         abortaria o resto do clique e o botão não faria nada. E a promessa
+         precisa de catch: negada (por permissão, por política do site), ela
+         viraria rejeição não tratada no console. */
+      try{
+        const p = cheia() ? (sai).call(document) : (pede).call(raiz, {navigationUI:'hide'});
+        if(p && p.catch) p.catch(()=>{});
+      }catch(e){}
+      try{ SFX.pegar(); }catch(e){}
+    };
+    for(const ev of ['fullscreenchange','webkitfullscreenchange'])
+      document.addEventListener(ev, pintarBotao);
+    pintarBotao();
+  }
+}
 function medirTopo(){
   const t=document.getElementById('topo'); if(!t) return;
   document.documentElement.style.setProperty('--topoh', Math.ceil(t.offsetHeight)+'px');
