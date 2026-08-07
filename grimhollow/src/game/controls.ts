@@ -4236,13 +4236,19 @@ function injectStyle() {
      centro, e o golpe passa a sair no canto da tela enquanto o inimigo está no
      meio — foi exatamente o que o jogador descreveu. A arma não pertence à
      BORDA da tela, pertence à MIRA.
-     A conta abaixo trava a distância até o centro na mesma que um monitor 16:9
-     da mesma ALTURA teria: 12% de (16/9·H) medidos da direita são 0,675·H a
-     partir do centro. Num 1920x1080 o resultado é idêntico ao antigo (é 16:9);
-     num 3440x1440 a espada volta p/ perto da mira; e no retrato do celular o
-     o max() devolve os 12% de sempre, porque ali a conta dá negativa. */
+     A distância até o centro é escrita em ALTURAS DE TELA, e não em % da largura,
+     porque é da altura que sai o tamanho da arma — as duas medidas têm de andar
+     juntas ou o enquadramento muda de tela p/ tela.
+     O NÚMERO veio de comparar com o celular, que é o enquadramento que já estava
+     certo: lá a arma fica a 0,166 altura do centro. O 'right:12%' antigo punha-a
+     a 0,675 — quatro vezes mais longe, e é por isso que no monitor ela parecia
+     encostada na borda e o golpe parecia sair do canto. 0,48 fica no meio do
+     caminho: bem mais dentro do quadro, e ainda fora do terço central, que é
+     onde o inimigo aparece e não pode ser tapado.
+     No retrato do celular o max() devolve os 12% de sempre, porque ali a conta
+     dá negativa — o telefone não muda um pixel. */
   #gh-weapon-rig {
-    position:fixed; right:max(12%, calc(50vw - 67.5vh)); bottom:-4%;
+    position:fixed; right:max(12%, calc(50vw - 48vh)); bottom:-4%;
     height:62vh; max-height:calc(640px * var(--gh-ui,1));
     pointer-events:none; z-index:8;
     transform-origin:72% 90%;
@@ -4261,9 +4267,13 @@ function injectStyle() {
   }
   /* sprite de golpe: já vem na diagonal com o rastro pintado, então tem base
      e pivô próprios (punho no canto inferior-direito), escondido até o golpe */
-  /* mesma conta do rig, com o 6% dele: 0,782·H a partir do centro. */
+  /* O SPRITE DO GOLPE acompanha o rig com o MESMO deslocamento. Ele nascia a
+     0,782 altura do centro (é o 6% dele em 16:9), 0,107 mais p/ fora que a arma
+     em repouso — e essa diferença é de propósito: o braço se estende p/ o lado
+     ao golpear. Puxar os dois pelo mesmo tanto (−0,195) preserva o gesto; puxar
+     só um faria a arma pular de lugar no instante do golpe. */
   #gh-weapon-atk {
-    position:fixed; right:max(6%, calc(50vw - 78.2vh)); bottom:-6%;
+    position:fixed; right:max(6%, calc(50vw - 58.7vh)); bottom:-6%;
     height:72vh; max-height:calc(720px * var(--gh-ui,1)); width:auto;
     pointer-events:none; z-index:9; opacity:0;
     transform-origin:82% 86%;
