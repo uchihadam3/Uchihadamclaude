@@ -163,69 +163,70 @@
   .inv-empty{grid-column:1/-1;text-align:center;color:var(--dim);font-size:12px;padding:12px}
   .loot .drop{color:var(--purple);font-weight:800}
 
-  /* --- Editor de Gambits (HUD estilo FF XII) --- */
+  /* --- Editor de Gambits — layout LIMPO tipo tabela/linhas --- */
   .gh-box{max-width:560px!important}
   #gh-mount{text-align:left}
   .gh-lede{margin-top:-2px;text-align:center}
-  .gh-tabs{display:flex;gap:6px;justify-content:center;margin:12px 0 10px;flex-wrap:wrap}
+  .gh-tabs{display:flex;gap:6px;justify-content:center;margin:12px 0 8px;flex-wrap:wrap}
   .gh-tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 8px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);box-shadow:none}
-  .gh-tab img{width:40px;height:40px;border-radius:8px;object-fit:cover;object-position:50% 16%;image-rendering:pixelated;border:2px solid transparent}
+  .gh-tab img{width:38px;height:38px;border-radius:8px;object-fit:cover;object-position:50% 16%;image-rendering:pixelated;border:2px solid transparent}
   .gh-tab.on{background:#fff;border-color:var(--acc)} .gh-tab.on img{border-color:var(--acc)}
   .gh-tab span{font-size:10px;font-weight:800;color:var(--ink2)}
-  .gh-head{display:flex;align-items:center;gap:10px;background:var(--acc,#8a6a34);color:#fff;border-radius:11px;padding:8px 11px;margin-bottom:9px}
-  .gh-face{width:38px;height:38px;border-radius:8px;object-fit:cover;object-position:50% 16%;border:2px solid #ffffff88;image-rendering:pixelated;flex:none}
-  .gh-head b{font-size:15px} .gh-head small{display:block;font-size:11px;opacity:.92;font-weight:700}
-  .gh-rows{display:flex;flex-direction:column;gap:9px}
-  .gh-row{display:flex;flex-direction:column;gap:7px;background:linear-gradient(180deg,#fffdf5,#fdf1d6);
-    border:1px solid var(--line);border-radius:13px;padding:9px 10px 10px;min-width:0;
-    box-shadow:0 2px 4px rgba(30,20,8,.1);touch-action:pan-y;transition:box-shadow .1s,opacity .1s}
-  .gh-row.dragging{box-shadow:0 10px 22px rgba(20,12,4,.35);opacity:.97;border-color:var(--gold-d);position:relative;z-index:5}
-  .gh-row.off{opacity:.5;filter:saturate(.45)}
-  .gh-row.exp{border-color:var(--gold-d);box-shadow:0 3px 10px rgba(120,80,20,.2)}
-  /* cabeçalho da linha: arraste + nº + rótulo + liga/desliga + remover */
-  .gh-rowhead{display:flex;align-items:center;gap:8px}
-  .gh-drag{flex:none;width:20px;text-align:center;color:#b3a074;font-size:16px;cursor:grab;line-height:1;touch-action:none;user-select:none}
-  .gh-drag:active{cursor:grabbing}
-  .gh-pri{width:24px;height:24px;flex:none;display:grid;place-items:center;background:var(--ink2);color:#fff;border-radius:50%;font-size:13px;font-weight:900;box-shadow:0 1px 0 rgba(0,0,0,.2)}
-  .gh-rowlbl{font-size:11px;font-weight:800;color:var(--dim);letter-spacing:.4px;text-transform:uppercase}
-  .gh-tools{margin-left:auto;flex:none;display:flex;align-items:center;gap:8px}
-  .gh-cline{display:flex;align-items:center;gap:8px;min-width:0}
-  .gh-if,.gh-arw{flex:none;font-weight:800;font-size:10px;min-width:54px;text-align:center;border-radius:7px;padding:6px 8px;color:#fff;letter-spacing:.5px}
-  .gh-if{background:#3d7fc4} .gh-arw{background:#c0463c}
-  /* chip que abre a lista inline (substitui o <select> nativo) */
-  .gpick{flex:1;width:100%;min-width:0;display:flex;align-items:center;gap:4px;text-align:left;
-    font-family:var(--font);font-weight:400;font-size:13px;border-radius:9px;padding:9px 10px;border:1px solid var(--line);box-shadow:none;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .gpick .gpick-ar{margin-left:auto;flex:none;opacity:.55;font-size:11px}
-  .gpick.cond{background-color:#e6f0fb;color:#245e94;border-color:#bcd6f0}
-  .gpick.act{background-color:#fbeae4;color:#b1483c;border-color:#e6c3b8}
-  .gpick.open{outline:2px solid var(--gold);outline-offset:-1px;box-shadow:0 0 0 3px #f4c95d40}
 
-  /* lista INLINE (full-width) que abre abaixo do bloco clicado */
-  .gh-inline{display:flex;flex-direction:column;gap:6px;margin:-1px 0 2px;padding:7px;
-    background:rgba(60,40,15,.06);border:1px dashed var(--line);border-radius:10px;animation:ghpop .12s ease-out}
+  /* cabeçalho do herói: slim, sem "caixa azul" */
+  .gg-hero{display:flex;align-items:center;gap:8px;padding:4px 2px 8px;border-bottom:2px solid var(--line);margin-bottom:6px}
+  .gg-hface{width:26px;height:26px;border-radius:50%;object-fit:cover;object-position:50% 14%;image-rendering:pixelated;border:1px solid var(--line);flex:none}
+  .gg-hname{font-size:16px;font-weight:400;color:var(--ink)}
+  .gg-hcount{margin-left:auto;font-size:11px;font-weight:800;color:var(--dim)}
+  .gg-colhead{display:flex;align-items:center;gap:8px;font-size:9.5px;font-weight:800;letter-spacing:.5px;color:var(--dim2);text-transform:uppercase;padding:0 2px 6px}
+  .gg-colhead span:nth-child(1){width:26px;text-align:center;flex:none}
+  .gg-colhead span:nth-child(2){flex:1;min-width:0}
+  .gg-colhead span:nth-child(3){width:56px;text-align:center;flex:none}
+
+  /* linhas (flat, separadas por fio) */
+  .gg-list{display:flex;flex-direction:column}
+  .gg{display:flex;align-items:flex-start;gap:8px;padding:9px 2px;border-bottom:1px solid var(--line);touch-action:pan-y;transition:opacity .1s}
+  .gg:last-child{border-bottom:none}
+  .gg.off{opacity:.45}
+  .gg.dragging{background:#fffbec;border-radius:10px;box-shadow:0 8px 20px rgba(20,12,4,.3);position:relative;z-index:5}
+  .gg-num{flex:none;width:26px;text-align:center;font-size:24px;font-weight:400;color:var(--ink2);line-height:1.4;cursor:grab;touch-action:none;user-select:none}
+  .gg-num:active{cursor:grabbing}
+  .gg-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+  .gg-line{display:flex;align-items:center;gap:8px;min-width:0}
+  .gg-lb{flex:none;width:30px;text-align:center;font-size:11px;font-weight:800;color:var(--dim);letter-spacing:.5px}
+  .gg-lb.arw{color:#b58a3a;font-size:15px}
+  .gg-status{flex:none;display:flex;align-items:center;gap:5px;padding-top:3px}
+  .gg-en,.gg-rm{width:28px;height:28px;padding:0;border-radius:50%;font-size:14px;font-weight:900;box-shadow:none;line-height:1}
+  .gg-en{background:#e8efe4;border:1px solid #c7d9bd;color:#9fb592}
+  .gg-en.on{background:#dff0d6;border-color:#8bc07a;color:#3f9b4f}
+  .gg-rm{background:#f0ece3;border:1px solid #ddd3c3;color:#b09b83}
+
+  /* pílulas suaves (dropdown) */
+  .gpick{flex:1;width:100%;min-width:0;display:flex;align-items:center;gap:4px;text-align:left;
+    font-family:var(--font);font-weight:400;font-size:13px;border-radius:9px;padding:9px 11px;box-shadow:none;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid transparent}
+  .gpick .gpick-ar{margin-left:auto;flex:none;opacity:.5;font-size:10px}
+  .gpick.cond{background:#dbe8f4;color:#2c5f8f;border-color:#c2d8ea}
+  .gpick.act{background:#dcecdb;color:#3a7a44;border-color:#c3dcc0}
+  .gpick.open{border-color:var(--gold-d);box-shadow:0 0 0 3px #f4c95d33}
+
+  /* lista inline (opções) — pílulas simples full-width */
+  .gg-opts{display:flex;flex-direction:column;gap:5px;margin:1px 0 3px 38px;animation:ghpop .12s ease-out}
   @keyframes ghpop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-  .pk-block{display:flex;align-items:center;gap:10px;text-align:left;border:none;border-radius:10px;padding:8px 11px;color:#fff;
-    box-shadow:0 2px 0 rgba(0,0,0,.18);position:relative}
-  .pk-block.pk-cond{background:linear-gradient(180deg,#4a92d6,#3475b8)}
-  .pk-block.pk-act{background:linear-gradient(180deg,#d75b50,#bd4238)}
-  .pk-block.sel{outline:3px solid var(--gold);outline-offset:1px}
-  .pk-ic{flex:none;width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,.22);font-size:17px}
-  .pk-tx{min-width:0;display:flex;flex-direction:column;line-height:1.15}
-  .pk-tx small{font-size:9px;font-weight:800;letter-spacing:1px;opacity:.85}
-  .pk-tx b{font-size:13.5px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .pk-ck{margin-left:auto;flex:none;font-size:16px;font-weight:900}
-  .gh-toggle{width:38px;height:21px;padding:0;border-radius:20px;background:#d8c8a4;border:1px solid #c2ad7f;box-shadow:none;position:relative;transition:background .12s}
-  .gh-toggle .gh-knob{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35);transition:left .12s}
-  .gh-toggle.on{background:var(--hp2)} .gh-toggle.on .gh-knob{left:19px}
-  .gh-rm{width:24px;height:24px;padding:0;font-size:11px;flex:none;border-radius:7px;background:#f3d9d2;border-color:#e0b3a8;color:#b1483c;box-shadow:none}
-  .gh-row.locked{flex-direction:row;align-items:center;gap:9px;padding:9px 11px;box-shadow:none;
-    background:repeating-linear-gradient(45deg,#efe3c6,#efe3c6 7px,#e7d6b0 7px,#e7d6b0 14px);border-style:dashed}
-  .gh-row.locked .gh-pri{background:#b7a173;box-shadow:none}
-  .gh-lock{flex:1;font-size:12.5px;font-weight:800;color:var(--dim)}
-  .gh-row.dim{opacity:.6}
+  .gopt{display:flex;align-items:center;gap:8px;text-align:left;border-radius:9px;padding:9px 11px;font-size:12.5px;font-weight:400;border:1px solid transparent}
+  .gopt .gopt-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gopt.c{background:#e9f1fa;color:#2c5f8f;border-color:#d3e2f0}
+  .gopt.a{background:#e9f3e8;color:#3a7a44;border-color:#d3e7d1}
+  .gopt.sel{border-color:var(--gold-d);box-shadow:inset 0 0 0 1px var(--gold-d);font-weight:800}
+  .gopt-ck{margin-left:auto;flex:none;font-weight:900;color:var(--gold-d)}
+
+  /* slots bloqueados (compactos e leves) */
+  .gg-slots{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+  .gg-slot{display:flex;align-items:center;gap:9px;padding:8px 11px;border:1px dashed var(--line);border-radius:10px;background:#f3ecda}
+  .gg-slot.dim{opacity:.6}
+  .gg-slock{flex:1;font-size:12px;font-weight:800;color:var(--dim)}
   .gh-unlock{flex:none;padding:6px 10px;font-size:12px}
-  .gh-add{width:100%;margin-top:9px}
+  .gh-add{width:100%;margin-top:12px;background:linear-gradient(180deg,#f8d066,#e3a936);border-color:#c88f20;color:#4a3410;font-weight:900}
 
   .nav{display:flex;gap:6px;flex:0 0 auto}
   .res{order:3;flex-basis:100%;display:flex;justify-content:space-between;gap:6px;font-weight:800;font-size:12px;

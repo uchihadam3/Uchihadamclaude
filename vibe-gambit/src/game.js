@@ -295,12 +295,9 @@ function ghInlineList(hs, def, line, kind){
   const options = isCond ? S.unlockedConditions.map(c=>({id:c,label:CONDITIONS[c].label}))
                          : def.skills.map(s=>({id:s,label:SKILLS[s].name}));
   const current = isCond ? hs.gambits[line].condition : hs.gambits[line].action;
-  const badge = isCond ? 'CONDIÇÃO' : 'AÇÃO';
-  return `<div class="gh-inline">${options.map(o=>`
-    <button class="pk-block ${isCond?'pk-cond':'pk-act'} ${o.id===current?'sel':''}" data-line="${line}" data-kind="${kind}" data-id="${o.id}">
-      <span class="pk-ic">${isCond?'🎯':'✦'}</span>
-      <span class="pk-tx"><small>${badge}</small><b>${o.label}</b></span>
-      ${o.id===current?'<span class="pk-ck">✓</span>':''}</button>`).join('')}</div>`;
+  return `<div class="gg-opts">${options.map(o=>`
+    <button class="gopt ${isCond?'c':'a'} ${o.id===current?'sel':''}" data-line="${line}" data-kind="${kind}" data-id="${o.id}">
+      <span class="gopt-t">${o.label}</span>${o.id===current?'<span class="gopt-ck">✓</span>':''}</button>`).join('')}</div>`;
 }
 function openGambitHUD(){
   if(!ghHero || !S.heroes.find(h=>h.id===ghHero)) ghHero = selHero || S.heroes[0].id;
@@ -329,55 +326,52 @@ function renderGambitHUD(mount){
     const aLabel = SKILLS[g.action]?.name || '—';
     const cOpen = ghPick && ghPick.line===i && ghPick.kind==='condition';
     const aOpen = ghPick && ghPick.line===i && ghPick.kind==='action';
-    const cond = `<button class="gpick cond ${cOpen?'open':''}" data-line="${i}" data-kind="condition">${cLabel}<span class="gpick-ar">${cOpen?'▴':'▾'}</span></button>`;
-    const act  = `<button class="gpick act ${aOpen?'open':''}" data-line="${i}" data-kind="action">${aLabel}<span class="gpick-ar">${aOpen?'▴':'▾'}</span></button>`;
-    return `<div class="gh-row ${on?'':'off'} ${(cOpen||aOpen)?'exp':''}" data-i="${i}">
-      <div class="gh-rowhead">
-        <div class="gh-drag" title="Arraste para reordenar">⠿</div>
-        <span class="gh-pri">${i+1}</span>
-        <span class="gh-rowlbl">Prioridade ${i+1}</span>
-        <div class="gh-tools">
-          <button class="gh-toggle ${on?'on':''}" data-i="${i}" title="${on?'Desligar':'Ligar'} esta linha"><span class="gh-knob"></span></button>
-          <button class="gh-rm" data-i="${i}" title="Remover">✕</button>
-        </div>
+    return `<div class="gg ${on?'':'off'}" data-i="${i}">
+      <div class="gg-num gh-drag" title="Arraste p/ reordenar">${i+1}</div>
+      <div class="gg-body">
+        <div class="gg-line"><span class="gg-lb">SE</span>
+          <button class="gpick cond ${cOpen?'open':''}" data-line="${i}" data-kind="condition">${cLabel}<span class="gpick-ar">${cOpen?'▴':'▾'}</span></button></div>
+        ${cOpen ? ghInlineList(hs, def, i, 'condition') : ''}
+        <div class="gg-line"><span class="gg-lb arw">➜</span>
+          <button class="gpick act ${aOpen?'open':''}" data-line="${i}" data-kind="action">${aLabel}<span class="gpick-ar">${aOpen?'▴':'▾'}</span></button></div>
+        ${aOpen ? ghInlineList(hs, def, i, 'action') : ''}
       </div>
-      <div class="gh-cline"><span class="gh-if">SE</span>${cond}</div>
-      ${cOpen ? ghInlineList(hs, def, i, 'condition') : ''}
-      <div class="gh-cline"><span class="gh-arw">ENTÃO</span>${act}</div>
-      ${aOpen ? ghInlineList(hs, def, i, 'action') : ''}
+      <div class="gg-status">
+        <button class="gg-en ${on?'on':''}" data-i="${i}" title="${on?'Desativar':'Ativar'}">✓</button>
+        <button class="gg-rm" data-i="${i}" title="Remover">✕</button>
+      </div>
     </div>`;
   }).join('');
   const locked = Array.from({length: def.maxSlots - hs.slots}, (_,k)=>{
     const slotNo = hs.slots + 1 + k; const cost = ACADEMY.slotCosts[slotNo];
-    if(k===0 && cost) return `<div class="gh-row locked"><span class="gh-pri">🔒</span>
-      <span class="gh-lock">Slot ${slotNo}</span>${costHTML(cost)}
+    if(k===0 && cost) return `<div class="gg-slot"><span class="gg-slock">🔒 Slot ${slotNo}</span>${costHTML(cost)}
       <button class="gh-unlock small primary" data-slot="${slotNo}" ${canAfford(cost)?'':'disabled'}>Desbloquear</button></div>`;
-    return `<div class="gh-row locked dim"><span class="gh-pri">🔒</span><span class="gh-lock">Slot ${slotNo} — bloqueado</span></div>`;
+    return `<div class="gg-slot dim"><span class="gg-slock">🔒 Slot ${slotNo} — bloqueado</span></div>`;
   }).join('');
   const canAdd = hs.gambits.length < hs.slots;
   const active = hs.gambits.filter(g=>g.enabled!==false).length;
   mount.innerHTML = `
     <div class="gh-tabs">${tabs}</div>
-    <div class="gh-head" style="--acc:${accentOf(hs.id)}">
-      <img class="gh-face" src="assets/${hs.id}_face.png" alt="">
-      <div><b>${def.name}</b><small>${active}/${hs.gambits.length} linhas ligadas · arraste ⠿ p/ reordenar</small></div>
-    </div>
-    <div class="gh-rows">${rows || '<div class="muted tiny" style="text-align:center;padding:8px">Sem linhas — adicione abaixo.</div>'}${locked}</div>
-    <button class="gh-add small primary" ${canAdd?'':'disabled'}>+ Adicionar linha</button>`;
+    <div class="gg-hero"><img class="gg-hface" src="assets/${hs.id}_face.png" alt="">
+      <span class="gg-hname">${def.name}</span>
+      <span class="gg-hcount">${active}/${hs.gambits.length} ativas</span></div>
+    <div class="gg-colhead"><span>Nº</span><span>SE (condição)  ➜  ENTÃO (ação)</span><span>Status</span></div>
+    <div class="gg-list">${rows || '<div class="muted tiny" style="text-align:center;padding:14px">Sem gambits — adicione abaixo.</div>'}</div>
+    ${locked ? `<div class="gg-slots">${locked}</div>` : ''}
+    <button class="gh-add" ${canAdd?'':'disabled'}>+ Adicionar gambit</button>`;
   mount.querySelectorAll('.gh-tab').forEach(b => b.onclick = () => { ghHero=b.dataset.h; rr(); });
   mount.querySelectorAll('.gpick').forEach(btn => btn.onclick = () => {
     const line = +btn.dataset.line, kind = btn.dataset.kind;
-    // clicar de novo no mesmo fecha; senão abre a lista naquela linha
     ghPick = (ghPick && ghPick.line===line && ghPick.kind===kind) ? null : { line, kind };
     rr();
   });
-  mount.querySelectorAll('.pk-block').forEach(b => b.onclick = () => {
+  mount.querySelectorAll('.gopt').forEach(b => b.onclick = () => {
     const line = +b.dataset.line, kind = b.dataset.kind, id = b.dataset.id;
     if(kind==='condition') hs.gambits[line].condition = id; else hs.gambits[line].action = id;
     save(S); ghPick = null; rr();
   });
-  mount.querySelectorAll('.gh-rm').forEach(x => x.onclick = () => { hs.gambits.splice(+x.dataset.i,1); save(S); rr(); });
-  mount.querySelectorAll('.gh-toggle').forEach(t => t.onclick = () => { const g=hs.gambits[+t.dataset.i]; g.enabled = (g.enabled===false); save(S); rr(); });
+  mount.querySelectorAll('.gg-rm').forEach(x => x.onclick = () => { hs.gambits.splice(+x.dataset.i,1); save(S); rr(); });
+  mount.querySelectorAll('.gg-en').forEach(t => t.onclick = () => { const g=hs.gambits[+t.dataset.i]; g.enabled = (g.enabled===false); save(S); rr(); });
   mount.querySelectorAll('.gh-unlock').forEach(b => b.onclick = () => { const n=+b.dataset.slot; const cost=ACADEMY.slotCosts[n]; if(!canAfford(cost))return; spend(cost); hs.slots++; save(S); bumpRes(); rr(); });
   const add = mount.querySelector('.gh-add');
   if(add) add.onclick = () => { if(hs.gambits.length>=hs.slots)return; hs.gambits.push({ condition:S.unlockedConditions[0], action:def.skills[0], enabled:true }); save(S); rr(); };
@@ -385,14 +379,14 @@ function renderGambitHUD(mount){
 }
 // arrastar linhas de gambit p/ reordenar (pointer-based, funciona no touch)
 function enableGambitDrag(mount, hs, rerender){
-  const list = mount.querySelector('.gh-rows'); if(!list) return;
+  const list = mount.querySelector('.gg-list'); if(!list) return;
   mount.querySelectorAll('.gh-drag').forEach(handle => {
     let drag = null;
     handle.addEventListener('pointerdown', e => {
-      const row = handle.closest('.gh-row'); if(!row || row.classList.contains('locked')) return;
+      const row = handle.closest('.gg'); if(!row) return;
       e.preventDefault();
-      const rows = [...list.querySelectorAll('.gh-row:not(.locked)')];
-      const h = row.getBoundingClientRect().height + 6;   // altura + gap
+      const rows = [...list.querySelectorAll('.gg')];
+      const h = row.getBoundingClientRect().height + 8;   // altura + gap
       drag = { row, from: rows.indexOf(row), n: rows.length, startY: e.clientY, h, moved:false };
       row.classList.add('dragging'); handle.setPointerCapture(e.pointerId);
     });
