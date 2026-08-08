@@ -664,15 +664,39 @@ img.gl{object-fit:contain;stroke:none;
   filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
 .lad .nm{font-size:12px;font-weight:900;text-align:center;line-height:1.22;
   position:relative;z-index:1;text-shadow:0 2px 0 rgba(0,0,0,.8)}
+/* line-height 1.35 decepava o acento: a caixa da linha fechava rente à altura
+   das maiúsculas e o `overflow:hidden` do line-clamp cortava o til e o
+   circunflexo — ÂNCORAS virava ANCORAS, NÃO virava NAO. Em português isso não
+   é detalhe tipográfico, é palavra errada na tela. */
 .lad .tg{font-size:8.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
   color:color-mix(in srgb,var(--fc) 65%,#fff);position:relative;z-index:1;text-align:center;
-  line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
   overflow:hidden;text-shadow:0 1px 0 rgba(0,0,0,.8)}
 .lad .agu{position:absolute;right:-20px;bottom:-22px;width:86px;height:86px;opacity:.1;
   color:#fff;pointer-events:none}
 .lad .agu .gl{width:86px;height:86px;stroke-width:1.4}
 .lad .qt{position:absolute;right:8px;top:7px;font-size:10px;font-weight:900;
   color:#fff;opacity:.55;z-index:1;text-shadow:0 1px 0 rgba(0,0,0,.8)}
+
+/* ───────── O QUE AINDA NÃO SE VIU ─────────
+   O ladrilho fechado não some da vitrine: ele fica no lugar dele, apagado e
+   com a silhueta do que há de vir. Sumir seria não deixar rastro de que
+   existe algo ali, e é justamente o rastro que faz querer completar. A forma
+   por trás continua sendo a da peça certa — quem já viu de relance sabe qual
+   é, quem nunca viu vê só um vulto. */
+.lad.fechado{--fc:#5b6683;filter:saturate(.35)}
+.lad.fechado .ic{background:linear-gradient(180deg,#3d465c,#232a3c)}
+.lad.fechado .ic .gl,
+.lad.fechado .ic img.gl{opacity:.18;filter:grayscale(1) brightness(.5)}
+.lad.fechado .nm{color:var(--osso3);letter-spacing:.12em}
+.lad.fechado .agu{opacity:.05}
+.lad .selo{position:absolute;left:8px;top:7px;width:15px;height:15px;z-index:1;
+  color:var(--ouro);filter:drop-shadow(0 1px 0 rgba(0,0,0,.8))}
+.lad .selo .gl{width:15px;height:15px}
+.lad.apagado{filter:saturate(.28) brightness(.82)}
+/* a barra de quanto já foi encontrado, no ladrilho do capítulo */
+.lad .barra{position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--escT)}
+.lad .barra i{display:block;height:100%;background:var(--fc)}
 
 /* ───────── MEDALHAS ───────── */
 .meds{display:grid;gap:7px;grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
@@ -688,6 +712,10 @@ img.gl{object-fit:contain;stroke:none;
 .mede .cx{display:flex;flex-direction:column;gap:1px;min-width:0}
 .mede .vl{display:block;font-size:20px;font-weight:900;line-height:1.02;color:#fff;
   font-variant-numeric:tabular-nums;text-shadow:0 2px 0 rgba(0,0,0,.85)}
+/* número grande não pode vazar da medalha: "263.400" a 20px estourava a caixa
+   e o zero final ficava do lado de fora. Quanto mais dígitos, menor o corpo. */
+.mede .vl.longo{font-size:16px;letter-spacing:-.02em}
+.mede .vl.enorme{font-size:13px;letter-spacing:-.03em}
 .mede .rt{display:block;font-size:8.5px;letter-spacing:.11em;text-transform:uppercase;
   color:var(--osso3);font-weight:900;line-height:1.3}
 .mede.forte .vl{color:var(--ouro2);text-shadow:0 2px 0 var(--ouroE), 0 4px 0 rgba(0,0,0,.7)}

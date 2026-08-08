@@ -45,8 +45,12 @@ export const quantosViu = capitulo => (cache[capitulo] || []).length;
 /* O VOCABULÁRIO NÃO SE ESCONDE. Meta, virada, foco e combo são as regras do
    jogo, não conteúdo a descobrir: esconder isso seria esconder como se joga.
    Mesma coisa para a escada de combo e para as classes, que estão todas na
-   tela de escolha antes da primeira partida. */
-export const SEMPRE_ABERTO = new Set(['palavra', 'combo', 'classe']);
+   tela de escolha antes da primeira partida.
+
+   MEDALHA também não se esconde, por outro motivo: ela é uma META. Uma meta
+   secreta não puxa ninguém para a próxima run — o jogador precisa ver o que
+   falta para querer ir buscar. */
+export const SEMPRE_ABERTO = new Set(['palavra', 'combo', 'classe', 'conquista']);
 export const escondeCapitulo = cap => !SEMPRE_ABERTO.has(cap);
 
 /* para o botão de "esquecer tudo" das opções, e para os testes */

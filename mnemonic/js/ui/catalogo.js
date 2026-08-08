@@ -21,6 +21,7 @@ import { CLASSES, LISTA_CLASSES } from '../data/classes.js';
 import { RELIQUIAS, POR_ID, RARIDADE } from '../data/reliquias.js';
 import { BOSSES, LISTA_BOSSES } from '../data/bosses.js';
 import { COMBOS, degrauCombo } from '../engine/tabuleiro.js';
+import { CONQUISTAS, POR_ID_CONQ, DEGRAUS } from '../data/conquistas.js';
 import { svgGlifo } from '../arte/glifos.js';
 import { ICO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, icoReliquia } from './icones.js';
 
@@ -104,7 +105,7 @@ export const FAMILIA_DE_PECA = {
   },
   carta: {
     nome:'As cartas', ico:ICO.normal, cor:'#4fb8ff',
-    resumo:'Catorze tipos. Cada um ataca a memória, a conta ou o tabuleiro.',
+    resumo:`${LISTA_TIPOS.length} tipos. Cada um ataca a memória, a conta ou o tabuleiro.`,
     lista: () => LISTA_TIPOS.map(t => t.id),
     peca: id => { const t = TIPOS[id];
       return { cor:t.cor, ico:ICO[t.id] || ICO.normal, nome:t.nome,
@@ -149,6 +150,15 @@ export const FAMILIA_DE_PECA = {
     lista: () => RELIQUIAS.map(r => r.id),
     peca: id => { const r = POR_ID[id];
       return { cor:RARIDADE[r.r], ico:icoReliquia(r.id), nome:r.nome, tag:r.r, texto:r.d }; },
+  },
+  conquista: {
+    nome:'As medalhas', ico:ICO.meta, cor:'#ffc23c',
+    resumo:'Nenhuma delas ajuda dentro da partida — de propósito. '
+         + 'Elas são a meta que sobra quando a run acaba.',
+    lista: () => CONQUISTAS.map(c => c.id),
+    peca: id => { const c = POR_ID_CONQ[id]; const g = DEGRAUS[c.g] || DEGRAUS.bronze;
+      return { cor:g.cor, ico:ICO[c.ico] || ICO.meta, nome:c.nome, tag:g.nome,
+               texto:c.d }; },
   },
   combo: {
     nome:'A escada do combo', ico:ICO.combo, cor:'#ffa24d',

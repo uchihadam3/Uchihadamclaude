@@ -125,8 +125,16 @@ export class Run {
        explode se alguém chamar o efeito por fora de `escolher` — foi assim
        que "O Jogo do Guarda" pareceu quebrado num teste. */
     this.sorte = makeRNG(this.semente+'|sorte');
+    /* O QUE A RUN CONTA DE SI MESMA. Os quatro últimos campos existem para as
+       conquistas, e nascem aqui e não na tela por um motivo de princípio: uma
+       conquista medida pela tela seria uma conquista que o replay não confere.
+       Contadas no motor, elas valem tanto na partida quanto na verificação. */
     this.estatisticas = { acertos:0, erros:0, maiorCombo:0, salas:0,
-                          viradasSobrando:0, moedasGanhas:0 };
+                          viradasSobrando:0, moedasGanhas:0,
+                          melhorSala:0,      // a sala mais valiosa da run
+                          limpas:0,          // tabuleiros terminados até a última carta
+                          semErro:0,         // salas vencidas sem um erro sequer
+                          chefes:[] };       // quem caiu, pelo id
     if(this.C.reliquiaExtra) this._darReliquia();
     /* relíquia que cobra na entrada (a Bolsa Furada dá moeda por par de Ouro
        e tira da bolsa inicial) — só vale para as que a run já começa tendo */
@@ -281,6 +289,11 @@ export class Run {
       this.moedas += s.moedas;
       this.estatisticas.moedasGanhas += s.moedas;
       this.estatisticas.salas++;
+      const E = this.estatisticas;
+      E.melhorSala = Math.max(E.melhorSala, s.pontos);
+      if(s.emJogo().length < 2) E.limpas++;      // acabou o tabuleiro, não o relógio
+      if(s.erros === 0) E.semErro++;
+      if(this.tipoSala()==='boss') E.chefes.push(this.bossDoMundo().id);
       /* elite e chefe pagam a mais: é o que faz valer a pena entrar neles */
       const extra = this.tipoSala()==='boss' ? 60 : this.tipoSala()==='elite' ? 25 : 0;
       this.moedas += extra;

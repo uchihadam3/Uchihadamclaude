@@ -40,6 +40,12 @@ import { ICO, ICO_CLASSE, ICO_CHEFE, icoReliquia, MOLDURA_DO_TIPO } from './icon
 import { CAPITULOS, FAMILIA_DE_PECA, peca, PALAVRAS, COR_COMBO, corDoCombo }
   from './catalogo.js';
 import * as RANK from '../net/ranking.js';
+import { descobrir, viu, quantosViu, escondeCapitulo, apagarDescobertas }
+  from './descobertas.js';
+import { perfil, anotarRun, anotarPublicacao, taxaVitoria, apagarPerfil }
+  from './perfil.js';
+import { conferirConquistas, medalhasGanhas, temMedalha, apagarMedalhas }
+  from './medalhas.js';
 
 const $  = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -71,24 +77,22 @@ function ir(nome){
 
 /* leva a run para onde ela estiver: é o único lugar que decide isso, para
    não haver dois caminhos discordando sobre em que sala o jogador está */
-function seguir(){
-  if(!run) return /* QUE VERSÃO É ESTA.
-   O link do jogo é fixo e serve sempre a última versão, o que é bom até o
-   momento em que alguém precisa saber se o que está na tela já é a correção
-   de ontem. `document.lastModified` responde isso sem nenhuma manutenção: é a
-   data do arquivo que o navegador realmente baixou. Se ela não avançou depois
-   de uma atualização, o que está na tela veio do cache. */
-(function versao(){
-  const el = $('#creditos'); if(!el) return;
-  const d = new Date(document.lastModified);
-  const q = n => String(n).padStart(2,'0');
-  const quando = Number.isNaN(d.getTime()) ? ''
-    : ` · versão de ${q(d.getDate())}/${q(d.getMonth()+1)} ${q(d.getHours())}:${q(d.getMinutes())}`;
-  el.textContent = `${SALAS.length*MUNDOS} salas · ${LISTA_BOSSES.length} chefes · `
-    + `${RELIQUIAS.length} relíquias${quando}`;
-})();
+/* O QUE A RUN ENCONTROU ATÉ AGORA.
+   Podia estar espalhado em cinco lugares — prêmio, loja, evento, tesouro,
+   relíquia inicial da classe — e cinco lugares é onde se esquece um. Aqui a
+   coleção é sincronizada com o que a run REALMENTE tem, não importa por qual
+   porta aquilo entrou. Chefe conta ao entrar na sala dele: encarar já é ter
+   visto, e perder para ele não pode apagar isso. */
+function colher(){
+  if(!run) return;
+  descobrir('reliquia', run.reliquias);
+  descobrir('classe', run.classeId);
+  if(run.sala?.boss) descobrir('chefe', run.sala.boss.id);
+}
 
-ir('titulo');
+function seguir(){
+  colher();
+  if(!run) return ir('titulo');
   if(run.acabou())         return ir('fim');
   if(run.sala)             return ir('sala');
   if(run.aguardandoPremio) return ir('premio');
@@ -124,6 +128,35 @@ $('#folha').addEventListener('click', e=>{
   if(e.target.id==='folha' || e.target.closest('[data-fechar]'))
     $('#folha').classList.remove('on');
 });
+
+/* CONFIRMAR ALGO QUE NÃO SE DESFAZ.
+   `confirm()` do sistema tem os mesmos defeitos do `prompt()` explicado
+   abaixo, e um a mais: é a caixa que o dedo aperta sem ler. Aqui o botão
+   perigoso vem pintado de perigo e escrito por extenso o que vai sumir. */
+function confirmar({ titulo, texto, ok='APAGAR', dica='' }){
+  return new Promise(resolve=>{
+    const f = $('#folha');
+    $('#folhac').innerHTML = `
+      <div class="cabeca" style="margin-bottom:13px">
+        <div class="rot">${esc(dica)}</div>
+        <h2 class="tit">${esc(titulo)}</h2>
+      </div>
+      <p class="mini" style="margin-bottom:13px">${esc(texto)}</p>
+      <div class="folhab">
+        <button class="bt" data-nao>DEIXA PRA LÁ</button>
+        <button class="bt perigo" data-sim>${esc(ok)}</button>
+      </div>`;
+    f.classList.add('on');
+    let respondido = false;
+    const fechar = v => { if(respondido) return; respondido = true;
+      f.classList.remove('on'); f.removeEventListener('click', clique); resolve(v); };
+    const clique = e => {
+      if(e.target.closest('[data-sim]')){ SFX.clique(); fechar(true); }
+      else if(e.target.closest('[data-nao]') || e.target.id === 'folha') fechar(false);
+    };
+    f.addEventListener('click', clique);
+  });
+}
 
 /* PERGUNTAR UM TEXTO SEM SAIR DO JOGO.
    O nome do ranking era pedido pela caixa de texto do sistema operacional:
@@ -234,6 +267,28 @@ const placaTingida = cor =>
    é o que ele quis saber. */
 function ladrilho(tipo, id, extra=''){
   const p = peca(tipo, id); if(!p) return '';
+  /* MEDALHA é objetivo, e objetivo não se esconde: ela aparece com nome e
+     exigência desde o começo, apagada até ser ganha. Carta, família, chefe e
+     relíquia são SURPRESA, e essas ficam fechadas até aparecerem na partida —
+     metade da graça de um roguelike é abrir a sala do Mimic sem saber o que é
+     um Mimic. As duas coisas usam o mesmo ladrilho e leituras diferentes. */
+  if(tipo === 'conquista'){
+    const feita = temMedalha(id);
+    return `<button class="lad ${feita?'':'apagado'}" data-peca="${tipo}:${esc(id)}"
+                    style="--fc:${feita ? p.cor : '#5b6683'}">
+      <span class="agu">${p.ico}</span>
+      ${feita ? `<span class="selo">${ICO.feito}</span>` : ''}
+      <span class="ic">${p.ico}</span>
+      <span class="nm">${esc(p.nome)}</span>
+      <span class="tg">${feita ? esc(p.tag) : 'ainda não'}</span>
+      ${extra}</button>`;
+  }
+  if(escondeCapitulo(tipo) && !viu(tipo, id))
+    return `<button class="lad fechado" data-fechado="${tipo}">
+      <span class="agu">${p.ico}</span>
+      <span class="ic">${p.ico}</span>
+      <span class="nm">? ? ?</span>
+      <span class="tg">ainda não encontrada</span></button>`;
   return `<button class="lad" data-peca="${tipo}:${esc(id)}" style="--fc:${p.cor}">
     <span class="agu">${p.ico}</span>
     <span class="ic">${p.ico}</span>
@@ -241,6 +296,13 @@ function ladrilho(tipo, id, extra=''){
     ${p.tag ? `<span class="tg">${esc(p.tag)}</span>` : ''}
     ${extra}</button>`;
 }
+/* o que se descobre e onde se descobre — a resposta para o toque no fechado */
+const ONDE_ACHA = {
+  carta:'Virando uma na mesa. Elas aparecem conforme a run avança.',
+  familia:'Entrando numa sala que sorteie essa família.',
+  chefe:'Chegando na sala de chefe do mundo dele.',
+  reliquia:'Ganhando ou comprando essa relíquia numa run.',
+};
 const vitrine = (tipo, ids, extra) =>
   `<div class="vit">${ids.map(id=>ladrilho(tipo, id, extra?extra(id):'')).join('')}</div>`;
 
@@ -263,6 +325,20 @@ function abrirPeca(tipo, id){
 }
 /* um toque em qualquer ladrilho da tela abre a peça — não importa a tela */
 document.addEventListener('click', e=>{
+  const f = e.target.closest('[data-fechado]');
+  if(f){
+    SFX.clique();
+    const cap = FAMILIA_DE_PECA[f.dataset.fechado];
+    ficha(`<div class="pecao" style="--fc:#5b6683">
+        <div class="ic">${ICO.recusa}</div>
+        <h3 style="color:var(--osso2)">Ainda não encontrada</h3>
+        <div class="rot">${esc(cap?.nome || '')}</div>
+        <p class="tx">${esc(ONDE_ACHA[f.dataset.fechado] || 'Jogando.')}</p>
+        <p class="nt">A coleção só mostra o que você já viu de verdade — é o
+          que faz o jogo ainda ter surpresa na décima run.</p>
+      </div>`);
+    return;
+  }
   const b = e.target.closest('[data-peca]');
   if(!b) return;
   const [tipo, ...resto] = b.dataset.peca.split(':');
@@ -271,11 +347,13 @@ document.addEventListener('click', e=>{
 
 /* MEDALHA: número com cara de troféu. Nenhum número do jogo aparece como
    linha de tabela. */
-const medalha = (ico, valor, rotulo, cor='var(--ouro)', forte=false) =>
-  `<div class="mede ${forte?'forte':''}" style="--c:${cor}">
+const medalha = (ico, valor, rotulo, cor='var(--ouro)', forte=false) => {
+  const n = String(valor).length;
+  return `<div class="mede ${forte?'forte':''}" style="--c:${cor}">
      <span class="ic">${ico}</span>
-     <span class="cx"><span class="vl">${esc(valor)}</span>
+     <span class="cx"><span class="vl ${n>9?'enorme':n>6?'longo':''}">${esc(valor)}</span>
        <span class="rt">${esc(rotulo)}</span></span></div>`;
+};
 
 /* CHIP: relíquia (ou coisa curta) que se toca */
 const chipReliquia = id => {
@@ -848,6 +926,10 @@ async function tocarCarta(id){
   const rel = run.virar(id);
   if(rel.erro){ _reg.saiu = 'motor recusou: '+rel.erro; return; }
   _reg.saiu = 'virou';
+  /* VIU NA TELA, VIROU SEU. A coleção se enche aqui, na carta virada, e não
+     na entrada da sala: quem entrou numa sala de Dragões e perdeu sem virar
+     uma carta de Dragão não viu Dragão nenhum. */
+  descobrir('carta', c.tipo); descobrir('familia', c.fam);
   SFX.virar();
   mostrando.add(id);
   mesa(false);
@@ -1324,6 +1406,13 @@ function telaFim(){
   const p = run.placar();
   const venceu = run.venceu;
   const u = run.ultimaSala;
+  /* A RUN ENTRA NO CADERNO AQUI, e só aqui. Anotar em `_fecharSala` seria
+     anotar salas, não runs; anotar no botão de publicar deixaria de fora quem
+     não publica. `anotarRun` recusa a mesma run duas vezes, o que importa
+     porque esta tela é remontada toda vez que se volta para ela. */
+  colher();
+  anotarRun(run);
+  const novasMedalhas = conferirConquistas();
   (venceu ? SFX.vitoria : SFX.derrota)();
   clarao(venceu ? 'rgba(102,230,166,.4)' : 'rgba(255,106,90,.4)');
   const cor  = venceu ? '#4fe08a' : '#ff4f52';
@@ -1376,6 +1465,11 @@ function telaFim(){
         <p class="lm">${esc(run.C.lema)}</p>
       </div>
 
+      ${novasMedalhas.length ? `
+        <div class="rot fimrot">${novasMedalhas.length === 1
+          ? 'medalha nova' : novasMedalhas.length+' medalhas novas'}</div>
+        ${vitrine('conquista', novasMedalhas.map(c=>c.id))}` : ''}
+
       ${p.reliquias.length ? `
         <div class="rot fimrot">a coleção desta run</div>
         ${vitrine('reliquia', p.reliquias)}` : ''}
@@ -1408,6 +1502,7 @@ async function enviarPlacar(bt){
   try {
     const r = await RANK.publicar(run.pacote(), nome.slice(0,22));
     if(r.ok){
+      anotarPublicacao(); conferirConquistas();
       bt.textContent = `PUBLICADO EM ${r.relays} RELAYS`;
       setTimeout(()=>{ abaRank = run.diario ? 'diario' : 'mundial'; ir('rank'); }, 900);
     } else if(r.por === 'menor'){
@@ -1650,6 +1745,36 @@ const semRanking = (titulo, sub) => `
    exatamente o formato que ninguém lê. Agora é uma COLEÇÃO — o menu mostra
    os oito conjuntos como peças, cada conjunto abre a sua vitrine, e o texto
    só aparece quando o jogador toca a peça que quis saber. */
+/* quantas peças daquele capítulo já são suas. Capítulo aberto conta inteiro:
+   não faz sentido dizer "0/11 palavras" para quem já jogou uma sala. */
+function achadosDo(cap, total){
+  if(cap === 'conquista') return [...medalhasGanhas()].length;
+  return escondeCapitulo(cap) ? Math.min(total, quantosViu(cap)) : total;
+}
+
+/* A PLACA DO CADERNO — os números da vida inteira, no topo da coleção.
+   Fica aqui e não numa tela própria de propósito: estatística separada do
+   que ela mede vira tabela, e tabela ninguém abre. Do lado da vitrine, ela é
+   a resposta para "o que eu já fiz com este jogo". */
+function placaPerfil(){
+  const p = perfil();
+  if(!p.runs) return `<p class="mini" style="margin:0 0 12px">
+    Jogue uma run e este caderno começa a se encher.</p>`;
+  return `
+    <div class="rot" style="margin-bottom:6px">o seu caderno</div>
+    <div class="meds" style="margin-bottom:13px">
+      ${medalha(ICO.semente, nf(p.runs), 'runs', '#63789e')}
+      ${medalha(ICO.meta, nf(p.vitorias), `vitórias · ${taxaVitoria()}%`, '#4fe08a')}
+      ${medalha(ICO.combate, nf(p.salas), 'salas vencidas', '#ffa24d')}
+      ${medalha(ICO.feito, nf(p.pares), 'pares fechados', '#ffc23c')}
+      ${medalha(ICO.combo, p.maiorCombo, esc(degrauCombo(p.maiorCombo).nome),
+                corDoCombo(p.maiorCombo), true)}
+      ${medalha(ICO.prova, nf(p.melhorRun), 'melhor run', '#b478ff')}
+      ${medalha(ICO.vista, nf(p.melhorSala), 'melhor sala', '#4fb8ff')}
+      ${medalha(ICO.recusa, nf(p.semErro), 'salas sem errar', '#ff6fae')}
+    </div>`;
+}
+
 let capAtual = null;
 function telaLivro(){
   const t = $('#t-livro');
@@ -1661,14 +1786,21 @@ function telaLivro(){
           <h2 class="tit">A coleção</h2></div>
       </div>
       <div class="rol">
-        <div class="vit">${CAPITULOS.map(c=>`
+        ${placaPerfil()}
+        <div class="vit">${CAPITULOS.map(c=>{
+          const total = c.lista().length;
+          const tem = achadosDo(c.id, total);
+          return `
           <button class="lad" data-cap="${c.id}" style="--fc:${c.cor}">
             <span class="agu">${c.ico}</span>
-            <span class="qt">${c.lista().length}</span>
+            <span class="qt">${tem < total ? tem+'/'+total : total}</span>
             <span class="ic">${c.ico}</span>
             <span class="nm">${esc(c.nome)}</span>
-          </button>`).join('')}</div>
+            <span class="barra"><i style="width:${Math.round(tem*100/total)}%"></i></span>
+          </button>`; }).join('')}</div>
         <div style="margin:13px 0"><button class="bt g" id="verGuia">Ver o guia de novo</button></div>
+        ${perfil().runs ? `<div style="margin:0 0 13px">
+          <button class="bt g" id="esquecerTudo">Esquecer o caderno</button></div>` : ''}
         <div class="rot" style="margin-bottom:6px">em uma frase</div>
         <div class="vit">
           ${['meta','virada','foco','combo'].map(id=>ladrilho('palavra', id)).join('')}
@@ -1679,7 +1811,9 @@ function telaLivro(){
     t.innerHTML = `
       <div class="topo-linha">
         <button class="bt pq" id="voltarCap">VOLTAR</button>
-        <div class="cabeca"><div class="rot" style="color:${c.cor}">${c.lista().length} peças</div>
+        <div class="cabeca"><div class="rot" style="color:${c.cor}">${
+          (()=>{ const t=c.lista().length, n=achadosDo(c.id,t);
+                 return n<t ? `${n} de ${t}` : `${t} peças`; })()}</div>
           <h2 class="tit">${esc(c.nome)}</h2></div>
       </div>
       <p class="mini" style="flex:0 0 auto;margin:0 0 10px">${esc(c.resumo)}
@@ -1690,28 +1824,29 @@ function telaLivro(){
   $$('#t-livro [data-cap]').forEach(b=>b.onclick = ()=>{
     SFX.clique(); capAtual = b.dataset.cap; telaLivro();
   });
+  const et = $('#esquecerTudo');
+  if(et) et.onclick = async ()=>{
+    SFX.clique();
+    const sim = await confirmar({
+      dica:'isto não se desfaz',
+      titulo:'Esquecer tudo o que você já viu?',
+      texto:'Apaga o caderno inteiro: runs, vitórias, recordes, medalhas e a '
+          + 'coleção do que você já encontrou. A run em andamento e o que já '
+          + 'está publicado no ranking mundial não são tocados — o quadro é de '
+          + 'lá, não daqui.',
+      ok:'ESQUECER TUDO',
+    });
+    if(!sim) return;
+    apagarPerfil(); apagarMedalhas(); apagarDescobertas();
+    aviso('CADERNO EM BRANCO', 'a coleção começa de novo');
+    telaLivro();
+  };
   const vg2 = $('#verGuia');
   if(vg2) vg2.onclick = ()=>{ SFX.clique(); localStorage.removeItem('mnemonic.guia');
     if(run?.sala){ ir('sala'); setTimeout(()=>guia(0), 350); }
     else aviso('PRONTO', 'o guia volta na próxima sala'); };
   const v = $('#voltarLivro');
-  if(v) v.onclick = ()=>{ SFX.clique(); run ? seguir() : /* QUE VERSÃO É ESTA.
-   O link do jogo é fixo e serve sempre a última versão, o que é bom até o
-   momento em que alguém precisa saber se o que está na tela já é a correção
-   de ontem. `document.lastModified` responde isso sem nenhuma manutenção: é a
-   data do arquivo que o navegador realmente baixou. Se ela não avançou depois
-   de uma atualização, o que está na tela veio do cache. */
-(function versao(){
-  const el = $('#creditos'); if(!el) return;
-  const d = new Date(document.lastModified);
-  const q = n => String(n).padStart(2,'0');
-  const quando = Number.isNaN(d.getTime()) ? ''
-    : ` · versão de ${q(d.getDate())}/${q(d.getMonth()+1)} ${q(d.getHours())}:${q(d.getMinutes())}`;
-  el.textContent = `${SALAS.length*MUNDOS} salas · ${LISTA_BOSSES.length} chefes · `
-    + `${RELIQUIAS.length} relíquias${quando}`;
-})();
-
-ir('titulo'); };
+  if(v) v.onclick = ()=>{ SFX.clique(); run ? seguir() : ir('titulo'); };
 }
 
 /* ═══════════════════════════════════════════ salvar e retomar */
