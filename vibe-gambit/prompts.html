@@ -326,22 +326,23 @@
   const ARCANE= ['madeira simples','ponta de latão','ponta de cristal azul','encantado com runas prateadas','rúnico azul brilhante','astral violeta','etéreo translúcido turquesa','arcano roxo com energia ciano','celestial branco-e-ouro','divino luminoso'];
   const HOLY  = ['madeira simples','ferro','bronze','prata','ouro','ouro abençoado','branco-e-ouro radiante','sagrado brilhante','celestial','divino'];
   const ALCH  = ['vidro simples','tampa de cobre','âmbar','esmeralda verde','gravado com runas','astral violeta','etéreo brilhante','arcano','celestial','divino'];
+  // item = descrição de UMA célula (1 ícone). Armas em par/escudo aparecem JUNTAS no mesmo ícone.
   const ARCH = {
-    sword_shield: { label:'Espada & Escudo', item:'a straight steel LONGSWORD together with a round metal SHIELD', ladder:METAL },
-    hammer_shield:{ label:'Warhammer & Escudo', item:'a heavy WARHAMMER together with a kite SHIELD', ladder:METAL },
-    greataxe:     { label:'Machado Gigante', item:'a massive TWO-HANDED double-bladed BATTLE AXE', ladder:METAL },
-    twin_blades:  { label:'Lâminas Duplas', item:'a pair of matching TWIN BLADES (dual daggers/short swords crossed)', ladder:METAL },
-    bow:          { label:'Arco', item:'a recurve BOW with an arrow nocked', ladder:WOOD },
-    fists:        { label:'Manoplas', item:'a pair of knuckle GAUNTLETS / fist weapons (worn on the hands)', ladder:METAL },
-    arcane_staff: { label:'Cajado Arcano', item:'a magic STAFF with an ornate tip', ladder:ARCANE },
-    holy_scepter: { label:'Cajado Sagrado', item:'a holy SCEPTER with a sun/cross emblem', ladder:HOLY },
-    lute:         { label:'Alaúde', item:'a string LUTE / mandolin instrument', ladder:WOOD },
-    flasks:       { label:'Frascos Alquímicos', item:'a cluster of ALCHEMY potion FLASKS on a holder', ladder:ALCH },
+    sword_shield: { label:'Espada & Escudo', item:'a SINGLE COMBINED icon showing BOTH a straight steel LONGSWORD and a round metal SHIELD together, overlapping as one emblem', ladder:METAL },
+    hammer_shield:{ label:'Warhammer & Escudo', item:'a SINGLE COMBINED icon showing BOTH a heavy WARHAMMER and a kite SHIELD together, overlapping as one emblem', ladder:METAL },
+    greataxe:     { label:'Machado Gigante', item:'one massive TWO-HANDED double-bladed BATTLE AXE', ladder:METAL },
+    twin_blades:  { label:'Lâminas Duplas', item:'a SINGLE COMBINED icon showing a matching PAIR of twin blades (two daggers/short swords) CROSSED together', ladder:METAL },
+    bow:          { label:'Arco', item:'one recurve BOW with a single arrow nocked', ladder:WOOD },
+    fists:        { label:'Manoplas', item:'a SINGLE COMBINED icon showing a matching PAIR of knuckle GAUNTLETS (both fist weapons) side by side', ladder:METAL },
+    arcane_staff: { label:'Cajado Arcano', item:'one magic STAFF with an ornate glowing tip', ladder:ARCANE },
+    holy_scepter: { label:'Cajado Sagrado', item:'one holy SCEPTER with a sun/cross emblem', ladder:HOLY },
+    lute:         { label:'Alaúde', item:'one string LUTE / mandolin instrument', ladder:WOOD },
+    flasks:       { label:'Frascos Alquímicos', item:'a SINGLE COMBINED icon showing a small cluster of ALCHEMY potion FLASKS grouped together on a holder', ladder:ALCH },
   };
   function weaponSheet(aKey,bKey){
     const A=ARCH[aKey], B=ARCH[bKey];
     const lad = a => a.ladder.map((m,i)=>`${i+1} ${m}`).join(', ');
-    return `16-bit pixel art RPG WEAPON progression sheet. A clean GRID of 20 icons arranged as exactly 2 ROWS by 10 COLUMNS on a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame. TOP ROW: ${A.item} — the SAME weapon shown across all 10 tiers, left to right, rising in material. BOTTOM ROW: ${B.item} across all 10 tiers, left to right. Each COLUMN is ONE tier. Top-row material ladder T1→T10: ${lad(A)}. Bottom-row material ladder T1→T10: ${lad(B)}. Every icon centered in its own cell with wide even gaps, consistent size, chunky readable pixel art with a thin dark outline, cohesive with the fantasy RPG character style. NO text, NO numbers, no gradient, no drop shadow. Clean hard edges for chroma-key, and NO magenta or pink inside the icons.`;
+    return `16-bit pixel art RPG WEAPON progression sheet. A clean GRID of 20 icons arranged as exactly 2 ROWS by 10 COLUMNS on a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame. IMPORTANT: EACH CELL is ONE single composed icon representing a single equipment slot — when an entry pairs a weapon with a shield, or shows a pair of weapons, BOTH pieces must appear TOGETHER inside that same one icon (they occupy ONE weapon slot), never split across different cells. TOP ROW: ${A.item} — the SAME weapon icon shown across all 10 tiers, left to right, rising in material. BOTTOM ROW: ${B.item} across all 10 tiers, left to right. Each COLUMN is ONE tier. Top-row material ladder T1→T10: ${lad(A)}. Bottom-row material ladder T1→T10: ${lad(B)}. Every icon centered in its own cell with wide even gaps, consistent size, chunky readable pixel art with a thin dark outline, cohesive with the fantasy RPG character style. NO text, NO numbers, no gradient, no drop shadow. Clean hard edges for chroma-key, and NO magenta or pink inside the icons.`;
   }
   const WPAIRS = [
     ['sword_shield','hammer_shield','weap_shields.png'],
