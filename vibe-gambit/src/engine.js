@@ -86,7 +86,8 @@ export function buildWave(enemyIds){
 
 // --- COMBATE -----------------------------------------------------------------
 export class Combat {
-  constructor(party, enemies, { seed = 12345 } = {}){
+  constructor(party, enemies, { seed = 12345, charges } = {}){
+    const opts = { charges };
     this.party   = party;                   // unidades side='hero'
     this.enemies = enemies;                 // unidades side='enemy'
     this.units   = [...party, ...enemies];
@@ -95,6 +96,7 @@ export class Combat {
     this.log     = [];                      // histórico de eventos (para a View)
     this.corpses = 0;                       // cadáveres de inimigos (p/ Necromante reanimar)
     this._summons = 0;                      // contador de invocações (uid único)
+    this.charges = opts.charges || {};      // cargas de consumíveis (por expedição)
   }
 
   // Invoca um esqueleto aliado a partir de um cadáver.
@@ -195,6 +197,17 @@ export class Combat {
       let target = condFn(u, ctx);
       if(!target) continue;                 // condição FALSA → próxima linha
       if(!canPay(u, skill)) continue;       // sem MP → tenta a próxima (fallback)
+      // CONSUMÍVEL: gasta uma carga (por expedição) e aplica o efeito no aliado-alvo
+      if(skill.kind === 'item'){
+        if((this.charges[skill.item] || 0) <= 0) continue;   // sem carga → próxima linha
+        this.charges[skill.item]--;
+        let ev;
+        if(skill.heal){ const b = target.hp; target.hp = Math.min(target.maxHp, target.hp + skill.heal); ev = { type:'heal', source:u, target, skill:skill.id, amount: target.hp - b }; }
+        else if(skill.restoreMp){ const b = target.mp; target.mp = Math.min(target.maxMp, target.mp + skill.restoreMp); ev = { type:'item', source:u, target, skill:skill.id, amount: target.mp - b, mp:true }; }
+        else if(skill.cleanse){ ev = execute(u, { kind:'cleanse', id:skill.id, cure:'all' }, target, ctx); }
+        else { ev = { type:'item', source:u, target, skill:skill.id, amount:0 }; }
+        ev.tick = this.tick; ev.item = skill.item; this.log.push(ev); return ev;
+      }
       // INVOCAÇÃO (Necromante): consome um cadáver e ergue um esqueleto aliado
       if(skill.kind === 'summon'){
         if(this.corpses <= 0) continue;     // sem cadáver → próxima linha

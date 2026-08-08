@@ -104,7 +104,18 @@
     filter:drop-shadow(0 3px 3px rgba(0,0,0,.3));transition:transform .1s}
   .hub-ic:active img{transform:translateY(2px)}
   .hub-ic:hover img{transform:translateY(-3px) scale(1.05)}
+  .hub-ic .hub-emoji{width:66px;height:66px;display:grid;place-items:center;font-size:40px;filter:drop-shadow(0 3px 3px rgba(0,0,0,.3))}
   .hub-ic span{font-size:12px;font-weight:900;color:#f3e3bd;text-shadow:0 1px 2px #000,0 0 3px #000}
+  /* loja de consumíveis */
+  .shop-list{display:flex;flex-direction:column;gap:9px}
+  .ci-row{display:flex;align-items:center;gap:11px;background:var(--panel,#fff8e8);border:1px solid var(--line);border-radius:12px;padding:9px 11px}
+  .ci-row.own{border-color:#a7d8b3;background:#eef8ef}
+  .ci-ic{font-size:26px;flex:none;line-height:1}
+  .ci-b{flex:1;min-width:0} .ci-nm{font-weight:900;font-size:14px;color:var(--ink)} .ci-nm small{font-weight:700;color:#3f8f5a;font-size:11px}
+  .ci-d{font-size:11.5px;color:var(--ink2)}
+  .ci-buy{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;background:linear-gradient(180deg,#7fc48a,#4f9e6a);color:#fff;border:1px solid #3f8f5a;border-radius:9px;padding:6px 11px;font-weight:800;font-size:12px;cursor:pointer}
+  .ci-buy:disabled{opacity:.5;filter:grayscale(.4);cursor:default}
+  .ci-cost{font-size:10px;font-weight:800;opacity:.95}
 
   /* direita: NPC + loja de gambits */
   .shop-wrap{display:flex;flex-direction:column;gap:8px}

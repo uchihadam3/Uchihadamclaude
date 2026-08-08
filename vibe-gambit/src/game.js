@@ -7,6 +7,7 @@ import {
   SKILLS, CONDITIONS, HERO_DEFS, ENEMY_DEFS, STAGES, FORGE_LEVELS, ACADEMY,
   ITEMS, ITEM_DROPS, itemBonuses, ARMOR_WEIGHTS, WEAPON_STYLES, STATUS_META,
   skillBoard, xpToNext, MAX_LEVEL, LP_PER_LEVEL,
+  CONSUMABLES, consumableCharges,
 } from './data.js';
 import { loadOrNew, save, newGame } from './state.js';
 import { Combat, buildParty, buildWave, forgeAtkBonus } from './engine.js';
@@ -205,6 +206,16 @@ function fitBase(){
 
 // ---- PAINEL ESQUERDO: 4 heróis (rosto) + resumo de equipamento. Clicar = selecionar ----
 function activeParty(){ return (S.activeParty||[]).map(id=>S.heroes.find(h=>h.id===id)).filter(Boolean); }
+// cargas de consumíveis para a expedição atual (a partir dos liberados na loja)
+function chargesFromConsumables(){
+  const out = {};
+  for(const k in (S.consumables||{})){ const lv = S.consumables[k]; if(lv>0) out[k] = consumableCharges(k, lv); }
+  return out;
+}
+// ações de consumível liberadas (universais — qualquer herói pode usar via gambit)
+function ownedConsumableActions(){
+  return Object.values(CONSUMABLES).filter(c => (S.consumables||{})[c.id] > 0).map(c => c.use);
+}
 function renderHubParty(mount){
   const list = activeParty();
   if(selHero && !list.find(h=>h.id===selHero)) selHero = list[0]?.id;
@@ -397,16 +408,39 @@ function renderHubCenter(mount){
   const items = [
     { act:'forge',   img:'ic_forge',   label:'Forja' },
     { act:'academy', img:'ic_academy', label:'Academia' },
+    { act:'items',   emoji:'🧪',       label:'Itens' },
     { act:'map',     img:'ic_map',     label:'Mapa' },
   ];
   mount.innerHTML = items.map(it =>
-    `<button class="hub-ic" data-act="${it.act}"><img src="assets/${it.img}.png" alt=""><span>${it.label}</span></button>`).join('');
+    `<button class="hub-ic" data-act="${it.act}">${it.emoji?`<span class="hub-emoji">${it.emoji}</span>`:`<img src="assets/${it.img}.png" alt="">`}<span>${it.label}</span></button>`).join('');
   mount.querySelectorAll('.hub-ic').forEach(b => b.onclick = () => {
     const a = b.dataset.act;
     if(a==='forge')   openPanelModal('🔨 Forja', renderForge);
     if(a==='academy') openGambitHUD();
+    if(a==='items')   openPanelModal('🧪 Loja de Itens', openItemShop);
     if(a==='map')     show('map');
   });
+}
+
+// Loja de Consumíveis: comprar libera o uso; upgrade aumenta as cargas/expedição.
+function openItemShop(body){
+  const draw = () => {
+    body.innerHTML = `<p class="muted tiny" style="margin:0 2px 11px">Comprar <b>libera o uso</b> (sem equipar). As cargas <b>recarregam a cada expedição</b>. Use via gambit — ex.: <i>"Eu: MP &lt; 10 → Usar Poção de Mana"</i>.</p>
+      <div class="shop-list">${Object.values(CONSUMABLES).map(c=>{
+        const lv = (S.consumables||{})[c.id] || 0; const owned = lv>0; const ch = consumableCharges(c.id, lv);
+        const cost = owned ? c.upgrade : c.cost;
+        return `<div class="ci-row ${owned?'own':''}">
+          <span class="ci-ic">${c.icon}</span>
+          <div class="ci-b"><div class="ci-nm">${c.name}${owned?` <small>· ${ch} cargas/exp</small>`:''}</div><div class="ci-d">${c.desc}</div></div>
+          <button class="ci-buy" data-id="${c.id}" ${canAfford(cost)?'':'disabled'}>${owned?`Melhorar (${ch}→${ch+1})`:'Comprar'}<span class="ci-cost">${costHTML(cost)}</span></button>
+        </div>`;
+      }).join('')}</div>`;
+    body.querySelectorAll('.ci-buy').forEach(b => b.onclick = () => {
+      const c = CONSUMABLES[b.dataset.id]; const lv = (S.consumables||{})[c.id] || 0; const cost = lv>0 ? c.upgrade : c.cost;
+      if(!canAfford(cost)) return; spend(cost); (S.consumables = S.consumables || {})[c.id] = lv + 1; save(S); bumpRes(); draw();
+    });
+  };
+  draw();
 }
 
 // ================================================================ EDITOR DE GAMBITS (HUD estilo FF XII)
@@ -416,7 +450,7 @@ let ghPick = null;   // {line, kind} quando a lista inline está aberta naquela 
 function ghInlineList(hs, def, line, kind){
   const isCond = kind==='condition';
   const options = isCond ? S.unlockedConditions.map(c=>({id:c,label:CONDITIONS[c].label}))
-                         : (hs.unlockedSkills||def.skills).map(s=>({id:s,label:SKILLS[s].name}));
+                         : [...(hs.unlockedSkills||def.skills), ...ownedConsumableActions()].map(s=>({id:s,label:SKILLS[s].name}));
   const current = isCond ? hs.gambits[line].condition : hs.gambits[line].action;
   return `<div class="gg-opts">${options.map(o=>`
     <button class="gopt ${isCond?'c':'a'} ${o.id===current?'sel':''}" data-line="${line}" data-kind="${kind}" data-id="${o.id}">
@@ -699,7 +733,7 @@ const TICK_MS = 850;
 function startExpedition(stageId){
   const stage = STAGES.find(s=>s.id===stageId);
   const party = buildParty(S);                 // referencia S.heroes[].gambits (edição ao vivo!)
-  expo = { stage, party, waveIndex:0, combat:null, timer:null, lastLog:0, runLoot:{gold:0}, over:false };
+  expo = { stage, party, waveIndex:0, combat:null, timer:null, lastLog:0, runLoot:{gold:0}, over:false, charges: chargesFromConsumables() };
   screen = 'expedition';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   $('screen-expedition').classList.add('active');
@@ -734,7 +768,7 @@ function startWave(i){
   expo.waveIndex = i;
   const enemies = buildWave(expo.stage.waves[i]);
   expo.enemies = enemies;
-  expo.combat = new Combat(expo.party, enemies, { seed: 1000 + i*37 + Math.floor(Math.random()*900) });
+  expo.combat = new Combat(expo.party, enemies, { seed: 1000 + i*37 + Math.floor(Math.random()*900), charges: expo.charges });
   expo.lastLog = expo.combat.log.length;
   renderBattlers();
   $('expo-info').innerHTML = `📍 ${expo.stage.name} · Onda ${i+1}/${expo.stage.waves.length}`;
@@ -835,6 +869,14 @@ function presentEvent(ev){
     refreshBattlerStatus(ev.target);
     const verb = ev.type==='dispel' ? 'dissipa buffs de' : 'limpa status de';
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">${verb} ${ev.target.name}</span>${ev.amount?` (${ev.amount})`:''}`);
+    return;
+  }
+  // CONSUMÍVEL: restauração de MP (ou efeito sem número)
+  if(ev.type==='item'){
+    const be = battlerEl(ev.target);
+    if(be){ const f=document.createElement('div'); f.className='float heal'; f.textContent=ev.mp?`💧+${ev.amount}`:'✔'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerBars();
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b>${ev.mp?` <span class="g">+${ev.amount} MP</span>`:''}`);
     return;
   }
   // REGEN: cura por turno

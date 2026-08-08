@@ -28,6 +28,7 @@ export function newGame(){
       boughtNodes: [],                          // ids de nós da prancha já comprados
     })),
     inventory: [...STARTER_INVENTORY],          // itens possuídos (não equipados)
+    consumables: {},                            // consumíveis liberados: { key: nível }
     activeParty: HERO_DEFS.slice(0, 4).map(h => h.id),  // heróis que vão à expedição (máx 4)
     stagesUnlocked: Object.fromEntries(STAGES.map(s => [s.id, s.unlocked])),
     progress: { currentStage: 'mossy_glen', clears: 0 },
@@ -78,6 +79,7 @@ export function migrate(state){
   // limpa inventário de ids antigos; se ficar vazio, repõe o inicial
   state.inventory = (state.inventory || []).filter(id => ITEMS[id]);
   if(!state.inventory.length) state.inventory = [...STARTER_INVENTORY];
+  if(!state.consumables || typeof state.consumables !== 'object') state.consumables = {};
   return state;
 }
 

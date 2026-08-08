@@ -122,6 +122,11 @@ export const SKILLS = {
   parar:            { id:'parar',            name:'Parar',            kind:'ailment', targetType:'enemy', applies:{ status:'imobilizar', ticks:2 }, mp:8 },
   distorcao:        { id:'distorcao',        name:'Distorção',        kind:'damage',  targetType:'enemy', stat:'mag', power:0.90, mp:10, aoe:true },
 
+  // --- CONSUMÍVEIS (ações "Usar Poção" — universais; gastam CARGAS por expedição) ---
+  usar_pocao_vida:  { id:'usar_pocao_vida',  name:'Usar Poção de Vida',kind:'item',   item:'potion_hp', targetType:'ally', heal:70, mp:0 },
+  usar_pocao_mana:  { id:'usar_pocao_mana',  name:'Usar Poção de Mana',kind:'item',   item:'potion_mp', targetType:'ally', restoreMp:45, mp:0 },
+  usar_antidoto:    { id:'usar_antidoto',    name:'Usar Antídoto',     kind:'item',   item:'antidote',  targetType:'ally', cleanse:true, mp:0 },
+
   // --- SUPORTE / multiclasse (Clérigo é o mestre; estas são versões menores) ---
   minor_heal:       { id:'minor_heal',       name:'Primeiros Socorros',kind:'heal',  targetType:'ally',  stat:'mag', power:0.75, mp:4 },
   melodia_cura:     { id:'melodia_cura',     name:'Melodia Curativa', kind:'heal',   targetType:'ally',  stat:'mag', power:0.95, mp:5 },
@@ -570,6 +575,15 @@ export const ITEM_DROPS = (() => {
   drops.push({ item:'power_ring', chance:0.05 }, { item:'vital_amulet', chance:0.04 });
   return drops;
 })();
+
+// --- CONSUMÍVEIS: comprar LIBERA o uso (sem equipar). Cargas recarregam por expedição.
+// owned: S.consumables[key] = nível (1+). chargesPerRun = baseCharges + (nível-1).
+export const CONSUMABLES = {
+  potion_hp: { id:'potion_hp', name:'Poção de Vida',  icon:'❤️', use:'usar_pocao_vida', desc:'Cura ~70 HP de um aliado.', baseCharges:2, cost:{ gold:120 },           upgrade:{ gold:220, crystals:2 } },
+  potion_mp: { id:'potion_mp', name:'Poção de Mana',  icon:'💧', use:'usar_pocao_mana', desc:'Restaura ~45 MP de um aliado.', baseCharges:2, cost:{ gold:120 },        upgrade:{ gold:220, crystals:2 } },
+  antidote:  { id:'antidote',  name:'Antídoto',       icon:'🧪', use:'usar_antidoto',  desc:'Remove status ruins de um aliado.', baseCharges:2, cost:{ gold:80 },       upgrade:{ gold:160, crystals:1 } },
+};
+export const consumableCharges = (key, level) => level > 0 ? ((CONSUMABLES[key]?.baseCharges || 2) + (level - 1)) : 0;
 
 // Soma dos bônus dos itens equipados de um herói (pura).
 export function itemBonuses(equip){
