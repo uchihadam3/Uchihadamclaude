@@ -452,6 +452,34 @@ export class Run {
     return { ok:true, txt };
   }
 
+  /* QUAL RELÍQUIA O EVENTO LEVA — decidida pelo LUGAR, e não pelo relógio.
+     Saía de `this.rng`, que anda a cada sorteio da run: a tela não tinha como
+     dizer de antemão qual peça ia embora, porque perguntar antes mudaria a
+     resposta depois. Vinda do lugar, ela é a MESMA antes e depois da escolha —
+     e é isso que deixa a tela mostrar "você vai perder ESTA" em vez de
+     "-1 relíquia", que é o mesmo que não dizer nada. */
+  alvoReliquia(){
+    if(!this.reliquias.length) return -1;
+    return this._sem('leva').int(0, this.reliquias.length - 1);
+  }
+  /* O QUE CADA OPÇÃO DO EVENTO VAI FAZER, antes de ela ser escolhida.
+     A tela não pode adivinhar isso lendo o texto da opção, e não pode
+     executar o efeito para ver no que dá. Então quem responde é o motor. */
+  previaEvento(){
+    const ev = this.evento();
+    if(!ev) return null;
+    const i = this.alvoReliquia();
+    const perde = i >= 0 ? this.reliquias[i] : null;
+    return ev.ops.map(o => ({
+      leva: o.leva ? perde : null,      // a relíquia que sai, se a opção tira uma
+      /* uma opção que tira relíquia de quem não tem nenhuma não é uma troca,
+         é um botão que não faz nada — e a tela precisa poder dizer isso antes
+         do toque, e não depois, num texto de consolo */
+      vazio: !!o.leva && i < 0,
+      ...(o.previa ? o.previa(this) : {}),
+    }));
+  }
+
   /* salas sem escolha (tesouro sem pegar, loja sem comprar) avançam assim */
   passar(){
     if(this.acabou() || this.sala) return false;

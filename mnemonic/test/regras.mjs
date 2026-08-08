@@ -541,6 +541,40 @@ secao('8d. Todo evento é uma troca, e toda troca acontece de verdade');
     ok(pobre.foco >= 1, `${ev.id}/${i} nunca deixa o Foco abaixo de 1`);
     ok(pobre.moedas >= 0, `${ev.id}/${i} nunca deixa a moeda negativa`);
   }
+
+  /* ── A TELA MOSTRA A RELÍQUIA CERTA ──
+     A tela do evento passou a dizer QUAL peça sai, porque "-1 relíquia" e
+     "-1 relíquia" escondiam decisões opostas: dar a Coroa por sessenta moedas
+     é péssimo, dar a Bolsa Furada é ótimo. Para poder mostrar, a escolha da
+     peça saiu de `rng` — que anda a cada sorteio — e passou a vir do LUGAR.
+     Se algum dia ela voltar a andar, a tela mente de boa-fé, e é isso que
+     este bloco vigia. */
+  const alvo = new Run({ semente:'alvo', classe:'detetive' });
+  alvo.reliquias = ['coroa','ima','luva','pena','sino'];
+  const primeiro = alvo.alvoReliquia();
+  alvo.rng(); alvo.rng(); alvo.rng();          // a run gira o dado dela
+  eq(alvo.alvoReliquia(), primeiro,
+     'perguntar qual relíquia sai não muda a resposta');
+  ok(primeiro >= 0 && primeiro < alvo.reliquias.length, 'e a resposta é uma que existe');
+  const gemea = new Run({ semente:'alvo', classe:'detetive' });
+  gemea.reliquias = ['coroa','ima','luva','pena','sino'];
+  eq(gemea.alvoReliquia(), primeiro,
+     'e é a mesma em outra run da mesma semente e do mesmo lugar');
+
+  /* toda opção que se declara `leva` tem de LEVAR — e levar justo a que a
+     prévia mostrou. Uma opção que promete tirar e não tira deixa a tela
+     anunciando uma perda que não acontece. */
+  for(const ev of EVENTOS) for(let i=0;i<ev.ops.length;i++){
+    if(!ev.ops[i].leva) continue;
+    const r = new Run({ semente:'leva-'+ev.id+i, classe:'detetive' });
+    r.reliquias = ['coroa','ima','luva','pena'];
+    const j = r.alvoReliquia();
+    const anunciada = r.reliquias[j];
+    ev.ops[i].ef(r);
+    ok(!r.reliquias.includes(anunciada) || r.reliquias.filter(x=>x===anunciada).length
+       < ['coroa','ima','luva','pena'].filter(x=>x===anunciada).length,
+       `${ev.id}/${i} leva a relíquia que a tela anunciou (${anunciada})`);
+  }
 }
 
 /* ════════════════════════════════════════════════════════ 9 */

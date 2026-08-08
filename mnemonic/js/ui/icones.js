@@ -98,6 +98,10 @@ export const ICO = {
   prova:    S('<path d="M5 3.5 h9 l5 5 v12 h-14 Z"/><path d="M14 3.5 v5 h5"/>'
              +'<path d="M8 14.5 l2.4 2.4 L15.5 11.8"/>'),
   recusa:   S('<circle cx="12" cy="12" r="8.5"/><path d="M6.5 6.5 L17.5 17.5"/>'),
+  /* a seta da balança do evento: o que sai de um lado vira o que entra do
+     outro. Precisa ser uma seta e nada mais — o gráfico do combo, que estava
+     nesse lugar, dizia "combo" para quem lê ícones. */
+  seta:     S('<path d="M3.5 12 h15"/><path d="M13 6.5 L18.5 12 L13 17.5"/>'),
   /* o carimbo do par já fechado — a carta fica no tabuleiro com ele */
   feito:    S('<circle cx="12" cy="12" r="9"/><path d="M7.6 12.3 L10.6 15.3 L16.4 8.9"/>'),
   /* a MOEDA é diferente da carta de OURO: uma é dinheiro, a outra é um tipo

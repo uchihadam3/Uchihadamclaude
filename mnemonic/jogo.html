@@ -713,6 +713,39 @@ img.gl{object-fit:contain;stroke:none;
 .lad .barra{position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--escT)}
 .lad .barra i{display:block;height:100%;background:var(--fc)}
 
+/* ───────── A BALANÇA DO EVENTO ─────────
+   O que sai de um lado, o que entra do outro, e a peça que sai com a cara
+   dela. Duas linhas de texto idênticas escondiam decisões opostas: dar a
+   Coroa por sessenta moedas é péssimo, dar a Bolsa Furada é ótimo. */
+.balanca{display:flex;align-items:center;gap:8px;margin-top:9px;flex-wrap:nowrap}
+.balanca .lado{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 0;min-width:0}
+.balanca .lado.vem{justify-content:flex-end}
+.balanca .seta{flex:0 0 20px;width:20px;height:20px;color:var(--osso3);opacity:.75}
+.balanca .seta .gl{width:20px;height:20px;stroke-width:2.6}
+.balanca .nada{font-size:10px;font-style:normal;color:var(--osso3);align-self:center;
+  letter-spacing:.1em;text-transform:uppercase;font-weight:900}
+.tf{display:flex;align-items:center;gap:6px;padding:5px 8px 5px 5px;border-radius:10px;
+  --fc:var(--osso3);background:color-mix(in srgb,var(--fc) 15%,var(--placa2));
+  border:2px solid var(--traco);box-shadow:inset 0 2px 0 var(--luzT), 0 2px 0 var(--traco);
+  max-width:100%;min-width:0}
+.tf .ic{width:26px;height:26px;flex:0 0 26px;display:grid;place-items:center;color:#fff}
+.tf .ic .gl{width:26px;height:26px}
+.tf .ic img.gl{width:26px;height:26px}
+.tf b{font-size:11px;font-weight:900;color:#fff;line-height:1.15;
+  text-shadow:0 1px 0 rgba(0,0,0,.7);overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.tf i{font-size:8px;font-style:normal;font-weight:900;letter-spacing:.1em;
+  text-transform:uppercase;color:color-mix(in srgb,var(--fc) 70%,#fff);display:block}
+.tf .cx{min-width:0}
+.tf.oculta{--fc:#5b6683}
+.tf.oculta .ic{opacity:.5}
+/* o lado que SAI é o que dói: fica marcado, e a peça vem apagada */
+/* opção que promete tirar relíquia de quem não tem nenhuma: continua
+   clicável (ela ainda avança a sala), mas para de parecer uma troca */
+.op.inutil{filter:saturate(.45) brightness(.88)}
+.balanca .sai .tf{filter:saturate(.7)}
+.balanca .sai .tf b{color:var(--osso)}
+
 /* ───────── MEDALHAS ───────── */
 .meds{display:grid;gap:7px;grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
 .mede{position:relative;display:flex;align-items:center;gap:9px;padding:10px 11px;

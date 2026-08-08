@@ -1382,12 +1382,66 @@ function telaLoja(){
 }
 
 /* ═══════════════════════════════════════════ EVENTO / FOGUEIRA */
+/* ═══════════ A TROCA, MOSTRADA ═══════════
+   "-1 relíquia, +60 moedas" é a descrição de um contrato, não de uma jogada.
+   O jogador não sabe QUAL relíquia sai — e é exatamente essa a decisão: dar a
+   Coroa por sessenta moedas é péssimo, dar a Bolsa Furada é ótimo, e as duas
+   linhas de texto são idênticas.
+
+   Aqui a opção vira uma BALANÇA: o que sai à esquerda, com a cara da peça, o
+   que entra à direita. O motor responde o que vai sair (`previaEvento`), e é
+   a mesma resposta que ele vai usar quando a escolha acontecer — vem do lugar
+   e não do relógio, senão a tela mentiria de boa-fé. */
+const fichaSai = (id, vazio) => {
+  if(vazio) return `<span class="tf oculta"><span class="ic">${ICO.recusa}</span>
+    <b>você não tem nenhuma</b></span>`;
+  const r = POR_ID[id];
+  if(!r) return `<span class="tf"><span class="ic">${ICO.reliquia}</span>
+    <b>uma relíquia</b></span>`;
+  return `<span class="tf" style="--fc:${RARIDADE[r.r]}">
+    <span class="ic">${icoReliquia(id)}</span>
+    <b>${esc(r.nome)}</b><i>${esc(r.r)}</i></span>`;
+};
+const fichaVem = q => {
+  if(q === '?') return `<span class="tf oculta"><span class="ic">${ICO.reliquia}</span>
+    <b>? ? ?</b><i>ao acaso</i></span>`;
+  const cor = RARIDADE[q] || 'var(--ouro)';
+  return `<span class="tf" style="--fc:${cor}"><span class="ic">${ICO.reliquia}</span>
+    <b>relíquia</b><i>${esc(q)}</i></span>`;
+};
+const fichaNum = (ico, txt, cor) =>
+  `<span class="tf" style="--fc:${cor}"><span class="ic">${ico}</span>
+     <b>${esc(txt)}</b></span>`;
+
+function troca(p, o){
+  const sai = [], vem = [];
+  if(p.leva) sai.push(fichaSai(p.leva));
+  else if(o.leva) sai.push(fichaSai(null, p.vazio));
+  /* moeda também é coisa que se perde, e o pedido era esse: mostrar o preço
+     do lado de quem paga, e não escondido numa vírgula do meio da frase */
+  if(p.custa) sai.push(fichaNum(ICO.moeda, '−'+p.custa, '#ffc23c'));
+  for(const q of (p.ganha || [])) vem.push(fichaVem(q));
+  if(p.moedas) vem.push(fichaNum(ICO.moeda, '+'+p.moedas, '#ffc23c'));
+  if(p.foco)   vem.push(fichaNum(ICO.foco, '+'+p.foco+' foco', '#ff4f52'));
+  if(p.viradas) vem.push(fichaNum(ICO.virada, '+'+p.viradas+' viradas', '#4fb8ff'));
+  if(p.extra)  vem.push(fichaNum(ICO.combo, p.extra, '#ffa24d'));
+  /* opção que não mexe em relíquia continua dizendo o que faz, como sempre —
+     não vale transformar "+2 viradas" numa balança de uma perna só */
+  if(!sai.length && !vem.length) return `<p>${esc(o.d)}</p>`;
+  return `<span class="balanca">
+      <span class="lado sai">${sai.join('') || '<i class="nada">nada</i>'}</span>
+      <span class="seta">${ICO.seta}</span>
+      <span class="lado vem">${vem.join('') || '<i class="nada">nada</i>'}</span>
+    </span>`;
+}
+
 function telaEvento(){
   const t = $('#t-evento');
   const ev = run.evento();
   if(!ev){ run.passar(); return seguir(); }
   const fogo = run.tipoSala()==='descanso';
   const cor = fogo ? '#ffa24d' : '#4fb8ff';
+  const previa = run.previaEvento() || ev.ops.map(()=>({}));
   t.innerHTML = `
     <div class="topo-linha"><div class="cabeca">
       <div class="rot" style="color:${cor}">${fogo ? 'fogueira' : 'evento'}</div>
@@ -1400,8 +1454,11 @@ function telaEvento(){
       </div>
       <div class="hr"></div>
       <div class="grade um">${ev.ops.map((o,i)=>`
-        <button class="op ${classePlaca(cor)}" data-op="${i}" style="--fc:${cor}">
-          <h3>${esc(o.txt)}</h3><p>${esc(o.d)}</p></button>`).join('')}</div>
+        <button class="op ${classePlaca(cor)} ${previa[i].vazio?'inutil':''}"
+                data-op="${i}" style="--fc:${cor}">
+          <h3>${esc(o.txt)}</h3>
+          ${troca(previa[i], o)}
+        </button>`).join('')}</div>
     </div>`;
   t.querySelectorAll('[data-op]').forEach(b=>b.onclick = ()=>{
     const r = run.escolher(Number(b.dataset.op));
@@ -1975,6 +2032,10 @@ window.MN = { get run(){ return run; }, Run, verificar, planoDaSala, RANK,
   /* remonta a mesa a partir do estado atual — é por aqui que o teste de tela
      consegue conferir a grade de vários tamanhos sem jogar quarenta salas */
   redesenhar(){ salaViva = run.sala; mesa(true); },
+  /* montar uma situação à mão e ver a tela dela. Sem isto, conferir a tela do
+     evento do Colecionador exigia jogar até cair naquele evento com relíquias
+     na mão — que é o tipo de espera que faz a conferência não acontecer. */
+  ir, montar(opts){ run = new Run(opts); mostrando = new Set(); return run; },
   /* a trilha: "não sai som" precisa poder ser diferenciado de "o navegador
      bloqueou o áudio" sem adivinhação */
   musica: MUSICA };

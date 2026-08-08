@@ -23,6 +23,7 @@ export const EVENTOS = [
     txt:'Ele não vê você, mas sabe exatamente quantas moedas você tem.',
     ops:[
       { txt:'Comprar a caixa fechada', d:'-40 moedas, uma relíquia ao acaso',
+        previa:()=>({ custa:40, ganha:['?'] }),
         ef:r=>{ if(r.moedas<40) return 'Ele ri: não dá para pagar.';
           r.moedas-=40; const g=r._darReliquia();
           return g ? 'Dentro da caixa: '+g.nome+'.' : 'A caixa estava vazia.'; } },
@@ -42,8 +43,10 @@ export const EVENTOS = [
     txt:'Seu reflexo está uma virada atrasado. Ele levanta a mão depois de você.',
     ops:[
       { txt:'Tocar o vidro', d:'Troca uma relíquia sua por outra',
+        leva:1, previa:()=>({ ganha:['?'] }),
         ef:r=>{ if(!r.reliquias.length) return 'Você não tem nada para trocar.';
-          const fora = r.reliquias.pop(); const g = r._darReliquia();
+          const j = r.alvoReliquia(); const fora = r.reliquias.splice(j,1)[0];
+          const g = r._darReliquia();
           return 'O reflexo ficou com '+fora+'. Devolveu: '+(g?g.nome:'nada'); } },
       { txt:'Quebrar o resto', d:'+20 moedas',
         ef:r=>{ r.moedas+=20; return 'Entre os cacos, moedas.'; } },
@@ -52,6 +55,7 @@ export const EVENTOS = [
     txt:'Milhares de livros. Nenhum com título na lombada.',
     ops:[
       { txt:'Ler a noite inteira', d:'+1 relíquia, -25 moedas',
+        previa:()=>({ custa:25, ganha:['?'] }),
         ef:r=>{ if(r.moedas<25) return 'A vela custa caro e você não tem.';
           r.moedas-=25; const g=r._darReliquia();
           return g ? 'Achou o livro certo: '+g.nome+'.' : 'Só pó.'; } },
@@ -72,8 +76,10 @@ export const EVENTOS = [
     txt:'Um altar com um encaixe do tamanho exato de uma relíquia.',
     ops:[
       { txt:'Oferecer uma relíquia', d:'Perde 1 relíquia, +2 de Foco máximo',
-        ef:r=>{ if(!r.reliquias.length) return 'Nada para oferecer.';
-          const fora=r.reliquias.pop(); r.foco+=2;
+        leva:1, previa:()=>({ foco:2 }),
+        ef:r=>{ const i=r.alvoReliquia();
+          if(i<0) return 'Nada para oferecer.';
+          const fora=r.reliquias.splice(i,1)[0]; r.foco+=2;
           return 'O altar engoliu '+fora+'. Foco máximo: '+r.foco+'.'; } },
       { txt:'Deixar como está', d:'+15 moedas',
         ef:r=>{ r.moedas+=15; return 'Havia troco de outros peregrinos.'; } },
@@ -111,8 +117,9 @@ export const EVENTOS = [
     txt:'Ele bate no metal sem olhar. Aponta para as suas relíquias e depois para a bigorna.',
     ops:[
       { txt:'Deixar ele forjar', d:'Perde uma relíquia ao acaso, ganha uma lendária',
+        leva:1, previa:()=>({ ganha:['lendaria'] }),
         ef:r=>{ if(!r.reliquias.length) return 'Ele encolhe os ombros: nada para bater.';
-          const i=r.rng.int(0,r.reliquias.length-1); r.reliquias.splice(i,1);
+          const i=r.alvoReliquia(); r.reliquias.splice(i,1);
           const nova=r._darReliquia('lendaria');
           return nova ? 'O martelo desce. Virou '+nova.nome+'.' : 'Nada saiu da bigorna.'; } },
       { txt:'Só afiar o que já tem', d:'+4 de pontos na base de toda carta',
@@ -149,6 +156,7 @@ export const EVENTOS = [
     txt:'Duas iguais. Uma sempre mente, a outra sempre diz a verdade — e elas trocaram de roupa.',
     ops:[
       { txt:'Perguntar para as duas', d:'-12 moedas, +2 cartas espiadas por sala',
+        previa:()=>({ custa:12, extra:'+2 espiadas' }),
         ef:r=>{ if(r.moedas<12) return 'Elas exigem pagamento adiantado.';
           r.moedas-=12; r.espiaExtra=(r.espiaExtra||0)+2;
           return 'Cruzando as respostas, você aprende a olhar.'; } },
@@ -172,6 +180,7 @@ export const EVENTOS = [
       { txt:'Vender tempo por moeda', d:'-2 viradas por sala, +50 moedas',
         ef:r=>{ r.bonusViradas-=2; r.moedas+=50; return 'O prato pende para o ouro. -2 viradas.'; } },
       { txt:'Comprar tempo com moeda', d:'-50 moedas, +4 viradas por sala',
+        previa:()=>({ custa:50, viradas:4 }),
         ef:r=>{ if(r.moedas<50) return 'A balança nem se mexe: falta peso.';
           r.moedas-=50; r.bonusViradas+=4; return 'O prato sobe. +4 viradas por sala.'; } },
     ] },
@@ -201,11 +210,13 @@ export const EVENTOS = [
     txt:'Encapuzado, com um livro-caixa. Diz que você deve por cada carta que esqueceu.',
     ops:[
       { txt:'Pagar a dívida', d:'-35 moedas, +1 de Foco máximo',
+        previa:()=>({ custa:35, foco:1 }),
         ef:r=>{ if(r.moedas<35) return 'Ele anota o seu nome e vai embora.';
           r.moedas-=35; r.foco++; return 'Quitado. Foco máximo: '+r.foco+'.'; } },
       { txt:'Fugir', d:'+2 viradas por sala, perde uma relíquia',
+        leva:1, previa:()=>({ viradas:2 }),
         ef:r=>{ r.bonusViradas+=2;
-          if(r.reliquias.length){ const i=r.rng.int(0,r.reliquias.length-1);
+          if(r.reliquias.length){ const i=r.alvoReliquia();
             r.reliquias.splice(i,1);
             return 'Correndo, você deixa cair uma relíquia.'; }
           return 'Você corre. Não tinha nada a perder.'; } },
@@ -241,12 +252,16 @@ export const EVENTOS = [
     txt:'Ele tem uma vitrine com uma peça faltando, e olha para as suas relíquias.',
     ops:[
       { txt:'Vender uma relíquia', d:'-1 relíquia, +60 moedas',
-        ef:r=>{ if(!r.reliquias.length) return 'Ele olha suas mãos vazias e suspira.';
-          const i=r.rng.int(0,r.reliquias.length-1); r.reliquias.splice(i,1); r.moedas+=60;
+        leva:1, previa:()=>({ moedas:60 }),
+        ef:r=>{ const i=r.alvoReliquia();
+          if(i<0) return 'Ele olha suas mãos vazias e suspira.';
+          r.reliquias.splice(i,1); r.moedas+=60;
           return 'A vitrine fica completa. Você fica com 60 moedas.'; } },
       { txt:'Trocar por duas comuns', d:'-1 relíquia, +2 comuns',
-        ef:r=>{ if(!r.reliquias.length) return 'Nada a trocar.';
-          const i=r.rng.int(0,r.reliquias.length-1); r.reliquias.splice(i,1);
+        leva:1, previa:()=>({ ganha:['comum','comum'] }),
+        ef:r=>{ const i=r.alvoReliquia();
+          if(i<0) return 'Nada a trocar.';
+          r.reliquias.splice(i,1);
           const a=r._darReliquia('comum'), b=r._darReliquia('comum');
           return 'Saíram duas: '+[a&&a.nome,b&&b.nome].filter(Boolean).join(' e ')+'.'; } },
     ] },
@@ -259,6 +274,7 @@ export const EVENTOS = [
         ef:r=>{ r.foco=Math.max(1,r.foco-1); r.multExtra=(r.multExtra||0)+0.8;
           return 'A tigela absorve. Cada acerto vale mais.'; } },
       { txt:'Oferecer moeda', d:'-30 moedas, +0,3 de multiplicador',
+        previa:()=>({ custa:30, extra:'+0,3 mult' }),
         ef:r=>{ if(r.moedas<30) return 'O sal recusa promessa.';
           r.moedas-=30; r.multExtra=(r.multExtra||0)+0.3;
           return 'O metal some no sal.'; } },
