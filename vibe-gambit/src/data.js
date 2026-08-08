@@ -102,6 +102,26 @@ export const SKILLS = {
   tiro_multiplo:    { id:'tiro_multiplo',    name:'Tiro Múltiplo',    kind:'damage',  targetType:'enemy', stat:'atk', power:0.75, mp:6, aoe:true },
   flecha_marca:     { id:'flecha_marca',     name:'Flecha de Marca',  kind:'buff',    targetType:'enemy', buff:{ stat:'def', amt:-4, scope:'target' }, duration:4, mp:3 },
 
+  // --- PASSO 2 (lote 4): casters de elemento/sombrio/tempo ------------------
+  // Piromante
+  fogo2:            { id:'fogo2',            name:'Fogo II',          kind:'damage',  targetType:'enemy', stat:'mag', power:1.90, mp:9,  element:'fire', applies:{ status:'burn', ticks:2, dmg:6 } },
+  explosao:         { id:'explosao',         name:'Explosão',         kind:'damage',  targetType:'enemy', stat:'mag', power:1.15, mp:13, element:'fire', aoe:true },
+  muralha_fogo:     { id:'muralha_fogo',     name:'Muralha de Fogo',  kind:'damage',  targetType:'enemy', stat:'mag', power:0.60, mp:8,  element:'fire', applies:{ status:'burn', ticks:4, dmg:9 } },
+  imolacao:         { id:'imolacao',         name:'Imolação',         kind:'damage',  targetType:'enemy', stat:'mag', power:1.50, mp:22, element:'fire', aoe:true, applies:{ status:'burn', ticks:3, dmg:7 } },
+  // Alquimista
+  bomba_acida:      { id:'bomba_acida',      name:'Bomba Ácida',      kind:'buff',    targetType:'enemy', buff:{ stat:'def', amt:-5, scope:'target' }, duration:4, mp:4 },
+  nevoa_toxica:     { id:'nevoa_toxica',     name:'Névoa Tóxica',     kind:'damage',  targetType:'enemy', stat:'mag', power:0.50, mp:12, aoe:true, applies:{ status:'poison', ticks:4, dmg:5 } },
+  antidoto_area:    { id:'antidoto_area',    name:'Antídoto em Área', kind:'cleanse', targetType:'ally',  cure:'all', aoe:true, mp:10 },
+  fogo_grego:       { id:'fogo_grego',       name:'Fogo Grego',       kind:'damage',  targetType:'enemy', stat:'mag', power:1.10, mp:6,  element:'fire', applies:{ status:'burn', ticks:2, dmg:4 } },
+  // Necromante
+  praga:            { id:'praga',            name:'Praga',            kind:'damage',  targetType:'enemy', stat:'mag', power:0.50, mp:12, aoe:true, applies:{ status:'poison', ticks:4, dmg:6 } },
+  toque_vampirico:  { id:'toque_vampirico',  name:'Toque Vampírico',  kind:'damage',  targetType:'enemy', stat:'mag', power:1.30, mp:6,  element:'dark', lifesteal:0.6 },
+  medo:             { id:'medo',             name:'Medo',             kind:'buff',    targetType:'enemy', buff:{ stat:'atk', amt:-4, scope:'target' }, duration:4, mp:4 },
+  // Feiticeiro do Tempo
+  acelerar:         { id:'acelerar',         name:'Acelerar',         kind:'buff',    targetType:'ally',  buff:{ stat:'spd', amt:3, scope:'target' }, duration:4, mp:5 },
+  parar:            { id:'parar',            name:'Parar',            kind:'ailment', targetType:'enemy', applies:{ status:'imobilizar', ticks:2 }, mp:8 },
+  distorcao:        { id:'distorcao',        name:'Distorção',        kind:'damage',  targetType:'enemy', stat:'mag', power:0.90, mp:10, aoe:true },
+
   // --- SUPORTE / multiclasse (Clérigo é o mestre; estas são versões menores) ---
   minor_heal:       { id:'minor_heal',       name:'Primeiros Socorros',kind:'heal',  targetType:'ally',  stat:'mag', power:0.75, mp:4 },
   melodia_cura:     { id:'melodia_cura',     name:'Melodia Curativa', kind:'heal',   targetType:'ally',  stat:'mag', power:0.95, mp:5 },
@@ -266,7 +286,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:72, atk:4, def:3, mag:18, mp:50, spd:8 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['fireball','incinerar','basic_attack'],
+    skills:['fireball','incinerar','basic_attack','fogo2','explosao','muralha_fogo','imolacao'],
     gambits:[
       { condition:'enemy_hp_50',   action:'incinerar' },
       { condition:'enemy_any',     action:'fireball' },
@@ -277,7 +297,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:82, atk:5, def:4, mag:14, mp:45, spd:7 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['frasco_veneno','elixir','basic_attack'],
+    skills:['frasco_veneno','elixir','basic_attack','bomba_acida','nevoa_toxica','antidoto_area','fogo_grego'],
     gambits:[
       { condition:'ally_hp_50',    action:'elixir' },
       { condition:'enemy_any',     action:'frasco_veneno' },
@@ -335,7 +355,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:78, atk:5, def:3, mag:16, mp:50, spd:7 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['reanimar','colheita','basic_attack'],
+    skills:['reanimar','colheita','basic_attack','praga','toque_vampirico','medo'],
     gambits:[
       { condition:'corpse_ready', action:'reanimar' },
       { condition:'enemy_any',    action:'colheita' },
@@ -346,7 +366,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:74, atk:4, def:3, mag:17, mp:55, spd:8 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['fluxo_temporal','lentidao','basic_attack'],
+    skills:['fluxo_temporal','lentidao','basic_attack','acelerar','parar','distorcao'],
     gambits:[
       { condition:'enemy_any',     action:'fluxo_temporal' },
       { condition:'enemy_nearest', action:'basic_attack' },

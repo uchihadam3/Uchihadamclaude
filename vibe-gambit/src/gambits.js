@@ -185,6 +185,12 @@ export function execute(unit, skill, target, ctx){
   }
   target.hp = Math.max(0, target.hp - dmg);
   const dead = target.hp === 0;
+  // ROUBO DE VIDA: cura o executor por uma fração do dano
+  let lifesteal = 0;
+  if(skill.lifesteal && dmg > 0 && unit.hp > 0){
+    lifesteal = Math.max(1, Math.round(dmg * skill.lifesteal));
+    unit.hp = Math.min(unit.maxHp, unit.hp + lifesteal);
+  }
   // tomar dano ACORDA / tira a confusão do alvo
   if(dmg > 0 && !dead && target.statuses)
     target.statuses = target.statuses.filter(s => !(s.kind === 'sleep' || s.kind === 'confuse'));
@@ -197,5 +203,5 @@ export function execute(unit, skill, target, ctx){
     if(kind === 'regen') st.amt = a.amt;
     addStatus(target, st); applied = a.status;
   }
-  return { type:'damage', source:unit, target, skill:skill.id, amount:dmg, crit:isCrit, dead, holy: holyVsUndead>1, applied, absorbed };
+  return { type:'damage', source:unit, target, skill:skill.id, amount:dmg, crit:isCrit, dead, holy: holyVsUndead>1, applied, absorbed, lifesteal };
 }
