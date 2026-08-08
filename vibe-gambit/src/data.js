@@ -79,6 +79,29 @@ export const SKILLS = {
   melodia_rest:     { id:'melodia_rest',     name:'Melodia Restauradora',kind:'heal', targetType:'ally',  stat:'mag', power:0.85, mp:10, aoe:true },
   grito_sonico:     { id:'grito_sonico',     name:'Grito Sônico',     kind:'damage',  targetType:'enemy', stat:'mag', power:0.90, mp:8, aoe:true },
 
+  // --- PASSO 2 (lote 3): DPS marciais ---------------------------------------
+  // Bárbaro
+  rodopio:          { id:'rodopio',          name:'Rodopio',          kind:'damage',  targetType:'enemy', stat:'atk', power:0.85, mp:5, aoe:true },
+  decapitar:        { id:'decapitar',        name:'Decapitar',        kind:'damage',  targetType:'enemy', stat:'atk', power:2.30, mp:6, critBonus:0.20 },
+  grito_guerra:     { id:'grito_guerra',     name:'Grito de Guerra',  kind:'buff',    targetType:'ally',  buff:{ stat:'atk', amt:5, scope:'allies' }, duration:4, mp:5 },
+  pele_pedra:       { id:'pele_pedra',       name:'Pele de Pedra',    kind:'buff',    targetType:'self',  buff:{ stat:'def', amt:6, scope:'self' }, duration:4, mp:4 },
+  // Assassino
+  golpe_sombras:    { id:'golpe_sombras',    name:'Golpe nas Sombras',kind:'damage',  targetType:'enemy', stat:'atk', power:1.40, mp:5, critBonus:0.50 },
+  lamina_venenosa:  { id:'lamina_venenosa',  name:'Lâmina Venenosa',  kind:'damage',  targetType:'enemy', stat:'atk', power:1.00, mp:4, applies:{ status:'poison', ticks:4, dmg:6 } },
+  corte_cruzado:    { id:'corte_cruzado',    name:'Corte Cruzado',    kind:'damage',  targetType:'enemy', stat:'atk', power:0.55, mp:5, hits:3 },
+  // Duelista
+  danca_laminas:    { id:'danca_laminas',    name:'Dança das Lâminas',kind:'damage',  targetType:'enemy', stat:'atk', power:0.50, mp:5, hits:3 },
+  finta:            { id:'finta',            name:'Finta',            kind:'buff',    targetType:'enemy', buff:{ stat:'def', amt:-4, scope:'target' }, duration:4, mp:3 },
+  riposte:          { id:'riposte',          name:'Riposte',          kind:'buff',    targetType:'self',  buff:{ stat:'spd', amt:3, scope:'self' }, duration:4, mp:3 },
+  // Monge
+  rajada_golpes:    { id:'rajada_golpes',    name:'Rajada de Golpes', kind:'damage',  targetType:'enemy', stat:'atk', power:0.45, mp:5, hits:4 },
+  meditar:          { id:'meditar',          name:'Meditar',          kind:'ailment', targetType:'self',  applies:{ status:'regen', ticks:4, amt:8 }, mp:2 },
+  toque_atordoante: { id:'toque_atordoante', name:'Toque Atordoante', kind:'damage',  targetType:'enemy', stat:'atk', power:0.90, mp:5, applies:{ status:'stun', ticks:1 } },
+  // Arqueiro
+  flecha_venenosa:  { id:'flecha_venenosa',  name:'Flecha Envenenada',kind:'damage',  targetType:'enemy', stat:'atk', power:1.00, mp:3, applies:{ status:'poison', ticks:4, dmg:5 } },
+  tiro_multiplo:    { id:'tiro_multiplo',    name:'Tiro Múltiplo',    kind:'damage',  targetType:'enemy', stat:'atk', power:0.75, mp:6, aoe:true },
+  flecha_marca:     { id:'flecha_marca',     name:'Flecha de Marca',  kind:'buff',    targetType:'enemy', buff:{ stat:'def', amt:-4, scope:'target' }, duration:4, mp:3 },
+
   // --- SUPORTE / multiclasse (Clérigo é o mestre; estas são versões menores) ---
   minor_heal:       { id:'minor_heal',       name:'Primeiros Socorros',kind:'heal',  targetType:'ally',  stat:'mag', power:0.75, mp:4 },
   melodia_cura:     { id:'melodia_cura',     name:'Melodia Curativa', kind:'heal',   targetType:'ally',  stat:'mag', power:0.95, mp:5 },
@@ -182,7 +205,7 @@ export const HERO_DEFS = [
     armorWeight:'medium', weaponStyle:'ranged', weaponStyles:['ranged','dual'],
     base:{ hp:80, atk:12, def:4, mag:4, mp:20, spd:9 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['power_shot','basic_attack'],
+    skills:['power_shot','basic_attack','flecha_venenosa','tiro_multiplo','flecha_marca'],
     gambits:[
       { condition:'enemy_hp_50',   action:'power_shot' },
       { condition:'enemy_nearest', action:'basic_attack' },
@@ -206,7 +229,7 @@ export const HERO_DEFS = [
     armorWeight:'heavy', weaponStyle:'twohand', weaponStyles:['twohand','dual'],
     base:{ hp:130, atk:16, def:5, mag:0, mp:10, spd:5 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['basic_attack','machadada','furia'],
+    skills:['basic_attack','machadada','furia','rodopio','decapitar','grito_guerra','pele_pedra'],
     gambits:[
       { condition:'self_hp_50',    action:'furia' },
       { condition:'enemy_nearest', action:'machadada' },
@@ -218,7 +241,7 @@ export const HERO_DEFS = [
     armorWeight:'medium', weaponStyle:'dual', weaponStyles:['dual','ranged'],
     base:{ hp:76, atk:15, def:3, mag:0, mp:15, spd:12 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['basic_attack','execucao'],
+    skills:['basic_attack','execucao','golpe_sombras','lamina_venenosa','corte_cruzado'],
     gambits:[
       { condition:'enemy_hp_30',   action:'execucao' },
       { condition:'enemy_nearest', action:'basic_attack' },
@@ -265,7 +288,7 @@ export const HERO_DEFS = [
     armorWeight:'medium', weaponStyle:'dual', weaponStyles:['dual'],
     base:{ hp:88, atk:13, def:5, mag:2, mp:20, spd:11 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['estocada','basic_attack'],
+    skills:['estocada','basic_attack','danca_laminas','finta','riposte'],
     gambits:[
       { condition:'enemy_nearest', action:'estocada' },
       { condition:'enemy_any',     action:'basic_attack' },
@@ -276,7 +299,7 @@ export const HERO_DEFS = [
     armorWeight:'medium', weaponStyle:'fists', weaponStyles:['fists','dual'],
     base:{ hp:95, atk:12, def:6, mag:4, mp:25, spd:10 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['palma_ki','postura_ki','basic_attack'],
+    skills:['palma_ki','postura_ki','basic_attack','rajada_golpes','meditar','toque_atordoante'],
     gambits:[
       { condition:'self_no_buff',  action:'postura_ki' },
       { condition:'enemy_nearest', action:'palma_ki' },
