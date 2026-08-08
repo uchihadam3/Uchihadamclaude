@@ -326,8 +326,76 @@ const monk = `
   <circle cx="24" cy="10" r="1.4" fill="#ffd34d"/>
 </svg>`;
 
+const bard = `
+<svg viewBox="0 0 48 56" class="spr" aria-hidden="true">
+  <rect x="18" y="41" width="5" height="11" rx="2" fill="#7a4a2a"/><rect x="25" y="41" width="5" height="11" rx="2" fill="#653c22"/>
+  <rect x="16" y="49" width="9" height="4.5" rx="1.6" fill="#3a2618"/><rect x="24" y="49" width="9" height="4.5" rx="1.6" fill="#3a2618"/>
+  <path d="M15 44 L17 25 q7 -5 14 0 L33 44 Z" fill="#b95aa0"/>
+  <path d="M15 44 L17 34 h14 l2 10 z" fill="#96417f"/>
+  <path d="M17 26 l-3 12 4 1 q1 -8 3 -11z" fill="#e0c05a"/>
+  <circle cx="24" cy="15" r="8" fill="#e8b58c"/>
+  <path d="M14 13 q4 -9 10 -9 q6 0 10 9 q-3 -3 -6 -2 q-4 -3 -8 0 q-3 -1 -6 2z" fill="#8a5a2a"/>
+  <path d="M32 7 q6 -3 9 0 q-5 0 -8 4z" fill="#e05a7a"/>
+  <rect x="19.5" y="15" width="2" height="3" rx="1" fill="#241d2a"/><rect x="26" y="15" width="2" height="3" rx="1" fill="#241d2a"/>
+  <path d="M20 20 q4 2 8 0" stroke="#8a5a2a" stroke-width="1.1" fill="none"/>
+  <path d="M33 40 q7 -2 8 -10" stroke="#7d5f27" stroke-width="2.2" fill="none"/>
+  <ellipse cx="34" cy="40" rx="5" ry="6.5" fill="#c98a4a"/><ellipse cx="34" cy="40" rx="5" ry="6.5" fill="none" stroke="#7d5f27" stroke-width="1.2"/>
+  <circle cx="34" cy="39" r="1.6" fill="#3a2618"/>
+  <path d="M31 35 v10 M34 34 v11 M37 35 v9" stroke="#efe8d6" stroke-width=".7"/>
+</svg>`;
+
+const rune_guardian = `
+<svg viewBox="0 0 48 56" class="spr" aria-hidden="true">
+  <rect x="18" y="40" width="5" height="12" rx="2" fill="#5a6572"/><rect x="25" y="40" width="5" height="12" rx="2" fill="#48525e"/>
+  <rect x="16" y="49" width="9" height="4.5" rx="1.6" fill="#2b3038"/><rect x="24" y="49" width="9" height="4.5" rx="1.6" fill="#2b3038"/>
+  <path d="M6 22 q6 -3 12 0 v14 q-6 3 -12 0 z" fill="#6f7c8c"/>
+  <path d="M6 22 q6 -3 12 0 v14 q-6 3 -12 0 z" fill="none" stroke="#3a5a72" stroke-width="1.5"/>
+  <path d="M12 25 v9 M9 29 h6" stroke="#6ad0ff" stroke-width="1.4"/>
+  <rect x="16" y="23" width="18" height="20" rx="5" fill="#8f9aab"/>
+  <rect x="16" y="34" width="18" height="9" rx="4" fill="#727d8e"/>
+  <path d="M25 26 v14 M20 31 h10" stroke="#6ad0ff" stroke-width="1.4"/>
+  <circle cx="24" cy="15" r="8" fill="#c9b89a"/>
+  <path d="M16 16 a8 8 0 0 1 16 0 v-2 h-16 z" fill="#8f9aab"/>
+  <rect x="16" y="8.5" width="16" height="4.5" rx="2" fill="#8f9aab"/>
+  <path d="M24 6 l2 3 -2 3 -2 -3 z" fill="#6ad0ff"/>
+  <rect x="19.5" y="15" width="2" height="3" rx="1" fill="#241d2a"/><rect x="26" y="15" width="2" height="3" rx="1" fill="#241d2a"/>
+  <rect x="36" y="14" width="3" height="24" rx="1.4" fill="#5a6572"/>
+</svg>`;
+
+const necromancer = `
+<svg viewBox="0 0 48 56" class="spr" aria-hidden="true">
+  <path d="M14 52 L18 24 q6 -5 12 0 L34 52 Z" fill="#39433a"/>
+  <path d="M14 52 L17 34 h14 l3 18 z" fill="#28312a"/>
+  <path d="M24 24 v28" stroke="#28312a" stroke-width="1.2"/>
+  <path d="M15 25 q-4 6 -3 13 l4 -1 q-1 -7 3 -11z" fill="#313a32"/>
+  <path d="M13 12 q11 -6 22 0 q-3 4 -11 4 q-8 0 -11 -4z" fill="#28312a"/>
+  <path d="M13 13 q11 12 22 0 q-3 -14 -11 -14 q-8 0 -11 14z" fill="#39433a"/>
+  <ellipse cx="24" cy="16" r="6.5" rx="6.5" ry="6.8" fill="#cfd6c8"/>
+  <ellipse cx="21" cy="16" rx="1.8" ry="2.2" fill="#5cf08a"/><ellipse cx="27" cy="16" rx="1.8" ry="2.2" fill="#5cf08a"/>
+  <path d="M22.4 20 l1.6 1.6 1.6 -1.6 z" fill="#39433a"/>
+  <rect x="35" y="14" width="2.6" height="26" rx="1.3" fill="#4a3a2a"/>
+  <circle cx="36.3" cy="12" r="4" fill="#cfd6c8"/>
+  <circle cx="34.9" cy="11.4" r="1" fill="#5cf08a"/><circle cx="37.7" cy="11.4" r="1" fill="#5cf08a"/>
+</svg>`;
+
+const time_wizard = `
+<svg viewBox="0 0 48 56" class="spr" aria-hidden="true">
+  <path d="M14 52 L18 25 q6 -5 12 0 L34 52 Z" fill="#3a6a8f"/>
+  <path d="M14 52 L17 34 h14 l3 18 z" fill="#2c5270"/>
+  <path d="M24 25 v27" stroke="#2c5270" stroke-width="1.2"/>
+  <circle cx="24" cy="33" r="2" fill="#8fe3ff"/>
+  <circle cx="24" cy="16" r="7.5" fill="#ecc39a"/>
+  <path d="M13 12 q11 -5 22 0 q-4 3 -11 3 q-7 0 -11 -3z" fill="#274a63"/>
+  <path d="M24 -3 q-2 8 -9 15 q9 3 18 0 q-7 -7 -9 -15z" fill="#3a6a8f"/>
+  <circle cx="24" cy="1" r="1.6" fill="#8fe3ff"/>
+  <rect x="19" y="17" width="2" height="3" rx="1" fill="#3a2f28"/><rect x="25.5" y="17" width="2" height="3" rx="1" fill="#3a2f28"/>
+  <circle cx="37" cy="28" r="6" fill="#dfeef7"/><circle cx="37" cy="28" r="6" fill="none" stroke="#7d5f27" stroke-width="1.4"/>
+  <path d="M37 28 v-4 M37 28 l3 2" stroke="#2c5270" stroke-width="1.3"/>
+</svg>`;
+
 export const SPRITES = { warrior, cleric, archer, mage, goblin, goblin_brute, slime, bat, skeleton,
-  barbarian, assassin, paladin, pyromancer, alchemist, duelist, monk };
+  barbarian, assassin, paladin, pyromancer, alchemist, duelist, monk,
+  bard, rune_guardian, necromancer, time_wizard, skeleton_minion: skeleton };
 
 // Artes 2D (PNG) já entregues. Quando existe imagem, usa ela; senão cai no SVG.
 export const ART = {

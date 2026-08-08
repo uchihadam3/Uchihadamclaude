@@ -107,6 +107,13 @@
     <div class="grid" id="grid-heroes"></div>
   </section>
   <section>
+    <div class="eyebrow"><h2>Heróis — Novas Classes</h2><span class="rule">mesmo estilo dos 4 originais · viram p/ direita</span><span class="count">11 sprites</span></div>
+    <div class="callout" style="border-left-color:#c77ab0;border-color:#7a3a6a;background:linear-gradient(180deg,#241426,#1a0f1c);color:#efd6ea">
+      <b>🧙 As 11 classes que hoje usam retrato provisório (SVG):</b> gere no <b>mesmo estilo/escala dos 4 heróis originais</b> (personagem ~80% da altura, pés na base, fundo <b>magenta</b> <code>#FF00FF</code> pra recorte). Eu corto o corpo inteiro <b>e</b> o rosto (retrato) de cada um, como fiz com os 4 primeiros.
+    </div>
+    <div class="grid" id="grid-newheroes"></div>
+  </section>
+  <section>
     <div class="eyebrow"><h2>Inimigos</h2><span class="rule">também para a direita (espelho no jogo)</span><span class="count">3 sprites</span></div>
     <div class="grid" id="grid-enemies"></div>
   </section>
@@ -224,6 +231,22 @@
     </article>`;
   }
 
+  // ---- 11 novas classes (mesmo template de sprite dos heróis originais) ----
+  const heroSprite = (desc,palette)=>`2D game character sprite of ${desc}, 16-bit SNES JRPG pixel art, crisp clean chunky pixels, cohesive high-fantasy RPG style, expressive two-tone cel shading, thin dark outline, flat even studio lighting (no rim light, no glow). Confident idle standing pose, full body, 3/4 side view facing right, centered, feet at the bottom edge. ${palette}, bold readable silhouette, game-ready asset. IMPORTANT: place the character on a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) that completely fills the frame — no gradient, no checkerboard, no vignette, and NO glow, NO rim light, NO aura, NO drop shadow around the character. Do NOT use any magenta or pink anywhere on the character itself. Clean hard edges for easy chroma-key removal, single isolated character, no ground, no props, no text.`;
+  const NEWHEROES = [
+    {name:'Bárbaro', file:'barbarian.png', desc:'a fierce shirtless barbarian warrior with a tan muscular body, a horned iron helmet and war paint, gripping a massive two-handed battle axe', palette:'Earthy red-brown and iron-grey palette'},
+    {name:'Assassino', file:'assassin.png', desc:'a stealthy hooded assassin rogue in dark grey-and-purple leather armor, a face-concealing hood, glowing teal eyes, holding a curved dagger low', palette:'Dark purple-grey palette with teal accents'},
+    {name:'Paladino', file:'paladin.png', desc:'a holy paladin knight in polished silver plate armor with gold trim and a winged helm, holding a golden warhammer and a kite shield', palette:'Silver-and-gold palette'},
+    {name:'Piromante', file:'pyromancer.png', desc:'a fire mage pyromancer in a crimson-and-red hooded robe with a pointed hood, cupping a small orange flame in one hand', palette:'Red-and-orange palette'},
+    {name:'Alquimista', file:'alchemist.png', desc:'an alchemist in a green robe with round brass goggles on the forehead, holding a bubbling green potion flask', palette:'Green-and-brass palette'},
+    {name:'Duelista', file:'duelist.png', desc:'an agile duelist swashbuckler in a teal doublet with a wide feathered hat, striking a fencing pose with a slender rapier', palette:'Teal-and-cream palette with a red feather'},
+    {name:'Monge', file:'monk.png', desc:'a bald spiritual monk in an orange martial-arts gi with a cloth belt, one fist raised in a ready fighting stance', palette:'Warm orange-and-brown palette'},
+    {name:'Bardo', file:'bard.png', desc:'a charming bard in a purple-and-gold outfit with a feathered cap, playing a wooden lute', palette:'Purple-and-gold palette'},
+    {name:'Guardião Rúnico', file:'rune_guardian.png', desc:'a stoic rune guardian in heavy grey steel plate armor engraved with glowing blue runes, carrying a large rune-etched tower shield', palette:'Grey-steel palette with glowing blue runes'},
+    {name:'Necromante', file:'necromancer.png', desc:'a sinister necromancer in a dark tattered hooded robe, a pale skull-like face with glowing green eyes, holding a bone staff topped with a small skull', palette:'Dark green-and-black palette with sickly green glow'},
+    {name:'Feiticeiro do Tempo', file:'time_wizard.png', desc:'a mystical time-wizard chronomancer in deep-blue star-patterned robes and a tall pointed hat, holding a staff with a floating hourglass and glowing cyan runes', palette:'Deep-blue palette with glowing cyan accents'},
+  ].map(h=>({...h, prompt:heroSprite(h.desc,h.palette)}));
+  document.getElementById('grid-newheroes').innerHTML = NEWHEROES.map(h=>card({icon:'🧙', name:h.name, file:h.file, chip:'Herói', chipClass:'hero', prompt:h.prompt})).join('');
   document.getElementById('grid-heroes').innerHTML  = HEROES.map(h=>card({icon:SPR[h.id], name:h.name, file:h.file, chip:'Herói',   chipClass:'hero',  prompt:h.prompt})).join('');
   document.getElementById('grid-enemies').innerHTML = ENEMIES.map(e=>card({icon:SPR[e.id], name:e.name, file:e.file, chip:'Inimigo', chipClass:'enemy', prompt:e.prompt})).join('');
   document.getElementById('grid-scenes').innerHTML  = SCENES.map(s=>card({icon:s.emoji,   name:s.name, file:s.file, chip:'Cenário', chipClass:'scene', prompt:s.prompt})).join('');

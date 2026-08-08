@@ -32,6 +32,21 @@ export const SKILLS = {
   furia:            { id:'furia',            name:'Fúria',            kind:'buff',   targetType:'self',  buff:{ stat:'atk', amt:8 }, duration:5, mp:0 },
   machadada:        { id:'machadada',        name:'Machadada',        kind:'damage', targetType:'enemy', stat:'atk', power:1.50, mp:3, applies:{ status:'bleed',  ticks:2, dmg:5 } },
   execucao:         { id:'execucao',         name:'Execução',         kind:'damage', targetType:'enemy', stat:'atk', power:2.20, mp:5, critBonus:0.25 },
+
+  // --- FASE 3: reativo (escudo) · cadáver (invocação) · tempo (buff/debuff) ---
+  hino_de_guerra:   { id:'hino_de_guerra',   name:'Hino de Guerra',   kind:'buff',   targetType:'ally',  buff:{ stat:'atk', amt:5, scope:'allies' }, duration:4, mp:6 },
+  barreira_runica:  { id:'barreira_runica',  name:'Barreira Rúnica',  kind:'shield', targetType:'ally',  shield:{ amount:28, scope:'allies' }, duration:3, mp:7 },
+  reanimar:         { id:'reanimar',         name:'Reanimar',         kind:'summon', targetType:'self',  mp:8 },
+  colheita:         { id:'colheita',         name:'Colheita de Almas',kind:'damage', targetType:'enemy', stat:'mag', power:1.20, mp:5, element:'dark' },
+  lentidao:         { id:'lentidao',         name:'Lentidão',         kind:'buff',   targetType:'enemy', buff:{ stat:'spd', amt:-3, scope:'target' }, duration:3, mp:4 },
+  fluxo_temporal:   { id:'fluxo_temporal',   name:'Fluxo Temporal',   kind:'damage', targetType:'enemy', stat:'mag', power:1.45, mp:6, element:'time' },
+};
+
+// Unidade INVOCADA (esqueleto aliado do Necromante). side='hero' em combate.
+export const MINION_DEF = {
+  id:'skeleton_minion', name:'Esqueleto Reanimado', sprite:'💀', type:'morto-vivo',
+  base:{ hp:40, atk:10, def:3, mag:0, mp:0, spd:6 },
+  gambits:[ { condition:'enemy_nearest', action:'basic_attack' } ],
 };
 
 // Metadados de STATUS (para ícones/labels na View). kind: 'dot' | 'stun' | 'buff'.
@@ -40,7 +55,9 @@ export const STATUS_META = {
   poison: { id:'poison', label:'Veneno',     icon:'🧪', kind:'dot' },
   bleed:  { id:'bleed',  label:'Sangramento',icon:'🩸', kind:'dot' },
   stun:   { id:'stun',   label:'Atordoado',  icon:'💫', kind:'stun' },
-  atk_up: { id:'atk_up', label:'Fúria/Ki',   icon:'💢', kind:'buff' },
+  buff:   { id:'buff',   label:'Buff',        icon:'💢', kind:'buff' },
+  slow:   { id:'slow',   label:'Lentidão',    icon:'🐌', kind:'buff' },
+  shield: { id:'shield', label:'Escudo',      icon:'🛡️', kind:'shield' },
 };
 
 // --- CONDIÇÕES DE GAMBIT (metadados) ----------------------------------------
@@ -69,6 +86,8 @@ export const CONDITIONS = {
   self_hp_50:      { id:'self_hp_50',      label:'Eu: HP < 50%',          scope:'self',  starter:true },
   self_hp_30:      { id:'self_hp_30',      label:'Eu: HP < 30%',          scope:'self' },
   self_no_buff:    { id:'self_no_buff',    label:'Eu: Sem Buff',          scope:'self',  starter:true },
+  self_no_shield:  { id:'self_no_shield',  label:'Eu: Sem Escudo',        scope:'self',  starter:true },
+  corpse_ready:    { id:'corpse_ready',    label:'Há um Cadáver',         scope:'self',  starter:true },
   self_mp_low:     { id:'self_mp_low',     label:'Eu: MP < 10',           scope:'self' },
 };
 
@@ -202,6 +221,52 @@ export const HERO_DEFS = [
     gambits:[
       { condition:'self_no_buff',  action:'postura_ki' },
       { condition:'enemy_nearest', action:'palma_ki' },
+    ],
+  },
+  {
+    id:'bard', name:'Bardo', klass:'Bardo', sprite:'🎵',
+    armorWeight:'medium', weaponStyle:'caster', weaponStyles:['caster'],
+    base:{ hp:92, atk:9, def:5, mag:12, mp:40, spd:9 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['hino_de_guerra','basic_attack'],
+    gambits:[
+      { condition:'self_no_buff',  action:'hino_de_guerra' },
+      { condition:'enemy_nearest', action:'basic_attack' },
+    ],
+  },
+
+  // ===== FASE 3 — reativo · cadáver · tempo ==================================
+  {
+    id:'rune_guardian', name:'Guardião Rúnico', klass:'Guardião Rúnico', sprite:'🪬',
+    armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield'],
+    base:{ hp:125, atk:11, def:10, mag:8, mp:30, spd:5 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['barreira_runica','basic_attack'],
+    gambits:[
+      { condition:'self_no_shield', action:'barreira_runica' },
+      { condition:'enemy_nearest',  action:'basic_attack' },
+    ],
+  },
+  {
+    id:'necromancer', name:'Necromante', klass:'Necromante', sprite:'💀',
+    armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
+    base:{ hp:78, atk:5, def:3, mag:16, mp:50, spd:7 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['reanimar','colheita','basic_attack'],
+    gambits:[
+      { condition:'corpse_ready', action:'reanimar' },
+      { condition:'enemy_any',    action:'colheita' },
+    ],
+  },
+  {
+    id:'time_wizard', name:'Feiticeiro do Tempo', klass:'Feiticeiro do Tempo', sprite:'⏳',
+    armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
+    base:{ hp:74, atk:4, def:3, mag:17, mp:55, spd:8 },
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['fluxo_temporal','lentidao','basic_attack'],
+    gambits:[
+      { condition:'enemy_any',     action:'fluxo_temporal' },
+      { condition:'enemy_nearest', action:'basic_attack' },
     ],
   },
 ];

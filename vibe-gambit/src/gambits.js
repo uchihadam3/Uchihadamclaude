@@ -40,7 +40,9 @@ export const CONDITION_FNS = {
 
   self_hp_50:      (u)      => (hpPct(u) < 0.50 ? u : null),
   self_hp_30:      (u)      => (hpPct(u) < 0.30 ? u : null),
-  self_no_buff:    (u)      => ((u.statuses || []).some(s => s.kind === 'buff') ? null : u),
+  self_no_buff:    (u)      => ((u.statuses || []).some(s => s.id === 'buff' && s.ticks > 0) ? null : u),
+  self_no_shield:  (u)      => (hasStatus(u, 'shield') ? null : u),
+  corpse_ready:    (u, ctx) => ((ctx.corpses || 0) > 0 ? u : null),
   self_mp_low:     (u)      => (u.mp < 10 ? u : null),
 };
 
@@ -50,7 +52,7 @@ const hasStatus = (u, id) => (u.statuses || []).some(s => s.id === id && s.ticks
 function addStatus(target, st){
   target.statuses = target.statuses || [];
   const cur = target.statuses.find(s => s.id === st.id);
-  if(cur){ cur.ticks = Math.max(cur.ticks, st.ticks); if('dmg' in st) cur.dmg = st.dmg; return; }
+  if(cur){ cur.ticks = Math.max(cur.ticks, st.ticks); if('dmg' in st) cur.dmg = st.dmg; if('amount' in st) cur.amount = st.amount; return; }
   target.statuses.push({ ...st });
 }
 
@@ -68,12 +70,26 @@ export function execute(unit, skill, target, ctx){
     return { type:'taunt', source:unit, target:unit, skill:skill.id, amount: unit.taunt };
   }
 
-  // BUFF (Fúria/Postura de Ki): aumenta um atributo por N ticks.
+  // BUFF/DEBUFF: aumenta (ou reduz, se amt<0) um atributo por N ticks.
+  //  scope: 'self' (padrão) | 'allies' (party toda) | 'target' (debuff no alvo)
   if(skill.kind === 'buff'){
     const b = skill.buff || {};
-    unit.stats[b.stat] = (unit.stats[b.stat] || 0) + (b.amt || 0);
-    addStatus(unit, { id:'atk_up', kind:'buff', stat:b.stat, amt:b.amt || 0, ticks:(skill.duration || 3) + 1 });
-    return { type:'buff', source:unit, target:unit, skill:skill.id, stat:b.stat, amount:b.amt || 0 };
+    const recips = b.scope === 'allies' ? ctx.alliesOf(unit).filter(a => a.hp > 0)
+                 : b.scope === 'target' ? [target]
+                 : [unit];
+    for(const r of recips){
+      r.stats[b.stat] = (r.stats[b.stat] || 0) + (b.amt || 0);
+      addStatus(r, { id:(b.amt || 0) < 0 ? 'slow' : 'buff', kind:'buff', stat:b.stat, amt:b.amt || 0, ticks:(skill.duration || 3) + 1 });
+    }
+    return { type:'buff', source:unit, target:recips[0] || unit, skill:skill.id, stat:b.stat, amount:b.amt || 0, scope:b.scope };
+  }
+
+  // ESCUDO (Barreira Rúnica): absorve dano antes do HP, por N ticks.
+  if(skill.kind === 'shield'){
+    const sh = skill.shield || {};
+    const recips = sh.scope === 'allies' ? ctx.alliesOf(unit).filter(a => a.hp > 0) : [target];
+    for(const r of recips) addStatus(r, { id:'shield', kind:'shield', amount:sh.amount || 0, ticks:(skill.duration || 3) + 1 });
+    return { type:'shield', source:unit, target:recips[0] || unit, skill:skill.id, amount:sh.amount || 0, scope:sh.scope };
   }
 
   if(skill.kind === 'heal'){
@@ -90,6 +106,15 @@ export function execute(unit, skill, target, ctx){
   const holyVsUndead = (skill.element === 'holy' && target.type === 'morto-vivo') ? 1.5 : 1;
   let dmg = atkStat * skill.power - target.stats.def * 0.5;
   dmg = Math.max(1, Math.round(dmg * (isCrit ? 1.6 : 1) * holyVsUndead));
+  // absorção por ESCUDO (consome o escudo antes de tirar HP)
+  let absorbed = 0;
+  for(const st of (target.statuses || [])){
+    if(st.kind === 'shield' && st.amount > 0 && dmg > 0){
+      const soak = Math.min(st.amount, dmg);
+      st.amount -= soak; dmg -= soak; absorbed += soak;
+      if(st.amount <= 0) st.ticks = 0;   // escudo quebrado
+    }
+  }
   target.hp = Math.max(0, target.hp - dmg);
   const dead = target.hp === 0;
   // aplica status (queimadura/veneno/sangramento/atordoar) se o alvo sobreviveu
@@ -101,5 +126,5 @@ export function execute(unit, skill, target, ctx){
       : { id:a.status, kind:'dot', dmg:a.dmg, ticks:a.ticks });
     applied = a.status;
   }
-  return { type:'damage', source:unit, target, skill:skill.id, amount:dmg, crit:isCrit, dead, holy: holyVsUndead>1, applied };
+  return { type:'damage', source:unit, target, skill:skill.id, amount:dmg, crit:isCrit, dead, holy: holyVsUndead>1, applied, absorbed };
 }

@@ -6,7 +6,7 @@
 //     a 1ª condição verdadeira executa a ação e PARA a busca daquela unidade.
 // =============================================================================
 
-import { SKILLS, HERO_DEFS, ENEMY_DEFS, ENEMY_GAMBITS, FORGE_LEVELS, itemBonuses } from './data.js';
+import { SKILLS, HERO_DEFS, ENEMY_DEFS, ENEMY_GAMBITS, FORGE_LEVELS, itemBonuses, MINION_DEF } from './data.js';
 import { CONDITION_FNS, canPay, execute } from './gambits.js';
 
 // --- RNG determinístico (mulberry32) ----------------------------------------
@@ -87,6 +87,15 @@ export class Combat {
     this.rng     = makeRng(seed);
     this.tick    = 0;
     this.log     = [];                      // histórico de eventos (para a View)
+    this.corpses = 0;                       // cadáveres de inimigos (p/ Necromante reanimar)
+    this._summons = 0;                      // contador de invocações (uid único)
+  }
+
+  // Invoca um esqueleto aliado a partir de um cadáver.
+  summonMinion(owner){
+    const m = unitFrom(MINION_DEF, 'hero', { uid:`minion#${++this._summons}`, gambits: MINION_DEF.gambits });
+    this.party.push(m); this.units.push(m);
+    return m;
   }
 
   alliesOf(u){ return u.side === 'hero' ? this.party   : this.enemies; }
@@ -131,6 +140,7 @@ export class Combat {
       if(st.kind === 'dot' && st.ticks > 0 && u.hp > 0){
         const dmg = Math.max(1, st.dmg || 0);
         u.hp = Math.max(0, u.hp - dmg);
+        if(u.hp === 0 && u.side === 'enemy') this.corpses++;   // virou cadáver
         this.log.push({ type:'dot', status:st.id, source:u, target:u, amount:dmg, tick:this.tick, dead: u.hp === 0 });
       }
     }
@@ -150,7 +160,7 @@ export class Combat {
     const stunned = this.processStatuses(u);
     if(u.hp <= 0) return null;               // morreu de DoT no início do turno
     if(stunned){ this.log.push({ type:'stun', source:u, target:u, tick:this.tick }); return null; }
-    const ctx = { alliesOf: x => this.alliesOf(x), enemiesOf: x => this.enemiesOf(x), rng: this.rng };
+    const ctx = { alliesOf: x => this.alliesOf(x), enemiesOf: x => this.enemiesOf(x), rng: this.rng, corpses: this.corpses };
     for(const g of u.gambits){
       if(g.enabled === false) continue;     // linha DESLIGADA → ignora
       const condFn = CONDITION_FNS[g.condition];
@@ -159,9 +169,18 @@ export class Combat {
       let target = condFn(u, ctx);
       if(!target) continue;                 // condição FALSA → próxima linha
       if(!canPay(u, skill)) continue;       // sem MP → tenta a próxima (fallback)
+      // INVOCAÇÃO (Necromante): consome um cadáver e ergue um esqueleto aliado
+      if(skill.kind === 'summon'){
+        if(this.corpses <= 0) continue;     // sem cadáver → próxima linha
+        this.corpses--; u.mp -= (skill.mp || 0);
+        const m = this.summonMinion(u);
+        const ev = { type:'summon', source:u, target:m, unit:m, skill:skill.id, tick:this.tick };
+        this.log.push(ev); return ev;
+      }
       // aggro: ataque de inimigo contra herói é redirecionado p/ quem provocou
       if(skill.targetType === 'enemy') target = this.tauntRedirect(u, target);
       const ev = execute(u, skill, target, ctx);
+      if(ev.dead && ev.target.side === 'enemy') this.corpses++;  // matou → cadáver
       ev.tick = this.tick;
       this.log.push(ev);
       return ev;                            // 1ª verdadeira executou → PARA

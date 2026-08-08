@@ -21,7 +21,9 @@ const BG = { forest:'assets/bg_forest.png' };
 // Cor de destaque por herói (cabeçalhos dos cards, estilo referência)
 const HERO_ACCENT = { warrior:'#3d7fc4', cleric:'#d0a13c', archer:'#4a9a4a', mage:'#7d5fd0',
   barbarian:'#c0512b', assassin:'#5a4468', paladin:'#c9a24b', pyromancer:'#e0562a',
-  alchemist:'#3f8f5a', duelist:'#2e8f88', monk:'#e08b3a' };
+  alchemist:'#3f8f5a', duelist:'#2e8f88', monk:'#e08b3a',
+  bard:'#c77ab0', rune_guardian:'#5a8fb0', necromancer:'#6a7a4a', time_wizard:'#4a8fb0',
+  skeleton_minion:'#b9b0a0' };
 const accentOf = id => HERO_ACCENT[id] || '#8a7a45';
 // classes com retrato PNG pronto; as demais usam o sprite SVG como retrato provisório
 const FACE_ART = { warrior:1, cleric:1, archer:1, mage:1 };
@@ -735,12 +737,31 @@ function presentEvent(ev){
     logLine(`t${ev.tick} <b class="${t}">${ev.target.name}</b> sofre <span class="c">${meta.icon} ${ev.amount}</span>${ev.dead?' ☠️':''}`);
     return;
   }
-  // BUFF (Fúria/Postura de Ki)
+  // BUFF / DEBUFF (Fúria/Postura/Hino · Lentidão)
   if(ev.type==='buff'){
+    const isDebuff = ev.amount < 0;
+    const be = battlerEl(ev.target);
+    if(be){ const f=document.createElement('div'); f.className='float '+(isDebuff?'stun':'buff'); f.textContent=isDebuff?'🐌':'💢'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerBars();
+    if(isDebuff) logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b> <span class="c">${ev.amount} ${(''+ev.stat).toUpperCase()}</span>`);
+    else logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="g">+${ev.amount} ${(''+ev.stat).toUpperCase()}${ev.scope==='allies'?' (party)':''}</span>`);
+    return;
+  }
+  // ESCUDO (Barreira Rúnica)
+  if(ev.type==='shield'){
     const be = battlerEl(ev.source);
-    if(be){ const f=document.createElement('div'); f.className='float buff'; f.textContent='💢'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
-    refreshBattlerStatus(ev.source);
-    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="g">+${ev.amount} ${(''+ev.stat).toUpperCase()}</span>`);
+    if(be){ const f=document.createElement('div'); f.className='float buff'; f.textContent='🛡️'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerBars();
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="g">escuda ${ev.scope==='allies'?'a party':ev.target.name} (+${ev.amount})</span>`);
+    return;
+  }
+  // INVOCAÇÃO (Reanimar)
+  if(ev.type==='summon'){
+    const lane = $('lane-heroes');
+    if(lane && ev.unit){ lane.insertAdjacentHTML('beforeend', battlerHTML(ev.unit,false)); refreshBattlerBars(); }
+    const be = battlerEl(ev.unit);
+    if(be){ const f=document.createElement('div'); f.className='float buff'; f.textContent='✨'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">ergue um Esqueleto ⚔️</span>`);
     return;
   }
   // STUN: pulou o turno
@@ -851,9 +872,8 @@ function refreshBattlerStatus(u){
   const box = be.querySelector('.b-status'); if(!box) return;
   const seen = new Set();
   box.innerHTML = (u.statuses||[]).filter(st=>st.ticks>0).map(st=>{
-    const id = st.kind==='buff' ? 'atk_up' : st.id;
-    if(seen.has(id)) return ''; seen.add(id);
-    const m = STATUS_META[id]; return m ? `<span class="sp" title="${m.label}">${m.icon}</span>` : '';
+    if(seen.has(st.id)) return ''; seen.add(st.id);
+    const m = STATUS_META[st.id]; return m ? `<span class="sp" title="${m.label}">${m.icon}</span>` : '';
   }).join('');
 }
 function refreshBattlerBars(){
