@@ -5,7 +5,7 @@
 //   - Persistência simples em LocalStorage (save/load).
 // =============================================================================
 
-import { HERO_DEFS, RESOURCES_INIT, STAGES, CONDITIONS, STARTER_INVENTORY } from './data.js';
+import { HERO_DEFS, RESOURCES_INIT, STAGES, CONDITIONS, STARTER_INVENTORY, ITEMS } from './data.js';
 
 const SAVE_KEY = 'vibe_gambit_save_v1';
 
@@ -58,7 +58,12 @@ export function migrate(state){
     hs.equip = Object.assign(base, hs.equip || {});
     // saves antigos usavam 'armor' -> migra p/ 'chest'
     if(hs.equip.armor){ if(!hs.equip.chest) hs.equip.chest = hs.equip.armor; delete hs.equip.armor; }
+    // remove itens equipados que não existem mais (troca da escada de armadura)
+    for(const k of Object.keys(hs.equip)) if(hs.equip[k] && !ITEMS[hs.equip[k]]) hs.equip[k] = null;
   }
+  // limpa inventário de ids antigos; se ficar vazio, repõe o inicial
+  state.inventory = (state.inventory || []).filter(id => ITEMS[id]);
+  if(!state.inventory.length) state.inventory = [...STARTER_INVENTORY];
   return state;
 }
 

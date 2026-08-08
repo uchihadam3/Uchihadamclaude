@@ -355,35 +355,58 @@ export const WEAPON_STYLES = {
              roadmap:['acumula Ki por acerto','gasta Ki em buffs/golpes especiais'] },
 };
 
-// weight: peso da armadura (head/chest/hands/feet). trinket = livre (sem peso).
-// img: arte recortada (fundo transparente). icon = emoji de fallback.
-export const ITEMS = {
-  // cabeça
-  iron_helm:     { id:'iron_helm',     name:'Elmo de Ferro',    slot:'head',    weight:'heavy',  icon:'🪖', img:'assets/item_iron_helm.png',     rarity:'comum', bonus:{ def:2, hp:8 } },
-  arcane_hat:    { id:'arcane_hat',    name:'Chapéu Arcano',    slot:'head',    weight:'light',  icon:'🎩', img:'assets/item_arcane_hat.png',    rarity:'raro',  bonus:{ mag:4 } },
-  // peito
-  leather_armor: { id:'leather_armor', name:'Peitoral de Couro',slot:'chest',   weight:'medium', icon:'🦺', img:'assets/item_leather_armor.png', rarity:'comum', bonus:{ hp:16, spd:1 } },
-  chain_mail:    { id:'chain_mail',    name:'Cota de Malha',    slot:'chest',   weight:'heavy',  icon:'🛡️', img:'assets/item_chain_mail.png',    rarity:'raro',  bonus:{ hp:35, def:3 } },
-  mage_robe:     { id:'mage_robe',     name:'Manto Arcano',     slot:'chest',   weight:'light',  icon:'🥼', img:'assets/item_mage_robe.png',     rarity:'raro',  bonus:{ mag:5, mp:8 } },
-  // mãos
-  leather_gloves:{ id:'leather_gloves',name:'Luvas de Couro',   slot:'hands',   weight:'medium', icon:'🧤', img:'assets/item_leather_gloves.png',rarity:'comum', bonus:{ atk:2, spd:1 } },
-  power_gauntlet:{ id:'power_gauntlet',name:'Manopla de Força', slot:'hands',   weight:'heavy',  icon:'✊', img:'assets/item_power_gauntlet.png',rarity:'raro',  bonus:{ atk:4 } },
-  // pés
-  swift_boots:   { id:'swift_boots',   name:'Botas Velozes',    slot:'feet',    weight:'medium', icon:'👢', img:'assets/item_swift_boots.png',   rarity:'comum', bonus:{ spd:2 } },
-  // acessório (LIVRE — sem peso, qualquer classe usa)
-  power_ring:    { id:'power_ring',    name:'Anel de Força',    slot:'trinket', icon:'💍', img:'assets/item_power_ring.png',    rarity:'comum', bonus:{ atk:3 } },
-  vital_amulet:  { id:'vital_amulet',  name:'Amuleto Vital',    slot:'trinket', icon:'📿', img:'assets/item_vital_amulet.png',  rarity:'raro',  bonus:{ hp:18, mp:10 } },
+// ESCADA DE ARMADURA — 3 pesos × 4 partes × 10 tiers = 120 peças (arte recortada).
+//   id = `${weight}_${part}_t${tier}` · img = assets/item_<id>.png
+export const ARMOR_TIERS = 10;
+export const ARMOR_MATERIALS = {
+  light:  ['Linho','Lã','Seda','Encantado','Rúnico','Seda Astral','Etéreo','Arcano','Celestial','Divino'],
+  medium: ['Couro Cru','Couro Batido','Cravejado','Couro de Fera','Escamas','Couro Sombrio','Pele de Wyvern','Sombra Élfica','Fera Mítica','Primordial'],
+  heavy:  ['Ferro','Bronze','Aço','Prata','Cobalto','Mithril','Adamante','Dragão','Rúnico','Divino'],
 };
-// Itens que o jogador já começa possuindo (no inventário, não equipados).
-export const STARTER_INVENTORY = ['iron_helm','chain_mail','leather_armor','swift_boots','leather_gloves','mage_robe','arcane_hat','power_ring','vital_amulet'];
-// Tabela de drop de itens ao limpar uma fase (chance por item).
-export const ITEM_DROPS = [
-  { item:'leather_armor', chance:0.16 }, { item:'power_ring', chance:0.14 },
-  { item:'swift_boots', chance:0.14 }, { item:'iron_helm', chance:0.14 },
-  { item:'leather_gloves', chance:0.14 }, { item:'chain_mail', chance:0.09 },
-  { item:'mage_robe', chance:0.09 }, { item:'arcane_hat', chance:0.08 },
-  { item:'power_gauntlet', chance:0.07 }, { item:'vital_amulet', chance:0.07 },
+const PART_NOUN = {
+  light:  { head:'Capuz', chest:'Manto',    hands:'Luvas',    feet:'Sapatos' },
+  medium: { head:'Capuz', chest:'Peitoral', hands:'Luvas',    feet:'Botas' },
+  heavy:  { head:'Elmo',  chest:'Peitoral', hands:'Manoplas', feet:'Botas' },
+};
+// atributo-foco de cada peso (por tier) e peso relativo de cada parte
+const WEIGHT_STATS = { light:{ mag:1.2, mp:3.0 }, medium:{ spd:0.8, atk:0.9 }, heavy:{ hp:8.0, def:1.3 } };
+const PART_FACTOR  = { head:0.8, chest:1.3, hands:0.7, feet:0.7 };
+export const RARITIES = ['comum','incomum','raro','epico','lendario'];
+const rarityOf = t => t<=2?'comum' : t<=4?'incomum' : t<=6?'raro' : t<=8?'epico' : 'lendario';
+
+function buildArmorItems(){
+  const out = {};
+  for(const weight of ['light','medium','heavy'])
+    for(const part of ['head','chest','hands','feet'])
+      for(let t=1; t<=ARMOR_TIERS; t++){
+        const id = `${weight}_${part}_t${t}`;
+        const bonus = {};
+        for(const [k,v] of Object.entries(WEIGHT_STATS[weight])) bonus[k] = Math.max(1, Math.round(v * t * PART_FACTOR[part]));
+        out[id] = { id, name:`${PART_NOUN[weight][part]} ${ARMOR_MATERIALS[weight][t-1]}`,
+          slot:part, weight, tier:t, icon:'🛡️', img:`assets/item_${id}.png`, rarity:rarityOf(t), bonus };
+      }
+  return out;
+}
+// weight: peso da armadura (head/chest/hands/feet). trinket = livre (sem peso).
+export const ITEMS = {
+  ...buildArmorItems(),
+  // acessórios (LIVRES — qualquer classe usa)
+  power_ring:   { id:'power_ring',   name:'Anel de Força',   slot:'trinket', tier:2, icon:'💍', img:'assets/item_power_ring.png',   rarity:'incomum', bonus:{ atk:3 } },
+  vital_amulet: { id:'vital_amulet', name:'Amuleto Vital',   slot:'trinket', tier:4, icon:'📿', img:'assets/item_vital_amulet.png', rarity:'raro',    bonus:{ hp:18, mp:10 } },
+};
+// Itens iniciais (tier 1 de cada peso p/ toda classe achar algo) + acessórios.
+export const STARTER_INVENTORY = [
+  'heavy_head_t1','heavy_chest_t1','medium_chest_t1','medium_feet_t1','light_head_t1','light_chest_t1','power_ring','vital_amulet',
 ];
+// Drop ao limpar fase: peças de tiers baixos (1–4) de todas as partes/pesos, chance baixa.
+export const ITEM_DROPS = (() => {
+  const drops = [];
+  for(const w of ['light','medium','heavy'])
+    for(const p of ['head','chest','hands','feet'])
+      for(const t of [1,2,3,4]) drops.push({ item:`${w}_${p}_t${t}`, chance:0.010 });
+  drops.push({ item:'power_ring', chance:0.05 }, { item:'vital_amulet', chance:0.04 });
+  return drops;
+})();
 
 // Soma dos bônus dos itens equipados de um herói (pura).
 export function itemBonuses(equip){
