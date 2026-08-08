@@ -6,7 +6,7 @@
 //     a 1ª condição verdadeira executa a ação e PARA a busca daquela unidade.
 // =============================================================================
 
-import { SKILLS, HERO_DEFS, ENEMY_DEFS, ENEMY_GAMBITS, FORGE_LEVELS, itemBonuses, MINION_DEF } from './data.js';
+import { SKILLS, HERO_DEFS, ENEMY_DEFS, ENEMY_GAMBITS, FORGE_LEVELS, itemBonuses, MINION_DEF, MINION_DEFS } from './data.js';
 import { CONDITION_FNS, canPay, execute } from './gambits.js';
 
 // status que fazem a unidade PERDER o turno
@@ -99,9 +99,10 @@ export class Combat {
     this.charges = opts.charges || {};      // cargas de consumíveis (por expedição)
   }
 
-  // Invoca um esqueleto aliado a partir de um cadáver.
-  summonMinion(owner){
-    const m = unitFrom(MINION_DEF, 'hero', { uid:`minion#${++this._summons}`, gambits: MINION_DEF.gambits });
+  // Invoca um minion aliado (esqueleto padrão ou variante) a partir de um cadáver.
+  summonMinion(owner, defId){
+    const def = (MINION_DEFS && MINION_DEFS[defId]) || MINION_DEF;
+    const m = unitFrom(def, 'hero', { uid:`minion#${++this._summons}`, gambits: def.gambits });
     this.party.push(m); this.units.push(m);
     return m;
   }
@@ -208,12 +209,15 @@ export class Combat {
         else { ev = { type:'item', source:u, target, skill:skill.id, amount:0 }; }
         ev.tick = this.tick; ev.item = skill.item; this.log.push(ev); return ev;
       }
-      // INVOCAÇÃO (Necromante): consome um cadáver e ergue um esqueleto aliado
+      // INVOCAÇÃO (Necromante): consome um cadáver e ergue um ou mais minions
       if(skill.kind === 'summon'){
         if(this.corpses <= 0) continue;     // sem cadáver → próxima linha
         this.corpses--; u.mp -= (skill.mp || 0);
-        const m = this.summonMinion(u);
-        const ev = { type:'summon', source:u, target:m, unit:m, skill:skill.id, tick:this.tick };
+        const count = Math.max(1, skill.count || 1);
+        const mins = [];
+        for(let i = 0; i < count; i++) mins.push(this.summonMinion(u, skill.minion));
+        const m = mins[mins.length - 1];
+        const ev = { type:'summon', source:u, target:m, unit:m, units:mins, skill:skill.id, count, tick:this.tick };
         this.log.push(ev); return ev;
       }
       // ÁREA (AoE): acerta o time inteiro; paga o MP uma vez só
@@ -228,6 +232,7 @@ export class Combat {
         for(const tg of team){
           const ev = execute(u, single, tg, ctx); ev.tick = this.tick; ev.aoe = true;
           if(ev.dead && ev.target.side === 'enemy') this.corpses++;
+          if(ev.reflectDead && u.side === 'enemy') this.corpses++;
           this.log.push(ev); last = ev;
         }
         return last;
@@ -236,6 +241,7 @@ export class Combat {
       if(skill.targetType === 'enemy') target = this.tauntRedirect(u, target);
       const ev = execute(u, skill, target, ctx);
       if(ev.dead && ev.target.side === 'enemy') this.corpses++;  // matou → cadáver
+      if(ev.reflectDead && u.side === 'enemy') this.corpses++;   // morreu pela reflexão
       ev.tick = this.tick;
       this.log.push(ev);
       return ev;                            // 1ª verdadeira executou → PARA

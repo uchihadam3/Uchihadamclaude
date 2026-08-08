@@ -847,13 +847,19 @@ function presentEvent(ev){
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="g">escuda ${ev.scope==='allies'?'a party':ev.target.name} (+${ev.amount})</span>`);
     return;
   }
-  // INVOCAÇÃO (Reanimar)
+  // INVOCAÇÃO (Reanimar / Cavaleiro / Horda / Legião)
   if(ev.type==='summon'){
     const lane = $('lane-heroes');
-    if(lane && ev.unit){ lane.insertAdjacentHTML('beforeend', battlerHTML(ev.unit,false)); refreshBattlerBars(); }
-    const be = battlerEl(ev.unit);
-    if(be){ const f=document.createElement('div'); f.className='float buff'; f.textContent='✨'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
-    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">ergue um Esqueleto ⚔️</span>`);
+    const mins = ev.units || (ev.unit ? [ev.unit] : []);
+    for(const mu of mins){
+      if(lane) lane.insertAdjacentHTML('beforeend', battlerHTML(mu,false));
+      const be = battlerEl(mu);
+      if(be){ const f=document.createElement('div'); f.className='float buff'; f.textContent='✨'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    }
+    refreshBattlerBars();
+    const nm = mins[0]?.name || 'aliado';
+    const quantos = mins.length>1 ? `${mins.length}× ${nm}` : nm;
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">ergue ${quantos}</span>`);
     return;
   }
   // REVIVER
@@ -902,11 +908,34 @@ function presentEvent(ev){
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> <span class="muted">${meta.label.toLowerCase()} — perde o turno</span>`);
     return;
   }
-  // ERROU (cegueira)
+  // ERROU / BLOQUEADO / ESQUIVOU
   if(ev.type==='damage' && ev.missed){
-    const be = battlerEl(ev.source);
-    if(be){ const f=document.createElement('div'); f.className='float stun'; f.textContent='errou'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
-    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="muted">errou (cegueira)</span>`);
+    const alvoBe = battlerEl(ev.target), be = battlerEl(ev.source);
+    const txt = ev.blocked ? '✨ imune' : ev.evaded ? '🌀 esquiva' : 'errou';
+    const showOn = ev.blocked || ev.evaded ? alvoBe : be;
+    if(showOn){ const f=document.createElement('div'); f.className='float stun'; f.textContent=txt; showOn.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    const why = ev.blocked ? 'INVULNERÁVEL' : ev.evaded ? 'ESQUIVOU' : 'errou (cegueira)';
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="muted">${why}</span>`);
+    return;
+  }
+  // RESTAURAR MP (Refresco/Poção de Mana/Refluxo/Inspiração)
+  if(ev.type==='mana'){
+    const be = battlerEl(ev.target);
+    if(be){ const f=document.createElement('div'); f.className='float heal'; f.textContent=`💧+${ev.amount}`; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerBars();
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b> <span class="g">+${ev.amount} MP</span>`);
+    return;
+  }
+  // ESCUDOS REATIVOS / FOCO (guard·invuln·reflect·vuln·critup·evasion)
+  if(['guard','invuln','reflect','vuln','critup','evasion'].includes(ev.type)){
+    const ICON = { guard:'🛡️', invuln:'✨', reflect:'🪞', vuln:'🎯', critup:'💥', evasion:'🌀' };
+    const VERB = { guard:'assume guarda', invuln:'fica invulnerável', reflect:'ergue reflexão',
+      vuln:'marca o alvo (vulnerável)', critup:'foca (+crítico)', evasion:'aumenta a evasão' };
+    const isDebuff = ev.type==='vuln';
+    const be = battlerEl(ev.target);
+    if(be){ const f=document.createElement('div'); f.className='float '+(isDebuff?'stun':'buff'); f.textContent=ICON[ev.type]; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerStatus(ev.target); refreshBattlerBars();
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="${isDebuff?'c':'g'}">${VERB[ev.type]}${ev.scope==='allies'?' (party)':''}</span>`);
     return;
   }
   // dano/cura flutuante + hit flash
