@@ -84,8 +84,16 @@ function ir(nome){
    pode fazer. Fora da partida é sempre o tema do menu — inclusive na tela do
    fim, que é onde ele finalmente faz sentido. */
 function trilhaDaTela(nome){
-  if(nome === 'sala' && run?.sala)
-    return trilha(run.sala.boss ? 'chefe' + run.mundo : 'mundo' + run.mundo);
+  if(nome === 'sala' && run?.sala){
+    /* a música do chefe segue o CHEFE, não o mundo. Hoje os dois andam
+       juntos, mas a ordem dos chefes é uma lista à parte: se ela mudar, quem
+       vier tocaria o tema errado — e tema de chefe trocado é a coisa que o
+       jogador percebe antes de qualquer bug. */
+    const b = run.sala.boss;
+    if(!b) return trilha('mundo' + run.mundo);
+    const i = Math.max(0, LISTA_BOSSES.findIndex(x => x.id === b.id));
+    return trilha('chefe' + i);
+  }
   if(run && !run.acabou() && (nome === 'mapa' || nome === 'premio'
      || nome === 'loja' || nome === 'evento'))
     return trilha('mundo' + run.mundo);

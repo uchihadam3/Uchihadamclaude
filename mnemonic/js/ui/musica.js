@@ -1,30 +1,48 @@
 /* ========================================================================
-   A TRILHA — seis mundos, seis climas, nenhum arquivo para baixar.
+   A TRILHA — treze músicas de verdade, tocadas nota por nota.
 
    O jogo não tem um MB de áudio e não vai ter: o link é único, abre no
    celular de quem estiver com a internet ruim, e um jogo da memória que
-   demora dez segundos para carregar já perdeu. Então a música é TOCADA, nota
-   por nota, pelo mesmo WebAudio que faz os efeitos.
+   demora dez segundos para carregar já perdeu. Então a música é TOCADA pelo
+   mesmo WebAudio que faz os efeitos.
 
-   Música gerada tem um jeito fácil de dar errado: sortear notas. Sai um
-   chuvisco agradável nos primeiros vinte segundos e insuportável nos vinte
-   seguintes, porque não há NADA para reconhecer. Aqui a aleatoriedade é toda
-   gasta uma vez só, na carga: o tema de cada mundo é sorteado a partir de uma
-   semente fixa e vira uma melodia de trinta e dois passos que se repete. É
-   sempre a mesma música no mundo 3, em qualquer aparelho, hoje e amanhã — que
-   é a diferença entre uma trilha e um gerador de sons.
+   ═══ O QUE ESTAVA ERRADO NA PRIMEIRA VERSÃO ════════════════════════════
+   Ela tinha quatro compassos de melodia e mais nada. Quatro compassos é um
+   TOQUE DE CELULAR: dá para reconhecer, e depois de trinta segundos vira
+   tortura, porque o ouvido já sabe tudo o que vai acontecer. E os seis
+   chefes dividiam uma música só, a do mundo levada para a menor harmônica —
+   o que é um truque legítimo de variação e é uma preguiça como tema de
+   chefe.
 
-   O QUE CADA MUNDO PRECISA DIZER. A trilha é informação, não enfeite: o
-   jogador tem de ouvir que subiu de mundo antes de ler. Por isso o que muda
-   entre um e outro não é só a melodia — é o MODO (a escala), o andamento e o
-   timbre. O mundo 1 é maior e calmo; o 6 é frígio, rápido e grave. A sala do
-   chefe rouba a tonalidade do mundo e a leva para a menor harmônica, mais
-   rápida: é a mesma música, agora torta.
+   ═══ O QUE UMA MÚSICA PRECISA TER ══════════════════════════════════════
+   FORMA. Cada faixa tem introdução, tema A, variação de A, tema B, uma ponte
+   em que quase tudo cala, e a volta do A por cima. São de 40 a 56 compassos:
+   entre noventa segundos e dois minutos antes de a primeira nota voltar.
+   `test/musica.mjs` mede isso e reprova faixa curta.
 
-   E ELA NÃO PODE ATRAPALHAR. Num jogo de memória o ouvido é a segunda tela —
-   o som do acerto é o que confirma o combo. A trilha toca num barramento
-   próprio, mais baixo que os efeitos, e ABAIXA sozinha quando a tentativa
-   está sendo resolvida. É a única coisa nela que reage à partida.
+   CAMADAS. Baixo, pad, melodia, contracanto, arpejo e percussão, e cada
+   seção liga e desliga camadas. Música que toca tudo do começo ao fim não
+   tem para onde crescer, e é o crescimento que segura dois minutos.
+
+   ESPAÇO. Reverb (uma resposta ao impulso gerada na hora, ruído decaindo) e
+   um eco no lead. Sem isso, oscilador é bipe; com isso, é instrumento numa
+   sala. São os dois nós mais baratos e os que mais mudam o resultado.
+
+   INSTRUMENTOS DE VERDADE. Baixo com sub e ataque; pad de três osciladores
+   desafinados entre si; sino por FM (duas senoides em razão não inteira);
+   pluck de decaimento rápido; bumbo com queda de altura; caixa de ruído com
+   corpo; chimbal curto. Cada um é uma função, não um `type:'square'`.
+
+   O LOOP FECHA. A última seção termina na tônica e o agendador não tem
+   emenda: `passo` anda para sempre e a posição é `passo % total`. Não há
+   silêncio, corte nem clique na volta — o rabo de reverb da última nota já
+   está tocando quando a primeira volta.
+
+   ═══ E CONTINUA SENDO A MESMA MÚSICA SEMPRE ════════════════════════════
+   A aleatoriedade é toda gasta uma vez, na carga: os temas saem de uma
+   semente fixa por faixa. A música do mundo 3 é a mesma no meu celular e no
+   seu, hoje e no ano que vem — que é a diferença entre uma trilha e um
+   gerador de sons.
    ===================================================================== */
 import { contexto, estaMudo } from './sfx.js';
 import { makeRNG } from '../rng.js';
@@ -32,18 +50,17 @@ import { makeRNG } from '../rng.js';
 /* ---------- teoria, o mínimo dela ---------- */
 const A4 = 440, MIDI_A4 = 69;
 const hz = m => A4 * Math.pow(2, (m - MIDI_A4) / 12);
-/* graus de escala em semitons. O nome importa: é o que faz um mundo soar
-   "aberto" e outro "estreito" sem mudar mais nada. */
-const MODOS = {
+export const MODOS = {
   maior:    [0,2,4,5,7,9,11],
   lidio:    [0,2,4,6,7,9,11],
+  mixo:     [0,2,4,5,7,9,10],
   dorico:   [0,2,3,5,7,9,10],
   eolio:    [0,2,3,5,7,8,10],
   frigio:   [0,1,3,5,7,8,10],
   menorHarm:[0,2,3,5,7,8,11],
+  locrio:   [0,1,3,5,6,8,10],
 };
-/* nota da escala pelo grau, com as oitavas passando sozinhas: grau 7 é a
-   tônica uma oitava acima, e grau -1 é a sétima abaixo */
+/* grau da escala com as oitavas passando sozinhas: 7 é a tônica acima */
 function grau(raiz, modo, g){
   const e = MODOS[modo];
   const oit = Math.floor(g / e.length);
@@ -51,189 +68,488 @@ function grau(raiz, modo, g){
   return raiz + e[i] + 12 * oit;
 }
 
-/* ---------- os seis climas ----------
-   `raiz` é o MIDI da tônica; o resto é o retrato do mundo em cinco números. */
-const MUNDOS = [
-  { id:0, nome:'raiz',    raiz:57, modo:'maior',  bpm:96,  onda:'triangle',
-    pad:'sine',     acordes:[0,5,3,4], densidade:0.55, brilho:2200 },
-  { id:1, nome:'lodo',    raiz:55, modo:'dorico', bpm:100, onda:'triangle',
-    pad:'sine',     acordes:[0,3,4,3], densidade:0.6,  brilho:1700 },
-  { id:2, nome:'vidro',   raiz:60, modo:'lidio',  bpm:108, onda:'sine',
-    pad:'triangle', acordes:[0,4,5,4], densidade:0.62, brilho:2800 },
-  { id:3, nome:'ferro',   raiz:53, modo:'eolio',  bpm:112, onda:'square',
-    pad:'sawtooth', acordes:[0,6,5,4], densidade:0.66, brilho:1500 },
-  { id:4, nome:'cinza',   raiz:51, modo:'frigio', bpm:118, onda:'sawtooth',
-    pad:'triangle', acordes:[0,1,5,4], densidade:0.7,  brilho:1300 },
-  { id:5, nome:'nada',    raiz:49, modo:'frigio', bpm:126, onda:'sawtooth',
-    pad:'sawtooth', acordes:[0,1,6,5], densidade:0.74, brilho:1100 },
-];
-/* o menu não é um mundo: é o de fora, e tem de soar como espera */
-const MENU = { id:'menu', raiz:57, modo:'eolio', bpm:72, onda:'sine',
-               pad:'sine', acordes:[0,5,3,4], densidade:0.34, brilho:1500 };
+/* ════════════════════ AS FAIXAS ════════════════════
+   `acordes` é a harmonia em graus da escala, um por compasso, e o ciclo dela
+   é de 8 — quatro acordes repetidos soam como quatro acordes; oito soam como
+   uma progressão. `perc` escolhe a levada, que é o que separa um mundo do
+   outro antes de a melodia dizer qualquer coisa. */
+const FAIXAS = {
+  menu: { nome:'menu', raiz:57, modo:'eolio', bpm:76, cor:'calma',
+    acordes:[0,5,3,4, 0,5,1,4], perc:'nenhuma', brilho:1600,
+    lead:'sino', arp:'pluck', pad:'ar', densidade:0.34, forma:'lenta' },
 
-/* ---------- o TEMA: sorteado uma vez, tocado sempre ----------
-   32 passos de colcheia = 4 compassos. Cada passo é um grau da escala ou uma
-   pausa, e a melodia anda por GRAUS VIZINHOS na maior parte do tempo — saltar
-   ao acaso é o que faz música gerada soar como discagem de telefone. */
-function comporTema(clima){
-  const r = makeRNG('mnemonic|tema|' + clima.id);
+  /* os seis mundos: o modo, o andamento e a levada mudam juntos */
+  mundo0: { nome:'raiz', raiz:57, modo:'maior', bpm:92, cor:'aberta',
+    acordes:[0,4,5,3, 0,4,1,4], perc:'marcha', brilho:2400,
+    lead:'flauta', arp:'pluck', pad:'ar', densidade:0.5 },
+  mundo1: { nome:'lodo', raiz:55, modo:'dorico', bpm:100, cor:'úmida',
+    acordes:[0,3,6,4, 0,3,1,4], perc:'balanço', brilho:1700,
+    lead:'pluck', arp:'sino', pad:'coro', densidade:0.55 },
+  mundo2: { nome:'vidro', raiz:60, modo:'lidio', bpm:108, cor:'fria',
+    acordes:[0,4,3,5, 0,6,4,5], perc:'trote', brilho:3000,
+    lead:'sino', arp:'pluck', pad:'ar', densidade:0.58 },
+  mundo3: { nome:'ferro', raiz:53, modo:'eolio', bpm:114, cor:'dura',
+    acordes:[0,6,5,4, 0,6,3,4], perc:'martelo', brilho:1500,
+    lead:'serra', arp:'pluck', pad:'coro', densidade:0.62 },
+  mundo4: { nome:'cinza', raiz:51, modo:'frigio', bpm:120, cor:'baixa',
+    acordes:[0,1,5,4, 0,1,6,5], perc:'galope', brilho:1300,
+    lead:'serra', arp:'serra', pad:'coro', densidade:0.66 },
+  mundo5: { nome:'nada', raiz:49, modo:'frigio', bpm:128, cor:'sem fundo',
+    acordes:[0,1,6,5, 0,4,1,5], perc:'corrida', brilho:1150,
+    lead:'serra', arp:'serra', pad:'coro', densidade:0.7 },
+
+  /* OS SEIS CHEFES, um tema para cada. Não é o mundo com outra escala: é
+     outra tonalidade, outro andamento, outra levada e outro instrumento à
+     frente. Um chefe que soa como o corredor de onde você veio não anuncia
+     nada — e a trilha do chefe é o primeiro aviso que o jogador recebe. */
+  chefe0: { nome:'O Ilusionista', raiz:56, modo:'lidio', bpm:104, cor:'torta',
+    acordes:[0,3,6,2, 0,3,5,6], perc:'valsa', brilho:2600,
+    lead:'sino', arp:'sino', pad:'ar', densidade:0.6, chefe:true },
+  chefe1: { nome:'O Hipnotizador', raiz:54, modo:'dorico', bpm:96, cor:'pesada',
+    acordes:[0,0,3,3, 0,0,4,4], perc:'pulso', brilho:1500,
+    lead:'pluck', arp:'pluck', pad:'coro', densidade:0.5, chefe:true },
+  chefe2: { nome:'O Tempo', raiz:58, modo:'menorHarm', bpm:132, cor:'apressada',
+    acordes:[0,4,0,4, 5,4,0,4], perc:'relogio', brilho:2200,
+    lead:'sino', arp:'pluck', pad:'ar', densidade:0.72, chefe:true },
+  chefe3: { nome:'O Caos', raiz:50, modo:'locrio', bpm:138, cor:'quebrada',
+    acordes:[0,6,1,5, 0,3,6,1], perc:'quebrada', brilho:1400,
+    lead:'serra', arp:'serra', pad:'coro', densidade:0.78, chefe:true },
+  chefe4: { nome:'O Espelho', raiz:59, modo:'menorHarm', bpm:112, cor:'dupla',
+    acordes:[0,4,5,1, 0,4,3,4], perc:'espelhada', brilho:2000,
+    lead:'flauta', arp:'sino', pad:'ar', densidade:0.62, chefe:true },
+  chefe5: { nome:'O Rei da Memória', raiz:45, modo:'menorHarm', bpm:100, cor:'régia',
+    acordes:[0,5,6,4, 0,5,3,4], perc:'imperial', brilho:1800,
+    lead:'serra', arp:'sino', pad:'coro', densidade:0.6, chefe:true },
+};
+
+/* ---------- a forma ----------
+   Bar a bar, e é isto que dá noventa segundos de música: seis seções, cada
+   uma com um conjunto de camadas diferente. `tema` diz qual das três
+   melodias está tocando; `ganho` é a dinâmica da seção. */
+const FORMA = [
+  { nome:'intro',  bar:4, tema:null, cam:{ pad:1, arp:1 },                       ganho:0.55 },
+  { nome:'A',      bar:8, tema:'A',  cam:{ pad:1, baixo:1, lead:1, perc:1 },     ganho:0.9 },
+  { nome:'A2',     bar:8, tema:'A',  cam:{ pad:1, baixo:1, lead:1, arp:1, perc:1, contra:1 }, ganho:1 },
+  { nome:'B',      bar:8, tema:'B',  cam:{ pad:1, baixo:1, lead:1, arp:1, perc:1 }, ganho:0.95 },
+  { nome:'ponte',  bar:4, tema:'C',  cam:{ pad:1, lead:1 },                      ganho:0.6 },
+  { nome:'A3',     bar:8, tema:'A',  cam:{ pad:1, baixo:1, lead:1, arp:1, perc:1, contra:1 }, ganho:1 },
+  { nome:'saída',  bar:4, tema:'C',  cam:{ pad:1, baixo:1, arp:1 },              ganho:0.7 },
+];
+/* a forma lenta do menu respira mais e não tem percussão nenhuma */
+const FORMA_LENTA = [
+  { nome:'intro', bar:4, tema:null, cam:{ pad:1 },                  ganho:0.5 },
+  { nome:'A',     bar:8, tema:'A',  cam:{ pad:1, lead:1, arp:1 },   ganho:0.85 },
+  { nome:'B',     bar:8, tema:'B',  cam:{ pad:1, lead:1, baixo:1 }, ganho:0.95 },
+  { nome:'A2',    bar:8, tema:'A',  cam:{ pad:1, lead:1, arp:1, baixo:1 }, ganho:1 },
+  { nome:'saída', bar:4, tema:'C',  cam:{ pad:1, arp:1 },           ganho:0.6 },
+];
+
+const PASSOS_POR_BAR = 8;               // colcheias em 4/4
+
+/* quantos compassos esta faixa precisa para passar de 90 segundos. Uma faixa
+   a 138 bpm anda quase o dobro de uma a 76: a forma fixa daria 60 segundos
+   numa e 110 na outra, então a última seção repete até a conta fechar. */
+function arranjo(f){
+  const base = f.forma === 'lenta' ? FORMA_LENTA : FORMA;
+  const segBar = 60 / f.bpm * 4;
+  const fora = base.map(s => ({ ...s }));
+  let total = fora.reduce((n, s) => n + s.bar, 0);
+  /* repete o miolo (A2/A3 e B) até chegar aos 90 segundos, sem nunca mexer
+     na introdução nem na saída — elas são as bordas do laço */
+  const repetiveis = fora.filter(s => /^(A2|A3|B)$/.test(s.nome));
+  let i = 0;
+  while(total * segBar < 92 && repetiveis.length){
+    const s = repetiveis[i++ % repetiveis.length];
+    s.bar += 4; total += 4;
+  }
+  return { secoes: fora, bars: total, segundos: total * segBar };
+}
+
+/* ---------- OS TEMAS ----------
+   Três melodias por faixa — A, B e a ponte C — de 32 passos cada. Elas saem
+   de uma semente fixa e viram tabela: a mesma faixa toca sempre a mesma
+   coisa. A melodia anda por graus VIZINHOS na maior parte do tempo, salta na
+   cabeça do compasso e volta para casa no fim da frase; saltar ao acaso é o
+   que faz melodia gerada soar como discagem de telefone. */
+function comporLinha(rng, f, { alcance=[-3,9], salto=0.26, casa=true }={}){
   const notas = [];
   let g = 0;
   for(let i = 0; i < 32; i++){
-    const forte = i % 8 === 0;               // cabeça de compasso
-    const cala = !forte && r.chance(1 - clima.densidade);
-    if(cala){ notas.push(null); continue; }
-    /* passo de segunda quase sempre, terça às vezes, salto raro e só na
-       cabeça — é a regra de condução de voz mais velha que existe, e é a que
-       separa melodia de sequência */
-    const salto = forte && r.chance(0.28) ? r.pick([-4,-3,3,4])
-                : r.chance(0.24) ? r.pick([-2,2]) : r.pick([-1,-1,1,1,0]);
-    g = Math.max(-3, Math.min(9, g + salto));
-    if(forte && Math.abs(g % 7) > 5) g = 0;   // volta para casa no compasso
+    const forte = i % 8 === 0;
+    const meio  = i % 4 === 0;
+    /* a densidade decide quanto a linha respira, e a respiração é o que
+       separa uma frase de um rolo de notas */
+    if(!forte && !rng.chance(meio ? f.densidade + 0.2 : f.densidade)){
+      notas.push(null); continue;
+    }
+    const passo = forte && rng.chance(salto) ? rng.pick([-4,-3,3,4,5])
+                : rng.chance(0.26) ? rng.pick([-2,2])
+                : rng.pick([-1,-1,1,1,0]);
+    g = Math.max(alcance[0], Math.min(alcance[1], g + passo));
     notas.push(g);
   }
-  notas[0] = 0;                               // o tema começa na tônica
+  notas[0] = 0;
+  if(casa) notas[24] = rng.pick([0, 2, 4]);   // a frase volta para o acorde
   return notas;
 }
+function comporFaixa(f, id){
+  const r = makeRNG('mnemonic|faixa|' + id);
+  return {
+    A: comporLinha(r, f),
+    B: comporLinha(r, f, { alcance:[-1, 11], salto:0.34 }),
+    C: comporLinha(r, { ...f, densidade: f.densidade * 0.6 },
+                   { alcance:[-5, 5], salto:0.14 }),
+    /* o contracanto anda ao contrário do tema: quando a melodia sobe, ele
+       desce. É o truque mais velho que existe e o que faz duas linhas
+       soarem como duas vozes em vez de duas melodias empilhadas. */
+    D: comporLinha(r, { ...f, densidade: f.densidade * 0.5 },
+                   { alcance:[-7, 2], salto:0.1 }),
+  };
+}
 const TEMAS = new Map();
-export const tema = clima => {
-  if(!TEMAS.has(clima.id)) TEMAS.set(clima.id, comporTema(clima));
-  return TEMAS.get(clima.id);
+export const tema = f => {
+  const id = f.id || f.nome;
+  if(!TEMAS.has(id)) TEMAS.set(id, comporFaixa(f, id));
+  return TEMAS.get(id);
 };
-/* abertos para o teste: a parte da música que dá para provar sem tocar nada é
-   a composição, e é justamente a parte que pode sair errada em silêncio */
-export const CLIMAS = MUNDOS;
-export const CLIMA_MENU = MENU;
-export { grau, MODOS };
 
-/* ---------- o barramento ---------- */
-let bus = null, filtro = null, quer = true, atual = null;
-let relogio = null, proximo = 0, passo = 0, clima = null, chefe = false;
-let abaixado = 0;
+/* ════════════════════ O SOM ════════════════════ */
+let bus = null, filtro = null, reverb = null, eco = null, secoNo = null;
+let quer = true, atual = null, clima = null, plano = null;
+let relogio = null, proximo = 0, passo = 0, abaixado = 0, agendadas = 0;
+
+/* REVERB SEM ARQUIVO: ruído que decai é uma sala. Não é uma catedral medida,
+   e não precisa ser — o que ele resolve é o oscilador soar dentro de algum
+   lugar em vez de encostado no alto-falante. */
+function salaImpulso(c, seg = 2.2, decaimento = 3.2){
+  const n = Math.floor(c.sampleRate * seg);
+  const buf = c.createBuffer(2, n, c.sampleRate);
+  for(let ch = 0; ch < 2; ch++){
+    const d = buf.getChannelData(ch);
+    for(let i = 0; i < n; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decaimento);
+  }
+  return buf;
+}
 
 function montar(){
   const c = contexto(); if(!c) return null;
   if(bus) return c;
-  filtro = c.createBiquadFilter(); filtro.type = 'lowpass';
-  filtro.frequency.value = 2000; filtro.Q.value = 0.4;
+
   bus = c.createGain(); bus.gain.value = 0;
-  /* um compressor manso: a trilha soma pad, baixo e melodia, e sem ele os
-     três batendo no mesmo passo estouram o alto-falante do celular */
   const comp = c.createDynamicsCompressor();
-  comp.threshold.value = -22; comp.ratio.value = 4; comp.attack.value = 0.006;
-  filtro.connect(bus).connect(comp).connect(c.destination);
+  comp.threshold.value = -20; comp.ratio.value = 4; comp.attack.value = 0.005;
+  comp.release.value = 0.18;
+  bus.connect(comp).connect(c.destination);
+
+  /* o seco e o molhado entram no mesmo barramento: o reverb some por trás e
+     não engole o ataque, que é o que dá o pulso da música */
+  secoNo = c.createGain(); secoNo.gain.value = 1;
+  const molhado = c.createGain(); molhado.gain.value = 0.3;
+  const rv = c.createConvolver(); rv.buffer = salaImpulso(c);
+  reverb = c.createGain(); reverb.gain.value = 1;
+  reverb.connect(rv).connect(molhado).connect(bus);
+  secoNo.connect(bus);
+
+  /* eco pontilhado só para a melodia: dá tamanho sem sujar o baixo */
+  const atraso = c.createDelay(1.0); atraso.delayTime.value = 0.34;
+  const volta = c.createGain(); volta.gain.value = 0.28;
+  const ecoSaida = c.createGain(); ecoSaida.gain.value = 0.32;
+  atraso.connect(volta).connect(atraso);
+  atraso.connect(ecoSaida).connect(bus);
+  eco = atraso;
+
+  filtro = c.createBiquadFilter(); filtro.type = 'lowpass';
+  filtro.frequency.value = 2400; filtro.Q.value = 0.5;
+  filtro.connect(secoNo); filtro.connect(reverb);
   return c;
 }
 
-/* ---------- as vozes ---------- */
-function voz(c, { f, t0, dur, tipo='sine', v=0.1, corte=0, desafina=0 }){
-  const o = c.createOscillator(), g = c.createGain();
-  o.type = tipo; o.frequency.setValueAtTime(f, t0);
-  if(desafina) o.detune.setValueAtTime(desafina, t0);
-  /* envelope com ataque de verdade: nota que começa em degrau ESTALA, e o
-     estalo é o que faz som sintetizado soar barato */
+/* uma nota, com envelope de verdade. `ataque` de zero estala, e o estalo é o
+   que faz som sintetizado soar barato. */
+function nota(c, { f, t0, dur, tipo='sine', v=0.1, ataque=0.01, queda=0.12,
+                  sustento=0.7, solta=0.18, corte=0, ressonancia=1,
+                  desafina=0, vibrato=0, destino=null }){
+  const g = c.createGain();
+  const fim = t0 + dur;
   g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(v, t0 + Math.min(0.08, dur * 0.3));
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  g.gain.exponentialRampToValueAtTime(v, t0 + ataque);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0001, v * sustento), t0 + ataque + queda);
+  g.gain.setTargetAtTime(0.0001, fim, solta / 3);
+
   let saida = g;
   if(corte){
-    const f2 = c.createBiquadFilter(); f2.type = 'lowpass';
-    f2.frequency.setValueAtTime(corte, t0);
-    f2.frequency.exponentialRampToValueAtTime(Math.max(200, corte * 0.45), t0 + dur);
-    g.connect(f2); saida = f2;
+    const bq = c.createBiquadFilter(); bq.type = 'lowpass';
+    bq.Q.value = ressonancia;
+    bq.frequency.setValueAtTime(corte, t0);
+    bq.frequency.exponentialRampToValueAtTime(Math.max(180, corte * 0.4), fim + solta);
+    g.connect(bq); saida = bq;
   }
-  o.connect(g); saida.connect(filtro);
-  o.start(t0); o.stop(t0 + dur + 0.03);
+  const osc = [];
+  const fazer = (tp, det, ganho) => {
+    const o = c.createOscillator();
+    /* O PAPEL DA VOZ, escrito no nó. Um bumbo é um oscilador que cai de 150
+       para 44 Hz e um sino de FM tem um modulador a 2,76 vezes a portadora:
+       nenhum dos dois é "uma nota da escala", e quem for conferir a harmonia
+       de fora não tem como saber disso olhando a frequência. */
+    o.__papel = 'nota';
+    o.type = tp; o.frequency.setValueAtTime(f, t0);
+    if(det) o.detune.setValueAtTime(det, t0);
+    const gg = c.createGain(); gg.gain.value = ganho;
+    o.connect(gg).connect(g);
+    o.start(t0); o.stop(fim + solta + 0.05);
+    osc.push(o);
+  };
+  fazer(tipo, desafina, 1);
+  if(desafina) fazer(tipo, -desafina, 0.8);
+  if(vibrato){
+    const lfo = c.createOscillator(), amp = c.createGain();
+    lfo.frequency.value = 5.2; amp.gain.value = vibrato;
+    lfo.connect(amp); for(const o of osc) amp.connect(o.detune);
+    lfo.start(t0 + 0.12); lfo.stop(fim + solta);
+  }
+  saida.connect(destino || filtro);
+  return saida;
 }
-function chiado(c, { t0, dur=0.06, v=0.05, corte=6000 }){
+
+/* SINO POR FM: uma senoide modulando outra numa razão não inteira dá
+   parcial inarmônico, que é o que o ouvido reconhece como metal. */
+function sino(c, { f, t0, dur, v = 0.09 }){
+  const port = c.createOscillator(), mod = c.createOscillator();
+  const gm = c.createGain(), g = c.createGain();
+  port.__papel = 'nota'; mod.__papel = 'fm';
+  port.frequency.value = f; mod.frequency.value = f * 2.76;
+  gm.gain.setValueAtTime(f * 3.4, t0);
+  gm.gain.exponentialRampToValueAtTime(f * 0.05, t0 + dur * 0.7);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(v, t0 + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  mod.connect(gm).connect(port.frequency);
+  port.connect(g);
+  g.connect(filtro);
+  mod.start(t0); port.start(t0);
+  mod.stop(t0 + dur + 0.05); port.stop(t0 + dur + 0.05);
+  return g;
+}
+
+/* ---------- percussão ---------- */
+function bumbo(c, t0, v = 0.5){
+  const o = c.createOscillator(), g = c.createGain();
+  o.__papel = 'perc'; o.type = 'sine';
+  o.frequency.setValueAtTime(150, t0);
+  o.frequency.exponentialRampToValueAtTime(44, t0 + 0.11);
+  g.gain.setValueAtTime(v, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.26);
+  o.connect(g).connect(secoNo);
+  o.start(t0); o.stop(t0 + 0.3);
+}
+function chiado(c, t0, { dur=0.06, v=0.1, corte=7000, tipo='highpass', destino=null }={}){
   const n = Math.max(1, Math.floor(c.sampleRate * dur));
   const buf = c.createBuffer(1, n, c.sampleRate);
   const d = buf.getChannelData(0);
-  for(let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  for(let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 1.6);
   const s = c.createBufferSource(); s.buffer = buf;
-  const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = corte;
+  const bq = c.createBiquadFilter(); bq.type = tipo; bq.frequency.value = corte;
   const g = c.createGain(); g.gain.value = v;
-  s.connect(f).connect(g).connect(filtro);
+  s.connect(bq).connect(g).connect(destino || secoNo);
   s.start(t0);
 }
+function caixa(c, t0, v = 0.22){
+  chiado(c, t0, { dur:0.16, v, corte:1400, tipo:'highpass', destino:reverb });
+  chiado(c, t0, { dur:0.12, v:v*0.8, corte:1400, tipo:'highpass' });
+  const o = c.createOscillator(), g = c.createGain();
+  o.__papel = 'perc'; o.type = 'triangle'; o.frequency.setValueAtTime(190, t0);
+  o.frequency.exponentialRampToValueAtTime(120, t0 + 0.09);
+  g.gain.setValueAtTime(v * 0.5, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.11);
+  o.connect(g).connect(secoNo);
+  o.start(t0); o.stop(t0 + 0.14);
+}
+const chimbal = (c, t0, v=0.055) => chiado(c, t0, { dur:0.035, v, corte:9000 });
+const prato   = (c, t0, v=0.1)  => chiado(c, t0, { dur:0.9, v, corte:5200, destino:reverb });
 
-/* ---------- o compasso ---------- */
-function tocarPasso(c, i, t0){
-  const k = i % 32;
-  const compasso = Math.floor(k / 8);
-  const acorde = clima.acordes[compasso % clima.acordes.length];
-  const modo = chefe ? 'menorHarm' : clima.modo;
-  const raiz = clima.raiz - (chefe ? 12 : 0);
-  const nota = g => hz(grau(raiz, modo, g + acorde));
+/* AS LEVADAS. Cada uma é uma função de (passo dentro do compasso) — é o que
+   dá identidade à faixa antes de a melodia dizer qualquer coisa, e é por
+   isso que o mundo 4 e o Caos não soam parecidos mesmo os dois sendo
+   rápidos e menores. */
+const LEVADAS = {
+  nenhuma: () => {},
+  marcha: (c, k, t) => { if(k===0||k===4) bumbo(c,t); if(k===2||k===6) caixa(c,t);
+                         if(k%2===1) chimbal(c,t); },
+  balanço:(c, k, t) => { if(k===0||k===3||k===6) bumbo(c,t,0.42);
+                         if(k===4) caixa(c,t,0.2); if(k%2===1) chimbal(c,t,0.045); },
+  trote:  (c, k, t) => { if(k===0||k===4) bumbo(c,t,0.44); if(k===4) caixa(c,t,0.16);
+                         chimbal(c,t, k%2 ? 0.03 : 0.06); },
+  martelo:(c, k, t) => { if(k===0||k===3||k===4||k===7) bumbo(c,t,0.5);
+                         if(k===2||k===6) caixa(c,t,0.26); if(k%2===1) chimbal(c,t,0.05); },
+  galope: (c, k, t) => { if(k===0||k===2||k===5) bumbo(c,t,0.46); if(k===4) caixa(c,t,0.24);
+                         chimbal(c,t,0.04); },
+  corrida:(c, k, t) => { bumbo(c,t, k%2 ? 0.2 : 0.5); if(k===2||k===6) caixa(c,t,0.24);
+                         chimbal(c,t,0.05); },
+  /* as dos chefes */
+  valsa:  (c, k, t) => { if(k===0) bumbo(c,t,0.44); if(k===3||k===6) caixa(c,t,0.14);
+                         if(k%3===0) chimbal(c,t,0.05); },
+  pulso:  (c, k, t) => { if(k%2===0) bumbo(c,t, k===0?0.56:0.3);
+                         if(k===4) caixa(c,t,0.2); },
+  relogio:(c, k, t) => { chimbal(c,t, k%2 ? 0.075 : 0.035);
+                         if(k===0||k===4) bumbo(c,t,0.44); if(k===6) caixa(c,t,0.2); },
+  quebrada:(c,k,t) => { if(k===0||k===3||k===5||k===6) bumbo(c,t,0.5);
+                        if(k===2||k===7) caixa(c,t,0.28); if(k%2===1) chimbal(c,t,0.06); },
+  espelhada:(c,k,t)=> { if(k===0||k===7) bumbo(c,t,0.48); if(k===2||k===5) caixa(c,t,0.22);
+                        chimbal(c,t,0.04); },
+  imperial:(c, k, t)=> { if(k===0||k===4) bumbo(c,t,0.58); if(k===4) caixa(c,t,0.3);
+                         if(k===0) prato(c,t,0.05); if(k%2===1) chimbal(c,t,0.045); },
+};
 
-  /* BAIXO — cabeça e contratempo. É ele que segura o andamento, então nunca
-     cala: sem baixo, o ouvido perde onde está e a trilha vira ambiente. */
-  if(k % 4 === 0)
-    voz(c, { f: nota(-7), t0, dur:0.5, tipo: chefe ? 'sawtooth' : 'triangle',
-             v:0.13, corte: clima.brilho * 0.4 });
-  else if(k % 4 === 2 && (chefe || compasso % 2))
-    voz(c, { f: nota(-7), t0, dur:0.2, tipo:'triangle', v:0.07,
-             corte: clima.brilho * 0.35 });
+/* AS VOZES por nome — trocar o instrumento de frente é o que faz duas faixas
+   na mesma escala soarem de mundos diferentes. */
+const VOZES = {
+  flauta: (c, f, t0, dur, v, br) =>
+    nota(c, { f, t0, dur, tipo:'triangle', v:v*0.9, ataque:0.05, queda:0.1,
+              sustento:0.85, solta:0.3, corte:br*1.3, vibrato:7 }),
+  pluck: (c, f, t0, dur, v, br) =>
+    nota(c, { f, t0, dur:Math.min(dur,0.3), tipo:'triangle', v, ataque:0.004,
+              queda:0.16, sustento:0.12, solta:0.12, corte:br*1.6, ressonancia:3 }),
+  serra: (c, f, t0, dur, v, br) =>
+    nota(c, { f, t0, dur, tipo:'sawtooth', v:v*0.75, ataque:0.012, queda:0.1,
+              sustento:0.6, solta:0.16, corte:br, ressonancia:5, desafina:7 }),
+  sino: (c, f, t0, dur, v) => sino(c, { f, t0, dur:Math.max(dur, 0.55), v:v*0.95 }),
+};
+const PADS = {
+  ar:   (c, f, t0, dur, v, br) =>
+    nota(c, { f, t0, dur, tipo:'triangle', v, ataque:0.5, queda:0.4, sustento:0.9,
+              solta:0.9, corte:br, desafina:9 }),
+  coro: (c, f, t0, dur, v, br) =>
+    nota(c, { f, t0, dur, tipo:'sawtooth', v:v*0.8, ataque:0.7, queda:0.5,
+              sustento:0.85, solta:1.2, corte:br*0.8, desafina:14 }),
+};
 
-  /* PAD — a tríade do acorde, um sopro por compasso, bem atrás de tudo */
-  if(k % 8 === 0)
-    for(const g of [0, 2, 4])
-      voz(c, { f: nota(g), t0, dur: 1.9, tipo: clima.pad, v:0.035,
-               corte: clima.brilho, desafina: g * 4 });
+/* ---------- o passo ---------- */
+function tocarPasso(c, n, t0){
+  const total = plano.bars * PASSOS_POR_BAR;
+  const k = ((n % total) + total) % total;
+  const bar = Math.floor(k / PASSOS_POR_BAR);
+  const b = k % PASSOS_POR_BAR;
 
-  /* TEMA — a melodia composta na carga */
-  const m = tema(chefe ? { ...clima, id: clima.id + '|chefe' } : clima)[k];
-  if(m != null)
-    voz(c, { f: nota(m + 7), t0, dur: 0.34, tipo: clima.onda, v:0.075,
-             corte: clima.brilho * 1.4 });
+  /* em que seção estamos */
+  let acc = 0, sec = plano.secoes[0];
+  for(const s of plano.secoes){ if(bar < acc + s.bar){ sec = s; break; } acc += s.bar; }
+  const cam = sec.cam, dim = sec.ganho;
 
-  /* PERCUSSÃO — um chiado curto no contratempo, e no chefe também na cabeça */
-  if(k % 4 === 2) chiado(c, { t0, v:0.035 });
-  if(chefe && k % 8 === 0) chiado(c, { t0, dur:0.12, v:0.05, corte:2200 });
+  const ac = clima.acordes[bar % clima.acordes.length];
+  const raiz = clima.raiz;
+  const modo = clima.modo;
+  const nt = g => hz(grau(raiz, modo, g + ac));
+  const passoDur = 60 / clima.bpm / 2;
+  const br = clima.brilho;
+
+  /* BAIXO — cabeça, contratempo e uma passagem no fim do compasso */
+  if(cam.baixo){
+    if(b === 0)
+      nota(c, { f:nt(-14), t0, dur:passoDur*1.7, tipo:'sawtooth', v:0.16*dim,
+                ataque:0.006, queda:0.09, sustento:0.55, solta:0.12,
+                corte:br*0.35, ressonancia:4 });
+    else if(b === 4)
+      nota(c, { f:nt(-14), t0, dur:passoDur*1.1, tipo:'sawtooth', v:0.11*dim,
+                ataque:0.006, queda:0.08, sustento:0.4, solta:0.1, corte:br*0.3 });
+    else if(b === 7 && bar % 2 === 1)
+      nota(c, { f:nt(-11), t0, dur:passoDur*0.8, tipo:'triangle', v:0.09*dim,
+                ataque:0.005, queda:0.06, sustento:0.3, solta:0.08, corte:br*0.4 });
+    /* o sub, uma oitava abaixo, só na cabeça: é o que se sente no peito */
+    if(b === 0)
+      nota(c, { f:nt(-21), t0, dur:passoDur*2.2, tipo:'sine', v:0.13*dim,
+                ataque:0.02, queda:0.2, sustento:0.7, solta:0.2 });
+  }
+
+  /* PAD — a tríade do compasso, sustentada */
+  if(cam.pad && b === 0){
+    const voz = PADS[clima.pad] || PADS.ar;
+    for(const g of [0, 2, 4, 7])
+      voz(c, nt(g), t0, passoDur * PASSOS_POR_BAR * 0.95, 0.026 * dim, br);
+  }
+
+  /* MELODIA — a linha da seção, com eco */
+  if(cam.lead && sec.tema){
+    const linha = tema(clima)[sec.tema];
+    const m = linha[k % 32];
+    if(m != null){
+      const voz = VOZES[clima.lead] || VOZES.pluck;
+      const saida = voz(c, nt(m + 7), t0, passoDur * 1.6, 0.085 * dim, br);
+      if(saida && eco) saida.connect(eco);
+    }
+  }
+
+  /* CONTRACANTO — a segunda voz, mais grave e mais rala */
+  if(cam.contra){
+    const m = tema(clima).D[k % 32];
+    if(m != null)
+      VOZES.pluck(c, nt(m + 2), t0, passoDur * 1.2, 0.05 * dim, br);
+  }
+
+  /* ARPEJO — a figura que preenche entre as notas da melodia */
+  if(cam.arp && b % 2 === 1){
+    const g = [0, 2, 4, 7, 4, 2][(Math.floor(k / 2)) % 6];
+    const voz = VOZES[clima.arp] || VOZES.pluck;
+    voz(c, nt(g + 7), t0, passoDur * 0.9, 0.035 * dim, br);
+  }
+
+  /* PERCUSSÃO */
+  if(cam.perc) (LEVADAS[clima.perc] || LEVADAS.marcha)(c, b, t0);
+
+  /* o prato que anuncia cada seção nova */
+  if(b === 0 && bar === acc && sec.nome !== 'intro') prato(c, t0, 0.055 * dim);
 }
 
-let agendadas = 0;
 function girar(){
   const c = contexto(); if(!c || !clima) return;
-  const dur = 60 / clima.bpm / 2;              // um passo é uma colcheia
-  while(proximo < c.currentTime + 0.15){
+  const dur = 60 / clima.bpm / 2;
+  while(proximo < c.currentTime + 0.18){
     if(proximo < c.currentTime) proximo = c.currentTime + 0.02;
     tocarPasso(c, passo, proximo);
     passo++; proximo += dur; agendadas++;
   }
 }
-/* o que a tela de diagnóstico e o teste precisam saber: se a trilha está de
-   fato TOCANDO. Sem isto, "não sai som" é indistinguível de "o navegador
-   bloqueou o áudio", e as duas coisas se consertam de jeitos diferentes. */
-export const diagnostico = () => ({
-  qual: atual, clima: clima?.id ?? null, chefe, passos: agendadas,
-  quer, mudo: estaMudo(), estado: contexto()?.state ?? 'sem contexto',
-  volume: bus ? Number(bus.gain.value.toFixed(3)) : 0,
-});
+
+/* O AGENDADOR NA MÃO. Ele roda sozinho a cada 40ms, e é assim que o jogo o
+   usa; mas quem for medir a faixa inteira não pode esperar dois minutos de
+   relógio de verdade. Chamando este daqui com o relógio adiantado na mão, os
+   dois minutos saem num piscar — e é o MESMO código, não uma segunda
+   implementação que pode discordar da primeira. */
+export const girarAgora = () => girar();
+/* E PARA GRAVAR: agenda tudo até um instante qualquer, sem esperar o relógio.
+   É o que permite renderizar a faixa inteira num contexto offline e ouvir o
+   resultado num arquivo — a única forma de julgar música é ouvindo, e ouvir
+   dentro do jogo exige jogar até o mundo 5. */
+export function girarAte(limite){
+  const c = contexto(); if(!c || !clima) return 0;
+  const dur = 60 / clima.bpm / 2;
+  let n = 0;
+  while(proximo < limite){ tocarPasso(c, passo, proximo); passo++; proximo += dur; n++; }
+  return n;
+}
 
 /* ---------- o que o jogo chama ---------- */
 /* `qual` é 'menu', 'mundoN' ou 'chefeN'. Trocar para a mesma coisa não faz
-   nada — senão a trilha reiniciaria a cada redesenho de tela, e a melodia
+   nada — senão a trilha reiniciaria a cada redesenho de tela, e a música
    nunca passaria do primeiro compasso. */
 export function trilha(qual){
   if(qual === atual) return;
+  const f = FAIXAS[qual];
+  if(!f){ if(!qual) parar(); return; }
   atual = qual;
-  if(!qual) return parar();
   const c = montar(); if(!c) return;
-  const m = /^(menu|mundo|chefe)(\d*)$/.exec(qual);
-  if(!m){ atual = null; return; }
-  chefe = m[1] === 'chefe';
-  clima = m[1] === 'menu' ? MENU : (MUNDOS[Number(m[2]) % MUNDOS.length] || MUNDOS[0]);
+  clima = { ...f, id:qual };
+  plano = arranjo(clima);
   passo = 0; proximo = c.currentTime + 0.06;
   if(!relogio) relogio = setInterval(girar, 40);
   volume();
 }
 export function parar(){
-  atual = null; clima = null;
+  atual = null; clima = null; plano = null;
   if(relogio){ clearInterval(relogio); relogio = null; }
   if(bus){ const c = contexto();
     bus.gain.cancelScheduledValues(c.currentTime);
-    bus.gain.setTargetAtTime(0, c.currentTime, 0.15); }
+    bus.gain.setTargetAtTime(0, c.currentTime, 0.2); }
 }
 /* ABAIXAR NA JOGADA. Enquanto as duas cartas estão abertas e o par resolve, a
    trilha recua: é o meio segundo em que o som que importa é o do acerto. */
@@ -247,12 +563,33 @@ export const temMusica = () => quer;
 function volume(){
   if(!bus) return;
   const c = contexto(); if(!c) return;
-  const alvo = (!quer || estaMudo() || !clima) ? 0 : (abaixado ? 0.035 : 0.11);
+  /* O NÍVEL, MEDIDO E NÃO CHUTADO. A primeira versão saía a −40 dBFS: no
+     celular, com o jogo aberto na rua, era silêncio. O barramento vai a 0,85
+     e quem segura o pico é o compressor logo depois — as camadas somam entre
+     seis e nove vozes nos trechos cheios. `tools/gravar-musica.mjs` renderiza
+     e mede; o alvo é pico perto de 0,7 e nada de ceifar. */
+  const alvo = (!quer || estaMudo() || !clima) ? 0 : (abaixado ? 0.24 : 0.85);
   bus.gain.cancelScheduledValues(c.currentTime);
   bus.gain.setTargetAtTime(alvo, c.currentTime, 0.25);
 }
-/* o botão de som mexe nos dois; a música tem um botão só dela, porque num
-   jogo de memória há quem queira o efeito do acerto e nada mais */
 export function reavaliar(){ volume(); }
+
+/* o que a tela de diagnóstico e o teste precisam saber */
+export const diagnostico = () => ({
+  qual: atual, clima: clima?.nome ?? null, chefe: !!clima?.chefe,
+  passos: agendadas, compassos: plano?.bars ?? 0,
+  segundos: plano ? Math.round(plano.segundos) : 0,
+  quer, mudo: estaMudo(), estado: contexto()?.state ?? 'sem contexto',
+  volume: bus ? Number(bus.gain.value.toFixed(3)) : 0,
+});
+
+/* abertos para o teste: composição e forma dão para provar sem tocar nada */
+export const CLIMAS = ['mundo0','mundo1','mundo2','mundo3','mundo4','mundo5']
+  .map(id => ({ ...FAIXAS[id], id }));
+export const CHEFES = ['chefe0','chefe1','chefe2','chefe3','chefe4','chefe5']
+  .map(id => ({ ...FAIXAS[id], id }));
+export const CLIMA_MENU = { ...FAIXAS.menu, id:'menu' };
+export const TODAS = Object.keys(FAIXAS).map(id => ({ ...FAIXAS[id], id }));
+export { grau, arranjo };
 
 try { if(localStorage.getItem('mnemonic.musica') === '0') quer = false; } catch(e){}
