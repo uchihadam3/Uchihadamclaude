@@ -392,6 +392,139 @@ Cartas novas ✓ · Animais ✓ · Piratas ✓ · Samurai ✓ · Dinossauros ✓
 · Brasões ✓ · Medalhas ✓. Espaço continua desenhada de propósito: a folha dela
 voltou com dois sóis quase iguais.
 
+FALTA: as 54 relíquias sem pintura (pedido 5). São elas que deixam a parede de
+relíquias com duas caras.
+
+## 5 · As 54 relíquias sem pintura
+
+Vinte e uma têm arte; as outras cinquenta e quatro usam um emblema montado
+(moldura vazada mais marca). É por isso que a parede de relíquias tem duas
+caras — e o emblema é o teto do que um sistema de dois eixos alcança num
+quadrado de 24 pixels. **Este é o pedido que acaba com a diferença.**
+
+São TRÊS FOLHAS de 6 × 3 = 18, na mesma pasta das outras (`arte/rel/`), e o
+nome de cada arquivo está na linha de recorte. Elas usam o mesmo estilo das
+vinte e uma que já estão no jogo: objeto isolado, contorno carvão grosso,
+sombreado chapado em dois ou três tons, luz de cima e à esquerda.
+
+### 5a · As dezoito comuns → `arte/rel/`
+
+```
+A 6x3 grid sheet of 18 fantasy game item icons on a flat pure magenta #FF00FF
+background.
+
+Row 1, left to right: a brass spyglass; a leather bookmark ribbon with a tassel;
+a magnifying glass with a cracked lens; a small clay piggy bank with a coin
+slot; an hourglass with a wooden frame; a whetstone with a worn groove.
+Row 2, left to right: a coiled climbing rope with a steel hook; a round leather
+shield with iron studs; a dried four-leaf clover pressed flat; a coin purse with
+a hole and one coin falling out; a round blue glass lens; a golden gauntlet.
+Row 3, left to right: a short candle stub with a long wick; a needle with a
+thread stitching two pieces of cloth; a bone comb; a rolled old map with a torn
+corner; a plain iron ring; a chipped ceramic mug.
+
+Each icon fully inside its own cell with a wide empty margin, nothing touching a
+cell edge, all at the same scale, centered.
+
+Style: chunky mobile game icon art, thick uniform charcoal outline, flat cel
+shading with two or three tones per surface, light from the upper left, small
+crisp white specular highlights, saturated colors, clean readable silhouette,
+no gradients, no photorealism, no 3D render, no drop shadow.
+
+Flat pure magenta #FF00FF background, absolutely uniform, no gradient, no
+vignette, no texture, no shadow cast on the background. No frames, no borders,
+no text, no numbers, no captions, no watermark.
+```
+
+```
+python3 tools/recortar.py folhas/rel-comuns.png magenta 6 3 arte/rel \
+  luneta marcador lupa_rachada cofrinho relogio_areia pedra_afiada \
+  corda escudo_couro trevo bolsa_furada lente_azul luva_ouro \
+  vela linha pente mapa_velho anel_ferro caneca
+```
+
+### 5b · As primeiras dezoito raras → `arte/rel/`
+
+```
+A 6x3 grid sheet of 18 fantasy game item icons on a flat pure magenta #FF00FF
+background.
+
+Row 1, left to right: a pair of reading glasses; a thin silver thread wound in a
+figure eight; a war drum with two crossed sticks; a crooked balance scale tipping
+to one side; a dagger with two mirrored blades; an ornate master key with a
+crown-shaped bow.
+Row 2, left to right: a still pool of water in a stone basin, mirror-flat; a
+brass ashtray with a curl of smoke; a compass needle floating free, no housing;
+a book of grey ash pages; a crown woven from black thorns; a woven market basket
+with a cloth over it.
+Row 3, left to right: a pane of smoked dark glass in a frame; a worn carved rune
+stone; a green circuit board; a blue-and-gold scarab beetle; a jagged meteorite
+shard glowing at the crack; a copper alembic still with a curled spout.
+
+Each icon fully inside its own cell with a wide empty margin, nothing touching a
+cell edge, all at the same scale, centered.
+
+Style: chunky mobile game icon art, thick uniform charcoal outline, flat cel
+shading with two or three tones per surface, light from the upper left, small
+crisp white specular highlights, saturated colors, clean readable silhouette,
+no gradients, no photorealism, no 3D render, no drop shadow.
+
+Flat pure magenta #FF00FF background, absolutely uniform, no gradient, no
+vignette, no texture, no shadow cast on the background. No frames, no borders,
+no text, no numbers, no captions, no watermark.
+```
+
+```
+python3 tools/recortar.py folhas/rel-raras1.png magenta 6 3 arte/rel \
+  oculos_leitura fio_prata tambor balanca faca_dupla chave_mestra \
+  espelho_agua cinzeiro agulha livro_cinzas coroa_espinhos sacola \
+  vidro_fume runa_gasta placa_circuito escaravelho meteorito alambique
+```
+
+### 5c · O resto das raras e as dez lendárias → `arte/rel/`
+
+```
+A 6x3 grid sheet of 18 fantasy game item icons on a flat pure magenta #FF00FF
+background.
+
+Row 1, left to right: an ivory chess pawn; a red dragon scale; a broken lyre with
+two snapped strings; a fishing net with a float; a raw uncut crystal cluster; an
+iron horseshoe.
+Row 2, left to right: a hidden pocket sewn inside a coat flap; a silk blindfold
+tied in a bow; a stopwatch with the hands frozen; a floating library of stacked
+books with pages turning; a heart carved from grey stone; a brass kaleidoscope.
+Row 3, left to right: a glass lens showing a tiny world inside; a gold coin with
+a face on both sides; a silver bell with no clapper; a black hourglass with dark
+sand; a heavy grimoire clasped shut; a glowing red philosopher's stone.
+
+Each icon fully inside its own cell with a wide empty margin, nothing touching a
+cell edge, all at the same scale, centered.
+
+Style: chunky mobile game icon art, thick uniform charcoal outline, flat cel
+shading with two or three tones per surface, light from the upper left, small
+crisp white specular highlights, saturated colors, clean readable silhouette,
+no gradients, no photorealism, no 3D render, no drop shadow.
+
+Flat pure magenta #FF00FF background, absolutely uniform, no gradient, no
+vignette, no texture, no shadow cast on the background. No frames, no borders,
+no text, no numbers, no captions, no watermark.
+```
+
+```
+python3 tools/recortar.py folhas/rel-raras2.png magenta 6 3 arte/rel \
+  peao escama lira rede cristal_bruto ferradura \
+  bolso_secreto venda cronometro biblioteca_perdida coracao \
+  caleidoscopio lente_do_mundo moeda_de_ouro sino_mudo ampulheta_negra \
+  grimorio pedra_filosofal
+```
+
+Depois de recortar, os nomes entram no vetor de `ICO_RELIQUIA` em
+`js/ui/icones.js` — é o que faz a pintura entrar por cima do emblema. O teste
+`node test/regras.mjs` confere que nenhuma relíquia usa a marca de outra, e
+`node test/glifos.mjs` para de medir emblema para as que ganharem arte.
+
+---
+
 ## Quando a arte chega
 
 1. `python3 tools/recortar.py …` (acima, por lote)
