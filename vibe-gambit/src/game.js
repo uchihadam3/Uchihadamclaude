@@ -26,7 +26,9 @@ const HERO_ACCENT = { warrior:'#3d7fc4', cleric:'#d0a13c', archer:'#4a9a4a', mag
   skeleton_minion:'#b9b0a0' };
 const accentOf = id => HERO_ACCENT[id] || '#8a7a45';
 // classes com retrato PNG pronto; as demais usam o sprite SVG como retrato provisório
-const FACE_ART = { warrior:1, cleric:1, archer:1, mage:1 };
+const FACE_ART = { warrior:1, cleric:1, archer:1, mage:1,
+  barbarian:1, assassin:1, paladin:1, pyromancer:1, alchemist:1, duelist:1,
+  monk:1, bard:1, rune_guardian:1, necromancer:1, time_wizard:1 };
 const faceMedia = id => FACE_ART[id]
   ? `<img class="fm-img" src="assets/${id}_face.png" alt="" onerror="this.style.display='none'">`
   : `<span class="fm-svg">${spriteFor(id)}</span>`;

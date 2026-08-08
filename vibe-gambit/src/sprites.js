@@ -403,6 +403,10 @@ export const ART = {
   cleric:  'assets/cleric.png',
   archer:  'assets/archer.png',
   mage:    'assets/mage.png',
+  barbarian:'assets/barbarian.png', assassin:'assets/assassin.png', paladin:'assets/paladin.png',
+  pyromancer:'assets/pyromancer.png', alchemist:'assets/alchemist.png', duelist:'assets/duelist.png',
+  monk:'assets/monk.png', bard:'assets/bard.png', rune_guardian:'assets/rune_guardian.png',
+  necromancer:'assets/necromancer.png', time_wizard:'assets/time_wizard.png',
 };
 
 export function spriteFor(id){

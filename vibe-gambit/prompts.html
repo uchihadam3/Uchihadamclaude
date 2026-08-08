@@ -150,6 +150,14 @@
     <div class="grid" id="grid-armorsets"></div>
   </section>
 
+  <section>
+    <div class="eyebrow"><h2>Armas por Classe</h2><span class="rule">folhas de ícones · 1 arma por classe · fundo magenta</span><span class="count">2 folhas</span></div>
+    <div class="callout" style="border-left-color:#ff9e6a;border-color:#8a4a2a;background:linear-gradient(180deg,#2a1a12,#1c110b);color:#f0d8c6">
+      <b>⚔️ Uma arma coerente por classe:</b> cada folha é uma <b>linha de ícones</b> (cada célula = a arma de UMA classe), fundo <b>magenta</b> (<code>#FF00FF</code>), bem espaçadas. Repare que <b>Monge = manoplas/punhos</b> (não espada) e <b>Alquimista = frascos alquímicos</b> (não cajado): cada arma combina com a fantasia da classe. Eu recorto e coloco no slot de arma de cada herói.
+    </div>
+    <div class="grid" id="grid-weapons"></div>
+  </section>
+
   <div class="specs">
     <h3>📐 Especificações técnicas</h3>
     <ul>
@@ -311,6 +319,34 @@
   document.getElementById('grid-frames').innerHTML  = FRAMES.map(m=>card({icon:m.emoji,   name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
   document.getElementById('grid-equip').innerHTML   = EQUIP.map(m=>card({icon:m.emoji,    name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
   document.getElementById('grid-armorsets').innerHTML = ARMORSETS.map(m=>card({icon:m.emoji, name:m.name, file:m.file, chip:m.chip, chipClass:m.chipClass, prompt:m.prompt})).join('');
+
+  // ---- Armas por classe (2 folhas de ícones em linha) ----
+  const WBG = "Chunky readable pixel art, thin dark outline, bold colors cohesive with the fantasy RPG character style, each weapon centered in its own cell with WIDE even gaps. On a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow (unless described as part of the weapon), no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons.";
+  const wsheet = (list)=>`16-bit pixel art RPG WEAPON icons, a set of ${list.length} icons arranged in ONE horizontal row, evenly spaced. From left to right: ${list.map((w,i)=>`(${i+1}) ${w}`).join(', ')}. ${WBG}`;
+  const MELEE = [
+    "a knight's straight steel LONGSWORD crossed with a round metal SHIELD (Cavaleiro)",
+    "a golden holy WARHAMMER crossed with a kite SHIELD bearing a cross (Paladino)",
+    "a large rune-etched TOWER SHIELD glowing with blue runes, with a short sword behind it (Guardião Rúnico)",
+    "a massive TWO-HANDED double-bladed BATTLE AXE (Bárbaro)",
+    "a pair of crossed curved DAGGERS (Assassino)",
+    "a slender ornate RAPIER / fencing florete (Duelista)",
+    "a wooden recurve BOW with a quiver of arrows (Arqueiro)",
+    "a pair of studded leather-and-steel knuckle GAUNTLETS / fist wraps (Monge — NOT a sword)",
+  ];
+  const CASTER = [
+    "a wooden arcane STAFF topped with a glowing blue crystal (Mago Elemental)",
+    "a golden holy SCEPTER/staff with a radiant sun emblem (Clérigo)",
+    "a dark STAFF topped with a burning orange FLAME/ember (Piromante)",
+    "a gnarled BONE staff topped with a small SKULL (Necromante)",
+    "a STAFF topped with a floating golden HOURGLASS ringed by clock runes (Feiticeiro do Tempo)",
+    "a wooden LUTE / mandolin string instrument (Bardo)",
+    "a cluster of ALCHEMY glass FLASKS with bubbling green and blue potions on a holder (Alquimista — NOT a staff)",
+  ];
+  const WEAPONS = [
+    {emoji:'⚔️', name:'Armas Marciais (8)', file:'weapons_melee.png', chip:'Armas', chipClass:'hero', prompt:wsheet(MELEE)},
+    {emoji:'🔮', name:'Armas de Conjuração (7)', file:'weapons_caster.png', chip:'Armas', chipClass:'hero', prompt:wsheet(CASTER)},
+  ];
+  document.getElementById('grid-weapons').innerHTML = WEAPONS.map(m=>card({icon:m.emoji, name:m.name, file:m.file, chip:m.chip, chipClass:m.chipClass, prompt:m.prompt})).join('');
 
   function fallbackCopy(text){
     const ta=document.createElement('textarea');
