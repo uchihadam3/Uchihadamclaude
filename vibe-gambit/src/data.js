@@ -41,6 +41,21 @@ export const SKILLS = {
   lentidao:         { id:'lentidao',         name:'Lentidão',         kind:'buff',   targetType:'enemy', buff:{ stat:'spd', amt:-3, scope:'target' }, duration:3, mp:4 },
   fluxo_temporal:   { id:'fluxo_temporal',   name:'Fluxo Temporal',   kind:'damage', targetType:'enemy', stat:'mag', power:1.45, mp:6, element:'time' },
 
+  // --- PASSO 2: novos tipos de efeito (AoE, multi-hit, reviver, dispel, esuna, ailment) ---
+  // Clérigo (Mago Branco)
+  cura2:            { id:'cura2',            name:'Cura II',          kind:'heal',    targetType:'ally',  stat:'mag', power:2.00, mp:8 },
+  cura_area:        { id:'cura_area',        name:'Cura em Área',     kind:'heal',    targetType:'ally',  stat:'mag', power:1.10, mp:12, aoe:true },
+  reviver:          { id:'reviver',          name:'Reviver',          kind:'revive',  targetType:'ally',  revive:0.45, mp:14 },
+  esuna:            { id:'esuna',            name:'Esuna',            kind:'cleanse', targetType:'ally',  cure:'all', mp:6 },
+  protecao:         { id:'protecao',         name:'Proteção',         kind:'buff',    targetType:'ally',  buff:{ stat:'def', amt:5, scope:'target' }, duration:5, mp:6 },
+  dissipar:         { id:'dissipar',         name:'Dissipar',         kind:'dispel',  targetType:'enemy', mp:5 },
+  // Mago Elemental
+  raio:             { id:'raio',             name:'Raio',             kind:'damage',  targetType:'enemy', stat:'mag', power:1.30, mp:6, element:'raio', applies:{ status:'stun', ticks:1 } },
+  gelo:             { id:'gelo',             name:'Lança de Gelo',    kind:'damage',  targetType:'enemy', stat:'mag', power:1.45, mp:6, element:'gelo' },
+  chama_area:       { id:'chama_area',       name:'Chama em Área',    kind:'damage',  targetType:'enemy', stat:'mag', power:1.10, mp:12, element:'fire', aoe:true, applies:{ status:'burn', ticks:2, dmg:5 } },
+  sono:             { id:'sono',             name:'Sono',             kind:'ailment', targetType:'enemy', applies:{ status:'sono', ticks:3 }, mp:5 },
+  meteoro:          { id:'meteoro',          name:'Meteoro',          kind:'damage',  targetType:'enemy', stat:'mag', power:1.60, mp:20, aoe:true },
+
   // --- SUPORTE / multiclasse (Clérigo é o mestre; estas são versões menores) ---
   minor_heal:       { id:'minor_heal',       name:'Primeiros Socorros',kind:'heal',  targetType:'ally',  stat:'mag', power:0.75, mp:4 },
   melodia_cura:     { id:'melodia_cura',     name:'Melodia Curativa', kind:'heal',   targetType:'ally',  stat:'mag', power:0.95, mp:5 },
@@ -133,7 +148,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:90, atk:7, def:5, mag:14, mp:40, spd:7 },
     weaponLevel:0, slots:2, maxSlots:5,
-    skills:['heal','holy_strike','basic_attack'],
+    skills:['heal','cura2','cura_area','reviver','esuna','protecao','dissipar','holy_strike','basic_attack'],
     gambits:[
       { condition:'ally_hp_50', action:'heal' },
       { condition:'enemy_any',  action:'holy_strike' },
@@ -155,7 +170,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:70, atk:5, def:3, mag:16, mp:45, spd:8 },
     weaponLevel:0, slots:2, maxSlots:5,
-    skills:['fireball','basic_attack'],
+    skills:['fireball','raio','gelo','chama_area','sono','meteoro','basic_attack'],
     gambits:[
       { condition:'enemy_any',     action:'fireball' },
       { condition:'enemy_nearest', action:'basic_attack' },

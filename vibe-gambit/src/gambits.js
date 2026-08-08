@@ -72,6 +72,18 @@ function addStatus(target, st){
   if(cur){ cur.ticks = Math.max(cur.ticks, st.ticks); if('dmg' in st) cur.dmg = st.dmg; if('amount' in st) cur.amount = st.amount; return; }
   target.statuses.push({ ...st });
 }
+// remove status que casam com pred; se for buff/debuff (kind 'buff'), restaura o atributo.
+function removeStatuses(target, pred){
+  if(!target.statuses) return 0; let n = 0;
+  target.statuses = target.statuses.filter(s => {
+    if(s.ticks > 0 && pred(s)){
+      if(s.kind === 'buff') target.stats[s.stat] = (target.stats[s.stat] || 0) - (s.amt || 0);
+      n++; return false;
+    }
+    return true;
+  });
+  return n;
+}
 
 // -- CUSTO / EXECUÇÃO ---------------------------------------------------------
 export function canPay(unit, skill){ return unit.mp >= (skill.mp || 0); }
@@ -109,6 +121,36 @@ export function execute(unit, skill, target, ctx){
     return { type:'shield', source:unit, target:recips[0] || unit, skill:skill.id, amount:sh.amount || 0, scope:sh.scope };
   }
 
+  // REVIVER: traz um aliado caído de volta com uma fração do HP.
+  if(skill.kind === 'revive'){
+    if(target.hp > 0) return { type:'heal', source:unit, target, skill:skill.id, amount:0 };
+    const amt = Math.max(1, Math.round(target.maxHp * (skill.revive || 0.4)));
+    target.hp = amt; target.statuses = [];
+    return { type:'revive', source:unit, target, skill:skill.id, amount:amt };
+  }
+
+  // DISSIPAR: remove os buffs (positivos) do alvo, restaurando os atributos.
+  if(skill.kind === 'dispel'){
+    const n = removeStatuses(target, s => s.id === 'buff');
+    return { type:'dispel', source:unit, target, skill:skill.id, amount:n };
+  }
+
+  // INFLIGIR STATUS (sem dano): sono/silêncio/cegueira/confusão/imobilizar.
+  if(skill.kind === 'ailment'){
+    const a = skill.applies || {}; const kind = STATUS_KIND[a.status] || 'dot';
+    const st = { id:a.status, kind, ticks:a.ticks }; if(kind === 'dot') st.dmg = a.dmg; if(kind === 'regen') st.amt = a.amt;
+    addStatus(target, st);
+    return { type:'ailment', source:unit, target, skill:skill.id, applied:a.status };
+  }
+
+  // CURAR STATUS (Esuna): remove status ruins de um aliado.
+  if(skill.kind === 'cleanse'){
+    const n = (skill.cure && skill.cure !== 'all')
+      ? removeStatuses(target, s => s.id === skill.cure)
+      : removeStatuses(target, s => AFFLICT_KINDS.has(s.kind) || s.id === 'slow');
+    return { type:'cleanse', source:unit, target, skill:skill.id, amount:n };
+  }
+
   if(skill.kind === 'heal'){
     const amount = Math.round(skill.power * unit.stats.mag);
     const before = target.hp;
@@ -116,17 +158,22 @@ export function execute(unit, skill, target, ctx){
     return { type:'heal', source:unit, target, skill:skill.id, amount: target.hp - before };
   }
 
-  // dano
+  // dano (suporta multi-hit via skill.hits)
   // CEGUEIRA: quem está cego pode errar o ataque
   if(hasKind(unit, 'blind') && ctx.rng() < 0.40){
     return { type:'damage', source:unit, target, skill:skill.id, amount:0, crit:false, dead:false, missed:true };
   }
   const atkStat = unit.stats[skill.stat] ?? unit.stats.atk;
-  const isCrit  = ctx.rng() < (0.10 + (skill.critBonus || 0));
   // bônus SAGRADO vs morto-vivo (sinergia Clérigo/Paladino)
   const holyVsUndead = (skill.element === 'holy' && target.type === 'morto-vivo') ? 1.5 : 1;
-  let dmg = atkStat * skill.power - target.stats.def * 0.5;
-  dmg = Math.max(1, Math.round(dmg * (isCrit ? 1.6 : 1) * holyVsUndead));
+  // multi-hit: soma o dano de cada acerto (crit rolado por acerto)
+  const hits = Math.max(1, skill.hits || 1);
+  let isCrit = false, dmg = 0;
+  for(let h = 0; h < hits; h++){
+    const crit = ctx.rng() < (0.10 + (skill.critBonus || 0)); if(crit) isCrit = true;
+    let d = atkStat * skill.power - target.stats.def * 0.5;
+    dmg += Math.max(1, Math.round(d * (crit ? 1.6 : 1) * holyVsUndead));
+  }
   // absorção por ESCUDO (consome o escudo antes de tirar HP)
   let absorbed = 0;
   for(const st of (target.statuses || [])){

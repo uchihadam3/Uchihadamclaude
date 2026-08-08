@@ -813,6 +813,30 @@ function presentEvent(ev){
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">ergue um Esqueleto ⚔️</span>`);
     return;
   }
+  // REVIVER
+  if(ev.type==='revive'){
+    const be = battlerEl(ev.target);
+    if(be){ be.classList.remove('dead'); const f=document.createElement('div'); f.className='float heal'; f.textContent='✝️+'+ev.amount; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerBars();
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="g">revive ${ev.target.name}</span>`);
+    return;
+  }
+  // INFLIGIR STATUS (sono/silêncio/etc.)
+  if(ev.type==='ailment'){
+    const meta = STATUS_META[ev.applied] || { icon:'✷', label:'status' };
+    const be = battlerEl(ev.target);
+    if(be){ const f=document.createElement('div'); f.className='float stun'; f.textContent=meta.icon; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerStatus(ev.target);
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b> <span class="c">${meta.icon} ${meta.label}</span>`);
+    return;
+  }
+  // DISSIPAR / CURAR STATUS
+  if(ev.type==='dispel' || ev.type==='cleanse'){
+    refreshBattlerStatus(ev.target);
+    const verb = ev.type==='dispel' ? 'dissipa buffs de' : 'limpa status de';
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">${verb} ${ev.target.name}</span>${ev.amount?` (${ev.amount})`:''}`);
+    return;
+  }
   // REGEN: cura por turno
   if(ev.type==='regen'){
     const be = battlerEl(ev.target);

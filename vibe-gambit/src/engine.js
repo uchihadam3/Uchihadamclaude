@@ -203,6 +203,22 @@ export class Combat {
         const ev = { type:'summon', source:u, target:m, unit:m, skill:skill.id, tick:this.tick };
         this.log.push(ev); return ev;
       }
+      // ÁREA (AoE): acerta o time inteiro; paga o MP uma vez só
+      if(skill.aoe){
+        const team = skill.targetType === 'ally'
+          ? this.alliesOf(u).filter(a => skill.kind === 'revive' ? true : a.hp > 0)
+          : this.enemiesOf(u).filter(e => e.hp > 0);
+        if(!team.length) continue;
+        u.mp -= (skill.mp || 0);
+        const single = { ...skill, mp:0, aoe:false };
+        let last = null;
+        for(const tg of team){
+          const ev = execute(u, single, tg, ctx); ev.tick = this.tick; ev.aoe = true;
+          if(ev.dead && ev.target.side === 'enemy') this.corpses++;
+          this.log.push(ev); last = ev;
+        }
+        return last;
+      }
       // aggro: ataque de inimigo contra herói é redirecionado p/ quem provocou
       if(skill.targetType === 'enemy') target = this.tauntRedirect(u, target);
       const ev = execute(u, skill, target, ctx);
