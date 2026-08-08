@@ -114,6 +114,26 @@ secao('2. Ninguém pinta por cima do tabuleiro');
     return fora;
   });
   ok(gordos.length === 0, 'nada opaco cobre metade do tabuleiro — '+gordos.slice(0,2).join(' | '));
+
+  /* E O GOLPE DO CHEFE SAI DE CIMA DEPOIS. Ele é uma camada em tela cheia por
+     cima de tudo, que é como um efeito assim tem de ser — e é exatamente a
+     forma de defeito que já custou uma tarde neste jogo: uma camada de chefe
+     que esquece de sair come o toque das cartas, e o jogador vê um tabuleiro
+     que simplesmente não responde. O teste toca no MEIO do tabuleiro e cobra
+     que quem atende seja carta ou mesa, e nunca o efeito. */
+  const depois = await pg.evaluate(()=>{
+    const g = document.getElementById('golpe');
+    const m = document.getElementById('mesa').getBoundingClientRect();
+    const alvo = document.elementFromPoint(m.left + m.width/2, m.top + m.height/2);
+    return { ligado: g?.classList.contains('on') ?? false,
+             tremendo: !!document.querySelector('#area.tremendo'),
+             quemAtende: alvo ? (alvo.id || alvo.className || alvo.tagName) : 'nada' };
+  });
+  ok(!depois.ligado, 'o golpe do chefe se apaga sozinho');
+  ok(!depois.tremendo, 'e o tremor também');
+  ok(!/golpe|marca|onda|titulo/.test(String(depois.quemAtende)),
+     'e quem atende o toque no meio do tabuleiro é a mesa, não o efeito — '
+     + depois.quemAtende);
   await pg.close();
 }
 

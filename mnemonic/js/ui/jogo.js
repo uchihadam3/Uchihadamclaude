@@ -139,6 +139,27 @@ function aviso(txt, sub='', cor=null){
   clearTimeout(aviso._t);
   aviso._t = setTimeout(()=>a.classList.remove('on'), 1600);
 }
+/* O GOLPE DO CHEFE — a marca dele por cima do tabuleiro, a onda, o tremor e
+   o som dele. Fica numa camada só, fora do #mesa, e se apaga sozinha: overlay
+   que esquece de sair come o toque das cartas, e essa já foi a pior meia hora
+   deste projeto. */
+function golpe(boss){
+  if(!boss) return;
+  const g = $('#golpe');
+  g.style.setProperty('--gc', boss.cor || '#fff');
+  g.querySelector('.marca').innerHTML = ICO_CHEFE[boss.id] || ICO.chefe;
+  /* o ataque não repete o nome do chefe: ele já está na pílula do topo desde
+     a entrada, e ler não é o que se faz durante um golpe */
+  g.querySelector('.titulo b').textContent = '';
+  g.querySelector('.titulo i').textContent = '';
+  g.classList.remove('on'); void g.offsetWidth; g.classList.add('on');
+  const a = $('#area');
+  if(a){ a.classList.remove('tremendo'); void a.offsetWidth; a.classList.add('tremendo'); }
+  SFX.golpe(boss.id);
+  clearTimeout(golpe._t);
+  golpe._t = setTimeout(()=>{ g.classList.remove('on'); a?.classList.remove('tremendo'); }, 820);
+}
+
 function clarao(cor='rgba(239,181,75,.42)'){
   const c = $('#clarao');
   c.style.setProperty('--cor', cor);
@@ -577,7 +598,33 @@ function pintarSala(){
     + (run.tipoSala()==='elite' ? ' · elite' : '');
   mesa(true, true);
   medidores();
+  if(b) entradaDoChefe(b);
   talvezGuia();
+}
+
+/* A ENTRADA DO CHEFE. A sala do chefe abria igual a qualquer outra: a mesma
+   grade, e uma pílula no topo com o nome dele. O jogador chegava na luta mais
+   dura do mundo sem que nada avisasse. Agora ele ENTRA — a marca cresce no
+   meio da tela com a regra dele por baixo, a tela treme, e o acorde sobe.
+   Uma vez por sala: `run.tentativa` reabre a sala e a entrada volta com ela,
+   que é justo, porque é uma luta nova. */
+let chefeAnunciado = null;
+function entradaDoChefe(b){
+  const chave = b.id + '|' + run.mundo + '|' + run.tentativa;
+  if(chefeAnunciado === chave) return;
+  chefeAnunciado = chave;
+  const g = $('#golpe');
+  g.style.setProperty('--gc', b.cor || '#fff');
+  g.querySelector('.marca').innerHTML = ICO_CHEFE[b.id] || ICO.chefe;
+  g.classList.remove('on'); void g.offsetWidth; g.classList.add('on');
+  const a = $('#area');
+  if(a){ a.classList.remove('tremendo'); void a.offsetWidth; a.classList.add('tremendo'); }
+  g.querySelector('.titulo b').textContent = b.nome;
+  g.querySelector('.titulo i').textContent = b.regra;
+  SFX.entradaChefe();
+  clarao((b.cor || '#fff') + '55');
+  clearTimeout(golpe._t);
+  golpe._t = setTimeout(()=>{ g.classList.remove('on'); a?.classList.remove('tremendo'); }, 1560);
 }
 
 let ptsAnterior = 0, focoAnterior = null;
@@ -1089,12 +1136,37 @@ async function animar(rel){
       for(const id of (e.cartas||[])){ faiscas(id, '#ff4f52', 14); saindo.push(id); } }
     if(e.e==='camaleao'){ aviso('TROCOU', 'o camaleão mudou de símbolo', '#4fe08a');
       for(const id of (e.cartas||[])) onda(id, '#4fe08a'); }
-    if(e.e==='embaralhou' || e.e==='espaco'){ SFX.chefe(); aviso('EMBARALHOU', 'trocaram de lugar', '#b478ff'); }
-    if(e.e==='espelhou'){ SFX.chefe(); clarao('rgba(216,216,232,.34)'); aviso('ESPELHOU', 'o lado trocou', '#dbe4f5'); }
-    if(e.e==='esqueceu'){ SFX.chefe(); aviso('ESQUECEU', 'o chefe apagou uma carta', '#ff6fae'); }
-    if(e.e==='sumiu'){ SFX.chefe(); clarao('rgba(127,212,255,.34)');
+    /* OS TRÊS ATAQUES DO CHEFE. Cada um leva o golpe dele — marca, onda,
+       tremor e som — e mais o gesto que mostra O QUE mudou: a carta apagada
+       é varrida, o tabuleiro do Espelho gira, o par que sai implode. Sem o
+       gesto, o jogador vê o tabuleiro diferente e conclui que o jogo se
+       bagunçou sozinho. */
+    if(e.e==='embaralhou' || e.e==='espaco'){
+      const b = s?.boss;
+      if(b) golpe(b); else SFX.chefe();
+      for(const id of (e.cartas||[])) onda(id, b?.cor || '#b478ff');
+      aviso('EMBARALHOU', b ? esc(b.nome) : 'trocaram de lugar', b?.cor || '#b478ff');
+    }
+    if(e.e==='espelhou'){
+      golpe(s?.boss); clarao('rgba(216,216,232,.34)');
+      const m = $('#mesa');
+      if(m){ m.classList.remove('virando'); void m.offsetWidth; m.classList.add('virando');
+             setTimeout(()=>m.classList.remove('virando'), 700); }
+      aviso('ESPELHOU', 'o lado trocou', '#dbe4f5');
+    }
+    if(e.e==='esqueceu'){
+      golpe(s?.boss);
+      const alvo = el(e.carta);
+      if(alvo){ alvo.classList.remove('apagada'); void alvo.offsetWidth;
+                alvo.classList.add('apagada');
+                setTimeout(()=>alvo.classList.remove('apagada'), 760); }
+      aviso('ESQUECEU', 'ele comeu uma carta da sua memória', '#ff6fae');
+    }
+    if(e.e==='sumiu'){
+      golpe(s?.boss); clarao('rgba(127,212,255,.34)');
       aviso('SUMIU', 'um par deixou o tabuleiro', '#4fb8ff');
-      for(const id of (e.cartas||[])) saindo.push(id); }
+      for(const id of (e.cartas||[])){ faiscas(id, s?.boss?.cor || '#4fb8ff', 12);
+                                       saindo.push(id); } }
     if(e.e==='orfa') for(const id of (e.cartas||[])) piscar(id);
     if(e.e==='mimic'){ aviso('MIMIC', 'era cópia', '#ff6fae');
       for(const id of (e.cartas ? e.cartas : [e.carta])) if(id!=null) onda(id, '#ff6fae'); }
