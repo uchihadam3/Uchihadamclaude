@@ -845,7 +845,7 @@ function awardLoot(unit){
   bumpRes();
 }
 
-function healParty(frac){ for(const u of expo.party) if(u.hp>0) u.hp = Math.min(u.maxHp, u.hp + Math.round(u.maxHp*frac)); }
+function healParty(frac){ for(const u of expo.party) if(u.hp>0){ u.hp = Math.min(u.maxHp, u.hp + Math.round(u.maxHp*frac)); u.mp = Math.min(u.maxMp, u.mp + Math.round(u.maxMp*0.5)); } }
 
 // Concede XP à party ativa; sobe de Level e concede LP. Retorna resumo p/ a UI.
 function awardXP(amount){

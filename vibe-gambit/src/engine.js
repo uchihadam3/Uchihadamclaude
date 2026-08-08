@@ -118,8 +118,13 @@ export class Combat {
       if(this.isOver()) break;
       this.act(u);
     }
-    // decai a provocação (aggro) ao fim do tick
-    for(const u of this.units){ if(u.taunt > 0) u.taunt--; }
+    // fim do tick: decai aggro + regenera MP passivamente (heróis casters se sustentam)
+    for(const u of this.units){
+      if(u.taunt > 0) u.taunt--;
+      if(u.hp > 0 && u.maxMp > 0 && u.mp < u.maxMp){
+        u.mp = Math.min(u.maxMp, u.mp + Math.max(1, Math.round(u.maxMp * 0.06)));
+      }
+    }
     return this.log;
   }
 
