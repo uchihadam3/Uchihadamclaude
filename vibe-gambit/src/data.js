@@ -56,6 +56,29 @@ export const SKILLS = {
   sono:             { id:'sono',             name:'Sono',             kind:'ailment', targetType:'enemy', applies:{ status:'sono', ticks:3 }, mp:5 },
   meteoro:          { id:'meteoro',          name:'Meteoro',          kind:'damage',  targetType:'enemy', stat:'mag', power:1.60, mp:20, aoe:true },
 
+  // --- PASSO 2 (lote 2): tank & suporte -------------------------------------
+  // Cavaleiro
+  golpe_escudo:     { id:'golpe_escudo',     name:'Golpe de Escudo',  kind:'damage',  targetType:'enemy', stat:'atk', power:1.05, mp:4, applies:{ status:'stun', ticks:1 } },
+  muralha:          { id:'muralha',          name:'Muralha',          kind:'buff',    targetType:'self',  buff:{ stat:'def', amt:6, scope:'self' }, duration:4, mp:4 },
+  quebra_armadura:  { id:'quebra_armadura',  name:'Quebra-Armadura',  kind:'buff',    targetType:'enemy', buff:{ stat:'def', amt:-5, scope:'target' }, duration:4, mp:4 },
+  brado_cura:       { id:'brado_cura',       name:'Brado Curativo',   kind:'heal',    targetType:'ally',  stat:'mag', power:0.60, mp:6, aoe:true },
+  // Paladino
+  escudo_sagrado:   { id:'escudo_sagrado',   name:'Escudo Sagrado',   kind:'shield',  targetType:'ally',  shield:{ amount:30 }, duration:3, mp:7 },
+  muralha_sagrada:  { id:'muralha_sagrada',  name:'Muralha Sagrada',  kind:'buff',    targetType:'ally',  buff:{ stat:'def', amt:5, scope:'allies' }, duration:4, mp:8 },
+  imposicao_maos:   { id:'imposicao_maos',   name:'Imposição de Mãos',kind:'heal',    targetType:'ally',  stat:'mag', power:2.40, mp:9 },
+  julgamento:       { id:'julgamento',       name:'Julgamento',       kind:'damage',  targetType:'enemy', stat:'mag', power:1.30, mp:16, element:'holy', aoe:true },
+  // Guardião Rúnico
+  egide_runica:     { id:'egide_runica',     name:'Égide Rúnica',     kind:'shield',  targetType:'ally',  shield:{ amount:40 }, duration:3, mp:8 },
+  runa_guarda:      { id:'runa_guarda',      name:'Runa de Guarda',   kind:'buff',    targetType:'ally',  buff:{ stat:'def', amt:5, scope:'allies' }, duration:5, mp:7 },
+  runa_forca:       { id:'runa_forca',       name:'Runa de Força',    kind:'buff',    targetType:'ally',  buff:{ stat:'atk', amt:5, scope:'allies' }, duration:5, mp:7 },
+  selo_runico:      { id:'selo_runico',      name:'Selo Rúnico',      kind:'ailment', targetType:'enemy', applies:{ status:'stun', ticks:1 }, mp:5 },
+  selo_lentidao:    { id:'selo_lentidao',    name:'Selo de Lentidão', kind:'buff',    targetType:'enemy', buff:{ stat:'spd', amt:-3, scope:'target' }, duration:3, mp:4 },
+  // Bardo
+  balada_veloz:     { id:'balada_veloz',     name:'Balada Veloz',     kind:'buff',    targetType:'ally',  buff:{ stat:'spd', amt:3, scope:'allies' }, duration:4, mp:6 },
+  requiem:          { id:'requiem',          name:'Réquiem',          kind:'buff',    targetType:'enemy', buff:{ stat:'atk', amt:-4, scope:'target' }, duration:4, mp:7, aoe:true },
+  melodia_rest:     { id:'melodia_rest',     name:'Melodia Restauradora',kind:'heal', targetType:'ally',  stat:'mag', power:0.85, mp:10, aoe:true },
+  grito_sonico:     { id:'grito_sonico',     name:'Grito Sônico',     kind:'damage',  targetType:'enemy', stat:'mag', power:0.90, mp:8, aoe:true },
+
   // --- SUPORTE / multiclasse (Clérigo é o mestre; estas são versões menores) ---
   minor_heal:       { id:'minor_heal',       name:'Primeiros Socorros',kind:'heal',  targetType:'ally',  stat:'mag', power:0.75, mp:4 },
   melodia_cura:     { id:'melodia_cura',     name:'Melodia Curativa', kind:'heal',   targetType:'ally',  stat:'mag', power:0.95, mp:5 },
@@ -137,7 +160,7 @@ export const HERO_DEFS = [
     armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield','twohand'],
     base:{ hp:120, atk:14, def:8, mag:2, mp:10, spd:6 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['basic_attack','provocar'],
+    skills:['basic_attack','provocar','golpe_escudo','muralha','quebra_armadura','brado_cura'],
     gambits:[
       { condition:'ally_hp_50',    action:'provocar' },
       { condition:'enemy_nearest', action:'basic_attack' },
@@ -206,7 +229,7 @@ export const HERO_DEFS = [
     armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield'],
     base:{ hp:115, atk:12, def:9, mag:10, mp:30, spd:6 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['basic_attack','provocar','heal','holy_strike'],
+    skills:['basic_attack','provocar','heal','holy_strike','escudo_sagrado','muralha_sagrada','imposicao_maos','julgamento'],
     gambits:[
       { condition:'ally_hp_50',    action:'heal' },
       { condition:'enemy_any',     action:'holy_strike' },
@@ -264,7 +287,7 @@ export const HERO_DEFS = [
     armorWeight:'medium', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:92, atk:9, def:5, mag:13, mp:44, spd:9 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['hino_de_guerra','cancao_guarda','melodia_cura','basic_attack'],
+    skills:['hino_de_guerra','cancao_guarda','melodia_cura','basic_attack','balada_veloz','requiem','melodia_rest','grito_sonico'],
     gambits:[
       { condition:'self_no_buff',  action:'hino_de_guerra' },
       { condition:'ally_hp_50',    action:'melodia_cura' },
@@ -278,7 +301,7 @@ export const HERO_DEFS = [
     armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield'],
     base:{ hp:125, atk:11, def:10, mag:8, mp:30, spd:5 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['barreira_runica','basic_attack'],
+    skills:['barreira_runica','basic_attack','egide_runica','runa_guarda','runa_forca','selo_runico','selo_lentidao'],
     gambits:[
       { condition:'self_no_shield', action:'barreira_runica' },
       { condition:'enemy_nearest',  action:'basic_attack' },
