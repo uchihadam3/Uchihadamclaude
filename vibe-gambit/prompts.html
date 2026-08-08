@@ -151,9 +151,9 @@
   </section>
 
   <section>
-    <div class="eyebrow"><h2>Armas por Classe</h2><span class="rule">folhas de ícones · 1 arma por classe · fundo magenta</span><span class="count">2 folhas</span></div>
+    <div class="eyebrow"><h2>Armas — Progressão</h2><span class="rule">2 tipos × 10 tiers por folha · fundo magenta</span><span class="count">5 folhas</span></div>
     <div class="callout" style="border-left-color:#ff9e6a;border-color:#8a4a2a;background:linear-gradient(180deg,#2a1a12,#1c110b);color:#f0d8c6">
-      <b>⚔️ Uma arma coerente por classe:</b> cada folha é uma <b>linha de ícones</b> (cada célula = a arma de UMA classe), fundo <b>magenta</b> (<code>#FF00FF</code>), bem espaçadas. Repare que <b>Monge = manoplas/punhos</b> (não espada) e <b>Alquimista = frascos alquímicos</b> (não cajado): cada arma combina com a fantasia da classe. Eu recorto e coloco no slot de arma de cada herói.
+      <b>⚔️ Armas com escada de 10 tiers (igual às armaduras):</b> cada folha é uma <b>grade 2 linhas × 10 colunas</b> = <b>2 tipos de arma</b>, cada um em <b>TODOS os 10 tiers</b> (T1 → T10, esquerda→direita), subindo de material. Classes que combinam <b>compartilham o mesmo tipo</b> (ex.: <b>Mago + Piromante + Necromante + Feiticeiro = Cajado Arcano</b>; <b>Paladino + Guardião Rúnico = Warhammer &amp; Escudo</b>; <b>Assassino + Duelista = Lâminas Duplas</b>). <b>Monge = Manoplas</b> e <b>Alquimista = Frascos</b> continuam únicos. Fundo <b>magenta</b> (<code>#FF00FF</code>), sem texto/números.
     </div>
     <div class="grid" id="grid-weapons"></div>
   </section>
@@ -320,32 +320,39 @@
   document.getElementById('grid-equip').innerHTML   = EQUIP.map(m=>card({icon:m.emoji,    name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
   document.getElementById('grid-armorsets').innerHTML = ARMORSETS.map(m=>card({icon:m.emoji, name:m.name, file:m.file, chip:m.chip, chipClass:m.chipClass, prompt:m.prompt})).join('');
 
-  // ---- Armas por classe (2 folhas de ícones em linha) ----
-  const WBG = "Chunky readable pixel art, thin dark outline, bold colors cohesive with the fantasy RPG character style, each weapon centered in its own cell with WIDE even gaps. On a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow (unless described as part of the weapon), no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons.";
-  const wsheet = (list)=>`16-bit pixel art RPG WEAPON icons, a set of ${list.length} icons arranged in ONE horizontal row, evenly spaced. From left to right: ${list.map((w,i)=>`(${i+1}) ${w}`).join(', ')}. ${WBG}`;
-  const MELEE = [
-    "a knight's straight steel LONGSWORD crossed with a round metal SHIELD (Cavaleiro)",
-    "a golden holy WARHAMMER crossed with a kite SHIELD bearing a cross (Paladino)",
-    "a large rune-etched TOWER SHIELD glowing with blue runes, with a short sword behind it (Guardião Rúnico)",
-    "a massive TWO-HANDED double-bladed BATTLE AXE (Bárbaro)",
-    "a pair of crossed curved DAGGERS (Assassino)",
-    "a slender ornate RAPIER / fencing florete (Duelista)",
-    "a wooden recurve BOW with a quiver of arrows (Arqueiro)",
-    "a pair of studded leather-and-steel knuckle GAUNTLETS / fist wraps (Monge — NOT a sword)",
+  // ---- Armas: 10 arquétipos com escada de 10 tiers, em 5 folhas (2 tipos × 10 tiers) ----
+  const METAL = ['ferro cru cinza','bronze','aço prateado','prata polida','aço cobalto azulado','mithril branco luminoso','adamante preto fosco','metal de dragão vermelho-preto com brasas','aço com runas azuis brilhantes','divino dourado e branco radiante'];
+  const WOOD  = ['madeira simples','carvalho','teixo escuro','reforçado com metal','élfico verde-e-ouro','madeira sombria negra','osso de dragão turquesa','espectral fantasmagórico','celestial branco','divino radiante'];
+  const ARCANE= ['madeira simples','ponta de latão','ponta de cristal azul','encantado com runas prateadas','rúnico azul brilhante','astral violeta','etéreo translúcido turquesa','arcano roxo com energia ciano','celestial branco-e-ouro','divino luminoso'];
+  const HOLY  = ['madeira simples','ferro','bronze','prata','ouro','ouro abençoado','branco-e-ouro radiante','sagrado brilhante','celestial','divino'];
+  const ALCH  = ['vidro simples','tampa de cobre','âmbar','esmeralda verde','gravado com runas','astral violeta','etéreo brilhante','arcano','celestial','divino'];
+  const ARCH = {
+    sword_shield: { label:'Espada & Escudo', item:'a straight steel LONGSWORD together with a round metal SHIELD', ladder:METAL },
+    hammer_shield:{ label:'Warhammer & Escudo', item:'a heavy WARHAMMER together with a kite SHIELD', ladder:METAL },
+    greataxe:     { label:'Machado Gigante', item:'a massive TWO-HANDED double-bladed BATTLE AXE', ladder:METAL },
+    twin_blades:  { label:'Lâminas Duplas', item:'a pair of matching TWIN BLADES (dual daggers/short swords crossed)', ladder:METAL },
+    bow:          { label:'Arco', item:'a recurve BOW with an arrow nocked', ladder:WOOD },
+    fists:        { label:'Manoplas', item:'a pair of knuckle GAUNTLETS / fist weapons (worn on the hands)', ladder:METAL },
+    arcane_staff: { label:'Cajado Arcano', item:'a magic STAFF with an ornate tip', ladder:ARCANE },
+    holy_scepter: { label:'Cajado Sagrado', item:'a holy SCEPTER with a sun/cross emblem', ladder:HOLY },
+    lute:         { label:'Alaúde', item:'a string LUTE / mandolin instrument', ladder:WOOD },
+    flasks:       { label:'Frascos Alquímicos', item:'a cluster of ALCHEMY potion FLASKS on a holder', ladder:ALCH },
+  };
+  function weaponSheet(aKey,bKey){
+    const A=ARCH[aKey], B=ARCH[bKey];
+    const lad = a => a.ladder.map((m,i)=>`${i+1} ${m}`).join(', ');
+    return `16-bit pixel art RPG WEAPON progression sheet. A clean GRID of 20 icons arranged as exactly 2 ROWS by 10 COLUMNS on a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame. TOP ROW: ${A.item} — the SAME weapon shown across all 10 tiers, left to right, rising in material. BOTTOM ROW: ${B.item} across all 10 tiers, left to right. Each COLUMN is ONE tier. Top-row material ladder T1→T10: ${lad(A)}. Bottom-row material ladder T1→T10: ${lad(B)}. Every icon centered in its own cell with wide even gaps, consistent size, chunky readable pixel art with a thin dark outline, cohesive with the fantasy RPG character style. NO text, NO numbers, no gradient, no drop shadow. Clean hard edges for chroma-key, and NO magenta or pink inside the icons.`;
+  }
+  const WPAIRS = [
+    ['sword_shield','hammer_shield','weap_shields.png'],
+    ['greataxe','twin_blades','weap_axe_blades.png'],
+    ['bow','fists','weap_bow_fists.png'],
+    ['arcane_staff','holy_scepter','weap_staffs.png'],
+    ['lute','flasks','weap_support.png'],
   ];
-  const CASTER = [
-    "a wooden arcane STAFF topped with a glowing blue crystal (Mago Elemental)",
-    "a golden holy SCEPTER/staff with a radiant sun emblem (Clérigo)",
-    "a dark STAFF topped with a burning orange FLAME/ember (Piromante)",
-    "a gnarled BONE staff topped with a small SKULL (Necromante)",
-    "a STAFF topped with a floating golden HOURGLASS ringed by clock runes (Feiticeiro do Tempo)",
-    "a wooden LUTE / mandolin string instrument (Bardo)",
-    "a cluster of ALCHEMY glass FLASKS with bubbling green and blue potions on a holder (Alquimista — NOT a staff)",
-  ];
-  const WEAPONS = [
-    {emoji:'⚔️', name:'Armas Marciais (8)', file:'weapons_melee.png', chip:'Armas', chipClass:'hero', prompt:wsheet(MELEE)},
-    {emoji:'🔮', name:'Armas de Conjuração (7)', file:'weapons_caster.png', chip:'Armas', chipClass:'hero', prompt:wsheet(CASTER)},
-  ];
+  const WEAPONS = WPAIRS.map(([a,b,file])=>({ emoji:'⚔️',
+    name:`${ARCH[a].label} + ${ARCH[b].label}`, file, chip:'Armas', chipClass:'hero',
+    prompt:weaponSheet(a,b) }));
   document.getElementById('grid-weapons').innerHTML = WEAPONS.map(m=>card({icon:m.emoji, name:m.name, file:m.file, chip:m.chip, chipClass:m.chipClass, prompt:m.prompt})).join('');
 
   function fallbackCopy(text){

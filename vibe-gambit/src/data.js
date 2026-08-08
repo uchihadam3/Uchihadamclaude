@@ -355,6 +355,23 @@ export const WEAPON_STYLES = {
              roadmap:['acumula Ki por acerto','gasta Ki em buffs/golpes especiais'] },
 };
 
+// ARQUÉTIPOS DE ARMA (arte compartilhada entre classes que combinam) — 10 tiers cada.
+// key -> { label, classes[] }. Mapa classe->arquétipo em HERO_WEAPON_ARCH.
+export const WEAPON_ARCHETYPES = {
+  sword_shield: { label:'Espada & Escudo',    classes:['warrior'] },
+  hammer_shield:{ label:'Warhammer & Escudo', classes:['paladin','rune_guardian'] },
+  greataxe:     { label:'Machado Gigante',    classes:['barbarian'] },
+  twin_blades:  { label:'Lâminas Duplas',     classes:['assassin','duelist'] },
+  bow:          { label:'Arco',               classes:['archer'] },
+  fists:        { label:'Manoplas',           classes:['monk'] },
+  arcane_staff: { label:'Cajado Arcano',      classes:['mage','pyromancer','necromancer','time_wizard'] },
+  holy_scepter: { label:'Cajado Sagrado',     classes:['cleric'] },
+  lute:         { label:'Alaúde',             classes:['bard'] },
+  flasks:       { label:'Frascos Alquímicos', classes:['alchemist'] },
+};
+export const HERO_WEAPON_ARCH = Object.entries(WEAPON_ARCHETYPES)
+  .reduce((m,[k,v]) => { for(const c of v.classes) m[c] = k; return m; }, {});
+
 // ESCADA DE ARMADURA — 3 pesos × 4 partes × 10 tiers = 120 peças (arte recortada).
 //   id = `${weight}_${part}_t${tier}` · img = assets/item_<id>.png
 export const ARMOR_TIERS = 10;
