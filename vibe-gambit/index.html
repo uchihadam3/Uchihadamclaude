@@ -164,6 +164,23 @@
   .prof-chip.w-medium{background:#e6f6e9;border-color:#bfe3c6;color:#2f7a43}
   .prof-chip.w-heavy{background:#f3ece1;border-color:#dcc9a8;color:#8a6a2a}
   .prof-chip.sty{background:#efe8f7;border-color:#d5c6ee;color:#6a4b9e}
+  .d-lv{font-size:11px;font-weight:900;color:#fff;background:var(--acc,#8a6a34);border-radius:6px;padding:1px 6px;margin-left:2px;vertical-align:middle}
+  /* botão Licenças + prancha */
+  .lic-btn{width:100%;margin:8px 0 2px;padding:9px;border-radius:10px;border:1px solid #cdb8e6;background:#f0e8fa;color:#5a3e8e;font-weight:900;font-size:13px;cursor:pointer}
+  .lic-btn:active{transform:translateY(1px)}
+  .lic-head{display:flex;gap:11px;align-items:center;background:#f5eefb;border:1px solid #ddccef;border-left:5px solid var(--acc);border-radius:10px;padding:8px 11px;margin-bottom:6px}
+  .lic-face{width:52px;height:52px;flex:none;border-radius:10px;overflow:hidden;background:radial-gradient(circle at 50% 35%,#fff,#e9d6ab);border:2px solid var(--acc)}
+  .lic-meta{flex:1;min-width:0} .lic-lv{font-size:14px;font-weight:800;color:var(--ink)} .lic-lp{color:#7a4bc0}
+  .lic-xpbar{height:8px;background:#e2d4f2;border:1px solid #cbb8e6;border-radius:5px;overflow:hidden;margin:4px 0 2px}
+  .lic-xpbar>i{display:block;height:100%;background:linear-gradient(90deg,#9b6fe0,#c9a2ff)}
+  .lic-xptxt{font-size:10px;font-weight:700;color:var(--dim)}
+  .lic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:7px}
+  .lic-node{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 5px;border-radius:10px;border:1px solid var(--line);background:#fff8e8;cursor:pointer;min-width:0}
+  .lic-node .ln-ic{font-size:20px;line-height:1} .lic-node .ln-nm{font-size:11.5px;font-weight:800;color:var(--ink);text-align:center;line-height:1.1}
+  .lic-node .ln-cost{font-size:10px;font-weight:800;color:var(--dim)}
+  .lic-node.owned{background:#e9f6ec;border-color:#a7d8b3} .lic-node.owned .ln-cost{color:#3f8f5a}
+  .lic-node.buy{border-color:#c9a2ff;box-shadow:inset 0 0 0 1px #e0cbff} .lic-node.buy .ln-cost{color:#7a4bc0}
+  .lic-node.lock{opacity:.5;filter:grayscale(.4);cursor:default}
   .d-stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .d-stat{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:800;color:var(--ink2);background:var(--inset);border:1px solid var(--line);border-radius:7px;padding:2px 7px}
   .d-stat b{color:var(--ink)}

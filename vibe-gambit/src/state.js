@@ -5,7 +5,7 @@
 //   - Persistência simples em LocalStorage (save/load).
 // =============================================================================
 
-import { HERO_DEFS, RESOURCES_INIT, STAGES, CONDITIONS, STARTER_INVENTORY, ITEMS } from './data.js';
+import { HERO_DEFS, RESOURCES_INIT, STAGES, CONDITIONS, STARTER_INVENTORY, ITEMS, starterSkills } from './data.js';
 
 const SAVE_KEY = 'vibe_gambit_save_v1';
 
@@ -22,6 +22,10 @@ export function newGame(){
       slots: h.slots,                          // linhas de gambit ativas (2..maxSlots)
       gambits: h.gambits.map(g => ({ ...g })), // cópia editável
       equip: { head:null, chest:null, hands:null, feet:null, weapon:null, trinket:null },
+      level: 1, xp: 0, lp: 0,                   // progressão (License Board)
+      unlockedSkills: starterSkills(h),         // ações liberadas (o resto na prancha)
+      augments: {},                             // aumentos de atributo comprados com LP
+      boughtNodes: [],                          // ids de nós da prancha já comprados
     })),
     inventory: [...STARTER_INVENTORY],          // itens possuídos (não equipados)
     activeParty: HERO_DEFS.slice(0, 4).map(h => h.id),  // heróis que vão à expedição (máx 4)
@@ -60,6 +64,16 @@ export function migrate(state){
     if(hs.equip.armor){ if(!hs.equip.chest) hs.equip.chest = hs.equip.armor; delete hs.equip.armor; }
     // remove itens equipados que não existem mais (troca da escada de armadura)
     for(const k of Object.keys(hs.equip)) if(hs.equip[k] && !ITEMS[hs.equip[k]]) hs.equip[k] = null;
+    // progressão (License Board) em saves antigos
+    const def = HERO_DEFS.find(d => d.id === hs.id);
+    if(typeof hs.level !== 'number') hs.level = 1;
+    if(typeof hs.xp !== 'number') hs.xp = 0;
+    if(typeof hs.lp !== 'number') hs.lp = 0;
+    if(!hs.augments || typeof hs.augments !== 'object') hs.augments = {};
+    if(!Array.isArray(hs.boughtNodes)) hs.boughtNodes = [];
+    if(!Array.isArray(hs.unlockedSkills)) hs.unlockedSkills = def ? starterSkills(def) : ['basic_attack'];
+    // garante que skills usadas nas gambits atuais estejam desbloqueadas
+    for(const g of hs.gambits || []) if(g.action && !hs.unlockedSkills.includes(g.action)) hs.unlockedSkills.push(g.action);
   }
   // limpa inventário de ids antigos; se ficar vazio, repõe o inicial
   state.inventory = (state.inventory || []).filter(id => ITEMS[id]);

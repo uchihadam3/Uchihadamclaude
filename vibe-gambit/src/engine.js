@@ -62,11 +62,14 @@ export function buildParty(state){
     .filter(Boolean)
     .map(hs => {
       const def = HERO_DEFS.find(h => h.id === hs.id);
+      const bonus = { ...itemBonuses(hs.equip) };
+      const au = hs.augments || {};
+      for(const k in au) bonus[k] = (bonus[k] || 0) + au[k];   // aumentos de licença
       return unitFrom(def, 'hero', {
         uid: def.id,
         gambits: hs.gambits,
         atkBonus: forgeAtkBonus(hs.weaponLevel),
-        bonus: itemBonuses(hs.equip),
+        bonus,
       });
     });
 }

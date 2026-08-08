@@ -6,6 +6,7 @@
 import {
   SKILLS, CONDITIONS, HERO_DEFS, ENEMY_DEFS, STAGES, FORGE_LEVELS, ACADEMY,
   ITEMS, ITEM_DROPS, itemBonuses, ARMOR_WEIGHTS, WEAPON_STYLES, STATUS_META,
+  skillBoard, xpToNext, MAX_LEVEL, LP_PER_LEVEL,
 } from './data.js';
 import { loadOrNew, save, newGame } from './state.js';
 import { Combat, buildParty, buildWave, forgeAtkBonus } from './engine.js';
@@ -258,6 +259,48 @@ function openPartyPicker(){
   });
 }
 
+// ---- PRANCHA DE LICENÇA (FFXII-like): XP/Level + destravar skills/aumentos ----
+function openSkillBoard(heroId){
+  const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
+  openPanelModal(`🎓 Licenças — ${def.name}`, body=>{
+    const draw = ()=>{
+      const nodes = skillBoard(def);
+      const need = xpToNext(hs.level); const pct = hs.level>=MAX_LEVEL ? 100 : Math.min(100, 100*hs.xp/need);
+      const nodeHTML = nodes.map(n=>{
+        const owned = hs.boughtNodes.includes(n.id) || (n.type==='skill' && hs.unlockedSkills.includes(n.skill));
+        const lvlOk = hs.level >= n.reqLevel; const canBuy = !owned && lvlOk && hs.lp >= n.cost;
+        const label = n.type==='skill' ? SKILLS[n.skill].name : `+${n.amt} ${n.stat.toUpperCase()}`;
+        const icon  = n.type==='skill' ? '✨' : '💪';
+        const sub   = owned ? 'Adquirido' : (!lvlOk ? `Requer Nv.${n.reqLevel}` : `${n.cost} LP`);
+        return `<button class="lic-node ${owned?'owned':canBuy?'buy':'lock'}" data-id="${n.id}" ${canBuy?'':'disabled'}>
+          <span class="ln-ic">${icon}</span>
+          <span class="ln-nm">${label}</span>
+          <span class="ln-cost">${owned?'✓':sub}</span></button>`;
+      }).join('');
+      body.innerHTML = `
+        <div class="lic-head" style="--acc:${accentOf(def.id)}">
+          <div class="lic-face">${faceMedia(def.id)}</div>
+          <div class="lic-meta">
+            <div class="lic-lv">Nível <b>${hs.level}</b>${hs.level>=MAX_LEVEL?' (máx)':''} · <span class="lic-lp">${hs.lp} LP</span></div>
+            <div class="lic-xpbar"><i style="width:${pct}%"></i></div>
+            <div class="lic-xptxt">${hs.level>=MAX_LEVEL?'XP máx':`XP ${hs.xp}/${need}`}</div>
+          </div>
+        </div>
+        <p class="muted tiny" style="margin:2px 2px 8px">Ganhe XP e LP nas expedições. Gaste LP p/ destravar ações e aumentos. As <b>condições</b> são universais (Loja de Gambits).</p>
+        <div class="lic-grid">${nodeHTML}</div>`;
+      body.querySelectorAll('.lic-node.buy').forEach(b=> b.onclick = ()=>{
+        const n = skillBoard(def).find(x=>x.id===b.dataset.id); if(!n || hs.lp<n.cost) return;
+        hs.lp -= n.cost; hs.boughtNodes.push(n.id);
+        if(n.type==='skill'){ if(!hs.unlockedSkills.includes(n.skill)) hs.unlockedSkills.push(n.skill); }
+        else { hs.augments[n.stat] = (hs.augments[n.stat]||0) + n.amt; }
+        save(S); draw();
+        if($('hub-left')){ renderHubParty($('hub-left')); renderDetail(); fitBase(); }
+      });
+    };
+    draw();
+  });
+}
+
 // ---- PAINEL INFERIOR: detalhes do herói selecionado + INVENTÁRIO ----
 function renderDetail(){
   const frame = $('detail-frame'); if(!frame) return;
@@ -298,16 +341,18 @@ function renderDetail(){
       <div class="d-hero" style="--acc:${accentOf(hs.id)}">
         <div class="d-face">${faceMedia(def.id)}</div>
         <div class="d-meta">
-          <div class="d-nm">${def.name} <small>${def.klass}</small></div>
+          <div class="d-nm">${def.name} <small>${def.klass}</small> <span class="d-lv">Nv.${hs.level}</span></div>
           <div class="d-prof"><span class="prof-chip w-${def.armorWeight}" title="Armadura: ${wgt.focus}">${wgt.icon} ${wgt.label}</span><span class="prof-chip sty" title="${sty.desc}">${sty.icon} ${sty.label}</span></div>
           <div class="d-stats">${statChip('⚔️',rs.atk)}${statChip('❤️',rs.hp)}${statChip('🔮',rs.mag)}${statChip('🛡️',rs.defense)}${statChip('👟',rs.spd)}${statChip('💧',rs.mp)}</div>
         </div>
       </div>
       <div class="d-slots">${slotsHTML}</div>
+      <button class="lic-btn" id="d-lic">🎓 Licenças${hs.lp>0?` <b>· ${hs.lp} LP</b>`:''}</button>
       <div class="inv-cap">🎒 Inventário <small>(toque num item p/ equipar em ${def.name})</small></div>
       <div class="inv-grid">${invHTML}</div>
     </div>`;
 
+  frame.querySelector('#d-lic').onclick = () => openSkillBoard(hs.id);
   frame.querySelectorAll('.d-slot').forEach(b => b.onclick = (e) => {
     const slot = b.dataset.slot;
     if(slot==='weapon'){ openPanelModal('🔨 Forja', body=>renderForge(body, hs.id)); return; }
@@ -371,7 +416,7 @@ let ghPick = null;   // {line, kind} quando a lista inline está aberta naquela 
 function ghInlineList(hs, def, line, kind){
   const isCond = kind==='condition';
   const options = isCond ? S.unlockedConditions.map(c=>({id:c,label:CONDITIONS[c].label}))
-                         : def.skills.map(s=>({id:s,label:SKILLS[s].name}));
+                         : (hs.unlockedSkills||def.skills).map(s=>({id:s,label:SKILLS[s].name}));
   const current = isCond ? hs.gambits[line].condition : hs.gambits[line].action;
   return `<div class="gg-opts">${options.map(o=>`
     <button class="gopt ${isCond?'c':'a'} ${o.id===current?'sel':''}" data-line="${line}" data-kind="${kind}" data-id="${o.id}">
@@ -452,7 +497,7 @@ function renderGambitHUD(mount){
   mount.querySelectorAll('.gg-en').forEach(t => t.onclick = () => { const g=hs.gambits[+t.dataset.i]; g.enabled = (g.enabled===false); save(S); rr(); });
   mount.querySelectorAll('.gh-unlock').forEach(b => b.onclick = () => { const n=+b.dataset.slot; const cost=ACADEMY.slotCosts[n]; if(!canAfford(cost))return; spend(cost); hs.slots++; save(S); bumpRes(); rr(); });
   const add = mount.querySelector('.gh-add');
-  if(add) add.onclick = () => { if(hs.gambits.length>=hs.slots)return; hs.gambits.push({ condition:S.unlockedConditions[0], action:def.skills[0], enabled:true }); save(S); rr(); };
+  if(add) add.onclick = () => { if(hs.gambits.length>=hs.slots)return; hs.gambits.push({ condition:S.unlockedConditions[0], action:(hs.unlockedSkills||def.skills)[0], enabled:true }); save(S); rr(); };
   enableGambitDrag(mount, hs, rr);
 }
 // arrastar linhas de gambit p/ reordenar (pointer-based, funciona no touch)
@@ -549,13 +594,15 @@ function openOptions(){
 function heroRuntimeStats(hs){
   const def = HERO_DEFS.find(h=>h.id===hs.id);
   const eb = itemBonuses(hs.equip);
+  const au = hs.augments || {};
+  const A = k => (eb[k]||0) + (au[k]||0);
   return { def, eb,
-    atk: def.base.atk + forgeAtkBonus(hs.weaponLevel) + eb.atk,
-    hp:  def.base.hp  + eb.hp,
-    mag: def.base.mag + eb.mag,
-    spd: def.base.spd + eb.spd,
-    mp:  def.base.mp  + eb.mp,
-    defense: def.base.def + eb.def };
+    atk: def.base.atk + forgeAtkBonus(hs.weaponLevel) + A('atk'),
+    hp:  def.base.hp  + A('hp'),
+    mag: def.base.mag + A('mag'),
+    spd: def.base.spd + A('spd'),
+    mp:  def.base.mp  + A('mp'),
+    defense: def.base.def + A('def') };
 }
 
 function renderForge(body, onlyId){
@@ -800,6 +847,21 @@ function awardLoot(unit){
 
 function healParty(frac){ for(const u of expo.party) if(u.hp>0) u.hp = Math.min(u.maxHp, u.hp + Math.round(u.maxHp*frac)); }
 
+// Concede XP à party ativa; sobe de Level e concede LP. Retorna resumo p/ a UI.
+function awardXP(amount){
+  const out = [];
+  for(const hs of activeParty()){
+    const def = HERO_DEFS.find(h=>h.id===hs.id);
+    let gainedLp = 0, from = hs.level;
+    hs.xp += amount;
+    while(hs.level < MAX_LEVEL && hs.xp >= xpToNext(hs.level)){
+      hs.xp -= xpToNext(hs.level); hs.level++; hs.lp += LP_PER_LEVEL; gainedLp += LP_PER_LEVEL;
+    }
+    out.push({ name:def.name, xp:amount, up: hs.level>from ? hs.level : 0, lp:gainedLp });
+  }
+  return out;
+}
+
 function expeditionCleared(){
   const first = !S.stagesUnlocked || S.progress.clears!==undefined ? true : true;
   // desbloqueia próxima fase (1ª vez)
@@ -811,6 +873,11 @@ function expeditionCleared(){
   // drop de itens de equipamento
   expo.runLoot.items = expo.runLoot.items || [];
   for(const d of ITEM_DROPS){ if(Math.random() < d.chance){ (S.inventory=S.inventory||[]).push(d.item); expo.runLoot.items.push(d.item); } }
+  // XP p/ a party (escala com a fase)
+  const xpGain = 30 + idx*25 + (expo.stage.waves.length*8);
+  expo.runLoot.xp = xpGain;
+  expo.runLoot.levels = awardXP(xpGain);
+  for(const r of expo.runLoot.levels) if(r.up) logLine(`<span class="sys">⭐ ${r.name} subiu para Nível ${r.up}! (+${r.lp} LP)</span>`);
   save(S);
   showBanner('win','🏆 VITÓRIA');
   logLine(`<span class="sys">🏆 Fase concluída! ${unlockedMsg}</span>`);
@@ -825,14 +892,17 @@ function expeditionWiped(){
 
 function lootModal(unlockedMsg){
   const L = expo ? expo.runLoot : {gold:0};
-  const items = Object.entries(L).filter(([k,v])=>k!=='items'&&v>0)
+  const SKIP = new Set(['items','levels','xp']);
+  const items = Object.entries(L).filter(([k,v])=>!SKIP.has(k)&&v>0)
     .map(([k,v])=>`<span>${RES_ICON[k]||''} ${v}</span>`).join('') || '<span class="muted">—</span>';
   const drops = (L.items||[]).map(iid=>{ const it=ITEMS[iid]; return it?`<span class="drop">${it.icon} ${it.name}</span>`:''; }).join('');
+  const ups = (L.levels||[]).filter(r=>r.up).map(r=>`<span class="drop">⭐ ${r.name} Nv.${r.up} (+${r.lp} LP)</span>`).join('');
   const root = $('modal-root');
   root.innerHTML = `<div class="modal"><div class="box">
     <h2>🏆 Expedição Vitoriosa!</h2>
     <p class="muted">Recompensas coletadas nesta corrida:</p>
-    <div class="loot">${items}</div>
+    <div class="loot">${items}${L.xp?`<span>✨ +${L.xp} XP (todos)</span>`:''}</div>
+    ${ups?`<p class="muted" style="margin:8px 0 2px">Subiu de nível:</p><div class="loot">${ups}</div>`:''}
     ${drops?`<p class="muted" style="margin:8px 0 2px">Itens encontrados:</p><div class="loot">${drops}</div>`:''}
     ${unlockedMsg?`<p style="color:var(--gold);font-weight:800;margin-bottom:6px">${unlockedMsg}</p>`:''}
     <div class="row" style="justify-content:center;margin-top:10px">

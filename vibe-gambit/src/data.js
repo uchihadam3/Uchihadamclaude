@@ -40,6 +40,11 @@ export const SKILLS = {
   colheita:         { id:'colheita',         name:'Colheita de Almas',kind:'damage', targetType:'enemy', stat:'mag', power:1.20, mp:5, element:'dark' },
   lentidao:         { id:'lentidao',         name:'Lentidão',         kind:'buff',   targetType:'enemy', buff:{ stat:'spd', amt:-3, scope:'target' }, duration:3, mp:4 },
   fluxo_temporal:   { id:'fluxo_temporal',   name:'Fluxo Temporal',   kind:'damage', targetType:'enemy', stat:'mag', power:1.45, mp:6, element:'time' },
+
+  // --- SUPORTE / multiclasse (Clérigo é o mestre; estas são versões menores) ---
+  minor_heal:       { id:'minor_heal',       name:'Primeiros Socorros',kind:'heal',  targetType:'ally',  stat:'mag', power:0.75, mp:4 },
+  melodia_cura:     { id:'melodia_cura',     name:'Melodia Curativa', kind:'heal',   targetType:'ally',  stat:'mag', power:0.95, mp:5 },
+  cancao_guarda:    { id:'cancao_guarda',    name:'Canção de Guarda', kind:'buff',   targetType:'ally',  buff:{ stat:'def', amt:4, scope:'allies' }, duration:4, mp:5 },
 };
 
 // Unidade INVOCADA (esqueleto aliado do Necromante). side='hero' em combate.
@@ -226,11 +231,12 @@ export const HERO_DEFS = [
   {
     id:'bard', name:'Bardo', klass:'Bardo', sprite:'🎵',
     armorWeight:'medium', weaponStyle:'caster', weaponStyles:['caster'],
-    base:{ hp:92, atk:9, def:5, mag:12, mp:40, spd:9 },
+    base:{ hp:92, atk:9, def:5, mag:13, mp:44, spd:9 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['hino_de_guerra','basic_attack'],
+    skills:['hino_de_guerra','cancao_guarda','melodia_cura','basic_attack'],
     gambits:[
       { condition:'self_no_buff',  action:'hino_de_guerra' },
+      { condition:'ally_hp_50',    action:'melodia_cura' },
       { condition:'enemy_nearest', action:'basic_attack' },
     ],
   },
@@ -270,6 +276,41 @@ export const HERO_DEFS = [
     ],
   },
 ];
+
+// --- PROGRESSÃO: XP / LEVEL / PRANCHA DE LICENÇA (LP) -----------------------
+// FFXII-like: herói ganha XP (sobe Level) e Pontos de Licença (LP) p/ destravar
+// skills e aumentos numa prancha por classe. Condições continuam UNIVERSAIS.
+export const MAX_LEVEL = 30;
+export const LP_PER_LEVEL = 2;
+export const xpToNext = (level) => Math.round(40 + level*35 + level*level*4);
+const mainStatOf = (def) => def.armorWeight==='light' ? 'mag' : def.armorWeight==='heavy' ? 'hp' : 'atk';
+
+// skills liberadas de fábrica = as usadas nos gambits padrão + ataque básico
+export function starterSkills(def){
+  const s = new Set(['basic_attack']);
+  for(const g of (def.gambits||[])) if(g.action) s.add(g.action);
+  return [...s];
+}
+// skills MENORES multiclasse por classe (menos efetivas — "não limitar")
+const CROSS_SKILLS = {
+  duelist:['minor_heal'], archer:['minor_heal'], assassin:['minor_heal'],
+  paladin:['cancao_guarda'], monk:['minor_heal'],
+};
+// Prancha de licença por classe: nós de SKILL (próprias travadas + multiclasse) + AUMENTOS.
+export function skillBoard(def){
+  const starter = new Set(starterSkills(def));
+  const nodes = []; let ci = 0;
+  for(const s of def.skills){ if(starter.has(s)) continue;
+    nodes.push({ type:'skill', id:`sk_${s}`, skill:s, cost:1+ci, reqLevel:2+ci*2 }); ci++; }
+  for(const s of (CROSS_SKILLS[def.id]||[])){
+    nodes.push({ type:'skill', id:`sk_${s}`, skill:s, cost:2+ci, reqLevel:3+ci*2 }); ci++; }
+  const main = mainStatOf(def);
+  const a1 = main==='hp'?25:3, a2 = main==='hp'?45:6;
+  nodes.push({ type:'stat', id:'aug_hp', stat:'hp',  amt:15, cost:1, reqLevel:2 });
+  nodes.push({ type:'stat', id:'aug_m1', stat:main, amt:a1, cost:2, reqLevel:5 });
+  nodes.push({ type:'stat', id:'aug_m2', stat:main, amt:a2, cost:3, reqLevel:10 });
+  return nodes;
+}
 
 // --- INIMIGOS ----------------------------------------------------------------
 // gold: [min,max] de ouro dropado. drops: tabela de recursos por chance.
