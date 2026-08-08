@@ -17,6 +17,9 @@ function ac(){
 export function acordar(){ ac(); }
 export function mudo(v){ ligado = !v; }
 export function estaMudo(){ return !ligado; }
+/* a música mora noutro arquivo mas não pode abrir um segundo AudioContext:
+   dois contextos são dois relógios, e o navegador limita quantos existem */
+export const contexto = () => ac();
 
 function tom({ f=440, f2=null, t=0.12, v=0.18, tipo='sine', atraso=0 }){
   if(!ligado) return;

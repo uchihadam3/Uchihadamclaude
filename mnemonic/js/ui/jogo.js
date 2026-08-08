@@ -36,6 +36,8 @@ import { RELIQUIAS, POR_ID, RARIDADE } from '../data/reliquias.js';
 import { LISTA_BOSSES } from '../data/bosses.js';
 import { svgGlifo } from '../arte/glifos.js';
 import { SFX, acordar, mudo, estaMudo } from './sfx.js';
+import { trilha, abaixar, querMusica, temMusica, reavaliar } from './musica.js';
+import * as MUSICA from './musica.js';
 import { ICO, ICO_CLASSE, ICO_CHEFE, icoReliquia, MOLDURA_DO_TIPO } from './icones.js';
 import { CAPITULOS, FAMILIA_DE_PECA, peca, PALAVRAS, COR_COMBO, corDoCombo }
   from './catalogo.js';
@@ -73,6 +75,21 @@ function ir(nome){
   ({ classe:telaClasse, mapa:telaMapa, sala:pintarSala, premio:telaPremio,
      loja:telaLoja, evento:telaEvento, fim:telaFim, livro:telaLivro,
      rank:telaRank }[nome] || (()=>{}))();
+  trilhaDaTela(nome);
+}
+/* QUAL MÚSICA CADA TELA PEDE.
+   Fica aqui, num lugar só, pelo mesmo motivo que `seguir` decide sozinho para
+   onde a run vai: duas telas discordando sobre qual música toca produz corte
+   no meio do compasso, e corte de música é a coisa mais barata que um jogo
+   pode fazer. Fora da partida é sempre o tema do menu — inclusive na tela do
+   fim, que é onde ele finalmente faz sentido. */
+function trilhaDaTela(nome){
+  if(nome === 'sala' && run?.sala)
+    return trilha(run.sala.boss ? 'chefe' + run.mundo : 'mundo' + run.mundo);
+  if(run && !run.acabou() && (nome === 'mapa' || nome === 'premio'
+     || nome === 'loja' || nome === 'evento'))
+    return trilha('mundo' + run.mundo);
+  trilha('menu');
 }
 
 /* leva a run para onde ela estiver: é o único lugar que decide isso, para
@@ -937,7 +954,9 @@ async function tocarCarta(id){
 
   travado = true;
   $('#bfer').disabled = true;
+  abaixar(true);                 // o som que importa agora é o do par
   await animar(rel);
+  abaixar(false);
   travado = false;
   medidores();
   if(!run.sala){ await espera(360); seguir(); }
@@ -1899,11 +1918,29 @@ if(retomar()){
   const pinta = ()=>{ b.textContent = estaMudo() ? 'SOM: DESLIGADO' : 'SOM: LIGADO'; };
   b.onclick = ()=>{ mudo(!estaMudo());
     localStorage.setItem('mnemonic.mudo', estaMudo()?'1':'0');
-    if(!estaMudo()){ acordar(); SFX.clique(); } pinta(); };
+    if(!estaMudo()){ acordar(); SFX.clique(); }
+    reavaliar(); pinta(); };
   if(localStorage.getItem('mnemonic.mudo')==='1') mudo(true);
   pinta();
   $('#t-titulo .menu').appendChild(b);
 })();
+/* MÚSICA TEM BOTÃO PRÓPRIO. Não é preciosismo: num jogo de memória há quem
+   queira o estalo do acerto — que é informação — e nada tocando por cima
+   enquanto tenta decorar dezoito cartas. Desligar tudo custaria as duas. */
+(function botaoMusica(){
+  const b = document.createElement('button');
+  b.className = 'bt g';
+  const pinta = ()=>{ b.textContent = temMusica() ? 'MÚSICA: LIGADA' : 'MÚSICA: DESLIGADA'; };
+  b.onclick = ()=>{ acordar(); querMusica(!temMusica());
+    if(temMusica()) SFX.clique(); pinta(); };
+  pinta();
+  $('#t-titulo .menu').appendChild(b);
+})();
+/* AUTOPLAY. O navegador só deixa tocar depois de um toque, e o primeiro toque
+   do jogador costuma ser em "Jogar" — quando a trilha já tinha sido pedida e
+   recusada calada. Um toque em qualquer lugar reacorda e repõe o volume. */
+document.addEventListener('pointerdown', ()=>{ acordar(); reavaliar(); },
+  { passive:true });
 /* QUE VERSÃO É ESTA.
    O link do jogo é fixo e serve sempre a última versão, o que é bom até o
    momento em que alguém precisa saber se o que está na tela já é a correção
@@ -1931,4 +1968,7 @@ window.MN = { get run(){ return run; }, Run, verificar, planoDaSala, RANK,
   get alvoPendente(){ return alvoPendente; }, toques: MN_TOQUES, perguntar,
   /* remonta a mesa a partir do estado atual — é por aqui que o teste de tela
      consegue conferir a grade de vários tamanhos sem jogar quarenta salas */
-  redesenhar(){ salaViva = run.sala; mesa(true); } };
+  redesenhar(){ salaViva = run.sala; mesa(true); },
+  /* a trilha: "não sai som" precisa poder ser diferenciado de "o navegador
+     bloqueou o áudio" sem adivinhação */
+  musica: MUSICA };
