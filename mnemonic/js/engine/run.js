@@ -59,23 +59,39 @@ export const COMBATE = new Set(['combate','elite','boss']);
    distância entre elas cresce também, porque quanto maior o tabuleiro maior
    a fatia dele que você gasta só descobrindo o que tem.
 
-   `fator` é o único número que aperta o jogo: 0,88 do esperado na primeira
-   sala, 1,08 na última — passa de 1 porque lá no fim a build já multiplica.
+   `fator` é o único número que aperta o jogo: 0,97 do esperado na primeira
+   sala e 1,18 na última — passa de 1 porque lá no fim a build já multiplica.
    Elite e chefe cobram um pouco mais, e é por isso que pagam melhor.
 
    Este valor foi MEDIDO, não escolhido: `test/curva.mjs` solta o bot com
    memórias cada vez piores e imprime quanto o jogo cobra de quem esquece.
-   Com 0,88 a curva fica assim — memória perfeita vence 74% das runs, quem
-   esquece 6% das cartas vence 44%, quem esquece 15% vence 16%, e quem
-   esquece um terço não vence nunca. É a forma de curva que se quer: castiga
-   esquecer, e não castiga ser novato. */
+   Ele subiu de 0,88 para 1,00 quando o conteúdo cresceu: com 75 relíquias,
+   28 eventos e as cartas Tempo e Prisma na mesa, o jogador ganhou ferramentas
+   demais para a régua antiga — a taxa de vitória de quem esquece 6% tinha ido
+   de 44% para 66%, e um jogo que se ganha sozinho para de ter decisão.
+
+   Depois desceu para 0,97 pelo motivo contrário, e isto foi surpresa: as
+   cinco famílias novas APERTARAM o jogo sem que uma linha da fórmula mudasse.
+   Não porque sejam duras — Piratas, Samurai e Robôs ajudam — mas porque
+   entrar de oito para treze DILUI as antigas, e as antigas eram generosas
+   (Alquimia devolve virada, Xadrez dobra, Runas somam multiplicador). O
+   sorteio pega duas famílias: quanto mais famílias existem, menor a chance de
+   cair uma que carrega a sala. Conteúdo novo mexe no balanço mesmo quando
+   cada peça nova é neutra, e é por isso que a régua se remede a cada lote.
+
+   Com 0,97 a curva fica assim: memória perfeita vence 67% das runs, quem
+   esquece 6% das cartas vence 47%, quem esquece 15% vence 15%, e quem
+   esquece um terço vence 3%. O meio ficou mais íngreme que na medição
+   anterior — com treze famílias, esquecer custa mais caro, porque a sala nem
+   sempre traz a família que perdoa. É a forma que se quer: castiga esquecer,
+   e não castiga ser novato. */
 export function planoDaSala(mundo, indice, tipo){
   const total = MUNDOS*SALAS.length;
   const passo = mundo*SALAS.length + indice;
   const dif   = total>1 ? Math.min(1, passo/(total-1)) : 0;
   const pares = Math.min(30, 6 + Math.round(dif*24));
   const peso  = tipo==='elite' ? 1.06 : tipo==='boss' ? 1.12 : 1;
-  const fator = (0.88 + dif*0.20) * peso;
+  const fator = (0.97 + dif*0.21) * peso;
   return {
     pares,
     dificuldade: dif * (tipo==='boss' ? 1 : 0.9),

@@ -961,7 +961,9 @@ async function animar(rel){
     if(e.e==='moedas'){ SFX.moeda();
       const onde = acerto?.cartas?.[0] ?? 0;
       brilhos(onde); voa(onde, '+'+e.n, 'moedas', 'moeda'); }
-    if(e.e==='virada_extra') aviso('+1 VIRADA', 'alquimia devolveu', '#4fe08a');
+    if(e.e==='virada_extra') aviso('+'+(e.n||1)+' VIRADA', 'devolveram tempo', '#4fe08a');
+    if(e.e==='virada_a_menos') aviso('−1 VIRADA', 'o dinossauro é pesado', '#35a86a');
+    if(e.e==='foco'){ SFX.revelar(); aviso('+1 FOCO', 'disciplina do samurai', '#ff8fb3'); }
     if(e.e==='xadrez') aviso('DOBRADO', 'peça de xadrez', '#dbe4f5');
     if(e.e==='runa'){ const onde = acerto?.cartas?.[1] ?? 0;
       brilhos(onde, '#b478ff', 4); voa(onde, '+0,1', 'runa', 'moeda'); }

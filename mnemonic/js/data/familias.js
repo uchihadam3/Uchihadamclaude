@@ -46,6 +46,25 @@ export const FAMILIAS = {
   egito:      { id:'egito', nome:'Egito', cor:'#f0c14b', s:IDX,
                 traco:'hastes e travessas',
                 regra:'A cada par de Egito, uma carta fechada fica MARCADA — e carta marcada nunca é esquecida pela tela.' },
+  /* As cinco últimas. Cada uma puxa uma alavanca DIFERENTE do motor, senão
+     família nova é só pintura: Animais mexem no prazo da memória, Piratas na
+     moeda, Samurai no Foco, Dinossauros no ponto base (e cobram virada),
+     Robôs na revelação. Nenhuma repete o que as oito de cima já faziam. */
+  animais:    { id:'animais', nome:'Animais', cor:'#e2843c', s:IDX,
+                traco:'cabeças e orelhas',
+                regra:'Carta de Animal que você vê fica na tela uma virada a mais.' },
+  piratas:    { id:'piratas', nome:'Piratas', cor:'#2ec4c4', s:IDX,
+                traco:'âncoras e velas',
+                regra:'Todo par de Pirata rende 2 moedas.' },
+  samurai:    { id:'samurai', nome:'Samurai', cor:'#ff8fb3', s:IDX,
+                traco:'lâminas e brasões',
+                regra:'A cada 2 pares de Samurai, você recupera 1 de Foco.' },
+  dinossauros:{ id:'dinossauros', nome:'Dinossauros', cor:'#35a86a', s:IDX,
+                traco:'mandíbulas e dorsos',
+                regra:'Cartas de Dinossauro valem +6 de pontos base, mas cada par de Dinossauro custa 1 virada.' },
+  robos:      { id:'robos', nome:'Robôs', cor:'#b8d43a', s:IDX,
+                traco:'caixas e engrenagens',
+                regra:'A cada 2 pares de Robô, um par fechado INTEIRO aparece por um instante.' },
 };
 export const LISTA_FAMILIAS = Object.values(FAMILIAS);
 

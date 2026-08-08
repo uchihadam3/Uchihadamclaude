@@ -366,7 +366,53 @@ secao('8. As famílias fazem o que a família diz');
   eg._esquecer(marcada); eg._apagarTela(marcada);
   ok(marcada.vista, 'e carta marcada não é esquecida pela tela');
 
+  /* AS CINCO ÚLTIMAS. Cada uma foi escrita para puxar uma alavanca que
+     nenhuma das oito de cima puxava — e é isso que se cobra aqui, uma por
+     uma: família nova cuja regra não acontece é só uma pintura com legenda. */
+  const anim = comFam('animais');
+  const co = comFam('__comum','f');
+  const [i1,i2] = duasDiferentes(anim);
+  const [j1,j2] = duasDiferentes(co);
+  anim.virar(i1.id); anim.virar(i2.id); co.virar(j1.id); co.virar(j2.id);
+  ok(anim.cartas.find(c=>c.id===i1.id).vista && !co.cartas.find(c=>c.id===j1.id).vista,
+     'Animais deixam rastro: a carta ainda está na tela quando a comum já sumiu');
+
+  const pi = comFam('piratas');
+  const mo = pi.moedas;
+  const [t1,t2] = pi.cartas.filter(c=>c.par===0);
+  pi.virar(t1.id); pi.virar(t2.id);
+  eq(pi.moedas - mo, 2, 'Pirata rende 2 moedas por par');
+
+  const sa = comFam('samurai');
+  sa.foco = 1;
+  for(let p=0;p<2;p++){ const [s1,s2]=sa.cartas.filter(c=>c.par===p&&!c.resolvida);
+    sa.virar(s1.id); sa.virar(s2.id); }
+  eq(sa.foco, 2, 'Samurai devolve 1 de Foco a cada 2 pares');
+  sa.foco = sa.focoMax;
+  for(let p=2;p<4;p++){ const [s1,s2]=sa.cartas.filter(c=>c.par===p&&!c.resolvida);
+    sa.virar(s1.id); sa.virar(s2.id); }
+  eq(sa.foco, sa.focoMax, 'e nunca passa do Foco máximo');
+
+  const di = comFam('dinossauros');
+  const co2 = comFam('__comum','f');
+  const [k1,k2] = di.cartas.filter(c=>c.par===0);
+  const [l1,l2] = co2.cartas.filter(c=>c.par===0);
+  const vd = di.viradas, pd = di.pontos, pc = co2.pontos;
+  di.virar(k1.id); di.virar(k2.id); co2.virar(l1.id); co2.virar(l2.id);
+  ok(di.pontos-pd > co2.pontos-pc, 'Dinossauro pesa mais na conta');
+  eq(vd - di.viradas, 2, 'e come duas viradas: a da tentativa e a dele');
+
+  const ro = comFam('robos', 'rr');
+  for(let p=0;p<2;p++){ const [b1,b2]=ro.cartas.filter(c=>c.par===p&&!c.resolvida);
+    ro.virar(b1.id); ro.virar(b2.id); }
+  const pares = {};
+  for(const c of ro.fechadas().filter(c=>c.vista)) pares[c.par]=(pares[c.par]||0)+1;
+  ok(Object.values(pares).some(n=>n===2),
+     'Robô revela um par INTEIRO, não uma carta solta');
+
   ok(LISTA_FAMILIAS.every(f=>f.s.length>=18), 'toda família tem ao menos 18 símbolos');
+  eq(new Set(LISTA_FAMILIAS.map(f=>f.cor)).size, LISTA_FAMILIAS.length,
+     'nenhuma família usa a cor de outra');
   ok(LISTA_FAMILIAS.every(f=>new Set(f.s).size===f.s.length), 'sem índice repetido dentro da família');
   /* o que não pode repetir é o DESENHO: se duas cartas de pares diferentes
      saírem iguais na tela, o jogador acerta "errado" e tem razão de reclamar */

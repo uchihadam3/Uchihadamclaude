@@ -79,6 +79,32 @@ export const TIPOS = {
     d:'Copia o desenho de um par inteiro. Só fecha com o outro Mimic — casar com a cópia custa 1 de Foco a mais e desmascara ele.',
     base:20, mente:true,
   },
+  /* ═══════ as quatro que faltavam do desenho original ═══════ */
+  prisma: {
+    id:'prisma', nome:'Prisma', cor:'#7ee3a8', peso:6,
+    d:'Ao ser resolvida, o próximo par vale o dobro. A luz que ela quebra cai '
+     +'na carta seguinte.',
+    base:12, prisma:true,
+  },
+  amuleto: {
+    id:'amuleto', nome:'Relíquia', cor:'#b478ff', peso:5,
+    d:'Ao ser resolvida, rende essência — a moeda das ferramentas caras. Vale '
+     +'pouco em ponto e muito em poder.',
+    base:8, essencia:2,
+  },
+  tempo: {
+    id:'tempo', nome:'Tempo', cor:'#4fb8ff', peso:5,
+    d:'Ao ser resolvida, devolve 2 viradas. É a única carta que compra tempo '
+     +'em vez de gastar.',
+    base:10, devolve:2,
+  },
+  maldicao: {
+    id:'maldicao', nome:'Maldição', cor:'#ff4f52', peso:15,
+    d:'Enquanto estiver no tabuleiro, todo par vale 20% menos. Tirá-la da mesa '
+     +'é mais urgente do que parece.',
+    base:16, maldicao:true,
+  },
+
   veneno: {
     id:'veneno', nome:'Veneno', cor:'#8ad46a', peso:8,
     d:'Enquanto estiver no tabuleiro, todo esquecimento custa 1 de Foco a mais.',
@@ -98,7 +124,8 @@ export const LISTA_TIPOS = Object.values(TIPOS);
    gênero: tabuleiro maior não é tabuleiro mais difícil, é tabuleiro mais
    demorado. */
 export function sortearTipos(rng, quantosPares, dificuldade=0){
-  const atrapalha = t => t.esconde||t.trocaSimbolo||t.mente||t.pavio||t.camadas||t.agrava;
+  const atrapalha = t => t.esconde||t.trocaSimbolo||t.mente||t.pavio||t.camadas
+                     ||t.agrava||t.maldicao;
   const pool = [];
   for(const t of LISTA_TIPOS){
     if(t.id==='normal') continue;

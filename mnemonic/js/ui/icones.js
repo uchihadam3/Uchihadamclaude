@@ -11,6 +11,8 @@
    ===================================================================== */
 import { RELIQUIAS } from '../data/reliquias.js';
 import { emblema } from '../arte/emblemas.js';
+import { glifo } from '../arte/glifos.js';
+import { LISTA_FAMILIAS } from '../data/familias.js';
 
 const S = d => `<svg class="gl" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
 
@@ -44,6 +46,16 @@ export const ICO = {
   veneno:   S('<path d="M8.5 3.5 h7 v3.5 l3 8.5 a6.5 6.5 0 0 1-13 0 l3-8.5 Z"/>'
              +'<path d="M6.6 15.5 h10.8"/>'),
   raio:     S('<path d="M13.5 2.5 L6 13.5 h5 L10.5 21.5 L18 10.5 h-5 Z"/>'),
+  /* --- as quatro do desenho original que faltavam --- */
+  prisma:   S('<path d="M12 3 L21 19 H3 Z"/><path d="M12 3 V19"/>'
+             +'<path d="M12 11 L20 7"/><path d="M12 13 L20 15"/>'),
+  amuleto:  S('<path d="M12 2.8 l2.2 4.6 5 .7 -3.6 3.5 .8 5 -4.4-2.4 -4.4 2.4 .8-5 '
+             +'-3.6-3.5 5-.7 Z"/><path d="M9.5 18.5 h5"/><path d="M12 16.6 v4.9"/>'),
+  tempo:    S('<circle cx="12" cy="13" r="7.6"/><path d="M12 8.6 V13 l3 2"/>'
+             +'<path d="M9 2.5 h6"/><path d="M12 2.5 v3"/>'),
+  maldicao: S('<path d="M12 3.2 c3.6 4.6 5.4 7.2 5.4 9.6 A5.4 5.4 0 0 1 6.6 12.8 '
+             +'c0-2.4 1.8-5 5.4-9.6 Z"/><path d="M9.4 12.6 L14.6 17.8"/>'
+             +'<path d="M14.6 12.6 L9.4 17.8"/>'),
 
   /* --- coisas da run --- */
   reliquia: S('<path d="M12 3 l7 4 v7 c0 4-3.4 6.2-7 7.5 -3.6-1.3-7-3.5-7-7.5 V7 Z"/>'
@@ -173,6 +185,25 @@ export const ICO_FAM = {};
 for(const id of ['runas','espaco','alquimia','xadrez','mitologia','tecnologia',
   'dragoes','egito']) ICO_FAM[id] = pintura('fam', id);
 
+/* O BRASÃO DE QUEM AINDA NÃO TEM PINTURA.
+   Oito folhas de brasão chegaram e cinco famílias entraram depois. Deixar as
+   cinco sem marca não é uma falta de enfeite: o brasão é como a família se
+   anuncia no guia, na loja e no cabeçalho da sala, e sem ele o jogador não
+   tem como saber QUAL regra está valendo no tabuleiro.
+   O escudo é montado a partir da gramática da própria família — o mesmo traço
+   que desenha as cartas dela, encolhido dentro de um escudo. Não é o símbolo
+   de nenhuma carta: o quadro em volta é o que separa "a família" de "uma
+   carta da família", e o índice é fixo, então o brasão nunca muda de partida
+   para partida. O traço é engrossado na proporção exata do encolhimento,
+   senão o desenho de dentro sai fino e o escudo parece vazio. */
+const ESCUDO = 'M12 1 22 4.1v7.6c0 5.7-4.1 9.7-10 11.9C6.1 21.4 2 17.4 2 11.7V4.1z';
+const brasao = fam =>
+  `<svg class="gl" viewBox="0 0 24 24" aria-hidden="true">`
+  + `<path d="${ESCUDO}" fill="none" stroke-width="1.9"/>`
+  + `<g transform="translate(12 12.6) scale(.58) translate(-12 -12)"`
+  + ` stroke-width="3.7">${glifo(fam, 5)}</g></svg>`;
+for(const f of LISTA_FAMILIAS) ICO_FAM[f.id] ||= brasao(f.id);
+
 /* ─────────── A MOLDURA DA CARTA ───────────
    Oito molduras pintadas chegaram, e catorze tipos de carta existem. Em vez
    de esticar as oito para caber uma em cada tipo, elas agrupam por AQUILO QUE
@@ -191,6 +222,10 @@ export const MOLDURA_DO_TIPO = {
   bomba:'m-coral',                                 /* tem pavio */
   mimic:'m-vinho',                                 /* mente para você */
   camaleao:'m-aco',  veneno:'m-aco', corrente:'m-aco',
+  prisma:'m-gelo',                                 /* quebra a luz para o próximo */
+  amuleto:'m-roxo',                                /* paga em poder, não em ponto */
+  tempo:'m-prata',                                 /* devolve virada */
+  maldicao:'m-vinho',                              /* está lá para atrapalhar */
 };
 
 /* A MARCA DE UMA RELÍQUIA, em três degraus.

@@ -144,6 +144,7 @@ export class Sala {
     this._novas = [];                  // por virada: a carta era inédita?
     this._perdoou = false;             // o perdão do primeiro erro já foi gasto?
     this._marcou = false;              // a primeira carta da sala já foi marcada?
+    this._prisma = false;              // o próximo par vale o dobro?
     this.cartas = this._montar();
     /* O QUE OS EVENTOS SEMEARAM NO TABULEIRO.
        Tudo aqui roda ANTES do chefe e antes das relíquias, e sempre pelo RNG
@@ -227,6 +228,7 @@ export class Sala {
   valorDe(c){
     const t = TIPOS[c.tipo];
     let base = (t.base||10) + (this.mods.pontoBase||0);
+    if(c.fam==='dinossauros') base += 6;
     let mult = (t.mult||1);
     if(c.fam==='dragoes') mult *= 1.5;
     return Math.round(base * mult * this.multCombo());
@@ -240,7 +242,11 @@ export class Sala {
      esse prazo, e é isso que uma relíquia de memória deve fazer. */
   _mostrar(c){
     c.conhecida = true; c.vista = true;
-    c.vistaAte = this.turno + 1 + (this.mods.memoria||0);
+    /* ANIMAIS deixam rastro: a carta some uma virada depois das outras. É a
+       única família que mexe no PRAZO da memória, e faz a sala inteira jogar
+       mais devagar sem tirar dificuldade de ninguém. */
+    const rastro = c.fam==='animais' ? 1 : 0;
+    c.vistaAte = this.turno + 1 + rastro + (this.mods.memoria||0);
   }
   /* some da tela AGORA, e marca nenhuma segura (é o que o Fantasma faz) */
   _apagarTela(c){ if(c.marcada) return; c.vista = false; c.vistaAte = -1; }
@@ -319,6 +325,7 @@ export class Sala {
 
     const t = TIPOS[a.tipo].curinga ? TIPOS[b.tipo] : TIPOS[a.tipo];
     let base = (t.base||10) + (this.mods.pontoBase||0);
+    if(a.fam==='dinossauros'||b.fam==='dinossauros') base += 6;
     let mult = (t.mult||1);
     /* ESPECIALIZAÇÃO. Dois mapas — um por TIPO de carta, outro por FAMÍLIA —
        fazem uma relíquia poder dizer "o Cristal vale o dobro para você" ou
@@ -336,6 +343,14 @@ export class Sala {
       this._xadrez=(this._xadrez||0)+1; mult*=2;
       rel.eventos.push({ e:'xadrez' });
     }
+    /* a luz guardada pelo Prisma no par anterior gasta-se aqui */
+    if(this._prisma && !t.prisma){ mult *= 2; this._prisma = false;
+      rel.eventos.push({ e:'prismado' }); }
+    /* MALDIÇÃO — enquanto uma estiver na mesa, todo par rende 20% menos.
+       Contada AQUI e não na entrada porque a graça é ela sumir quando você a
+       resolve: a conta melhora no meio da sala, e dá para sentir. */
+    const praga = this.emJogo().filter(c=>TIPOS[c.tipo].maldicao).length;
+    if(praga) mult *= Math.pow(0.8, praga);
     const ganho = Math.round(base * mult * this.multCombo());
     this.pontos += ganho;
     /* POR QUE este par fechou. Oito e meio por cento dos pares do jogo fecham
@@ -350,6 +365,15 @@ export class Sala {
     /* o que o TIPO faz ao ser resolvido */
     if(t.moedas){ const m=t.moedas+(this.mods.moedaBonus||0); this.moedas+=m;
       rel.eventos.push({ e:'moedas', n:m }); }
+    /* PRISMA — a luz que ela quebra cai no PRÓXIMO par, e não neste. É o que
+       a separa do Cristal: o Cristal vale mais, o Prisma faz o outro valer. */
+    if(t.prisma){ this._prisma = true; rel.eventos.push({ e:'prisma' }); }
+    /* RELÍQUIA — paga em essência, que é a moeda das ferramentas caras */
+    if(t.essencia){ this.essencia += t.essencia;
+      rel.eventos.push({ e:'essencia', n:t.essencia }); }
+    /* TEMPO — a única carta que devolve virada em vez de gastar */
+    if(t.devolve){ this.viradas += t.devolve;
+      rel.eventos.push({ e:'virada_extra', n:t.devolve }); }
     if(t.embaralha) this._embaralhar(t.embaralha, rel);
     if(t.acorrenta){ this._revelarUma(rel);
       /* a Linha de Costura faz a Corrente puxar duas em vez de uma */
@@ -365,6 +389,29 @@ export class Sala {
       if(this._tec%3===0) this._revelarUma(rel);
     }
     if(a.fam==='egito'||b.fam==='egito') this._marcarProxima=true;
+    /* PIRATAS saqueiam: par fechado é moeda no bolso, e moeda é a única coisa
+       que atravessa a sala e vira relíquia na loja. */
+    if(a.fam==='piratas'||b.fam==='piratas'){ this.moedas += 2;
+      rel.eventos.push({ e:'moedas', n:2 }); }
+    /* SAMURAI devolve FOCO, que nenhuma outra família toca. Foco é o recurso
+       que não volta: uma família que o devolve muda o que dá para arriscar. */
+    if(a.fam==='samurai'||b.fam==='samurai'){
+      this._sam=(this._sam||0)+1;
+      if(this._sam%2===0 && this.foco < this.focoMax){
+        this.foco++; rel.eventos.push({ e:'foco', n:1 });
+      }
+    }
+    /* DINOSSAUROS são pesados: rendem mais e comem o relógio. A virada sai
+       DEPOIS de pontuar, para o par valer mesmo quando é o último. */
+    if(a.fam==='dinossauros'||b.fam==='dinossauros'){ this.viradas--;
+      rel.eventos.push({ e:'virada_a_menos', n:1 }); }
+    /* ROBÔS varrem em par. Tecnologia revela UMA carta solta, que muitas vezes
+       não serve para nada; o Robô entrega as duas metades da mesma dupla, que
+       é informação que fecha jogada. Por isso é a cada dois pares, não a cada. */
+    if(a.fam==='robos'||b.fam==='robos'){
+      this._rob=(this._rob||0)+1;
+      if(this._rob%2===0) this._revelarPar(rel);
+    }
   }
 
   _errou(a,b,rel,eramNovas,viradasAntes){
@@ -521,6 +568,19 @@ export class Sala {
     const alvo = this.rng.pick(this.fechadas().filter(c=>!c.vista))
               || this.rng.pick(this.fechadas());
     if(alvo){ this._mostrar(alvo); rel.eventos.push({ e:'revelou', cartas:[alvo.id] }); }
+  }
+  /* revela uma DUPLA fechada inteira — as duas cartas do mesmo par. Prefere
+     um par de que você não conhece nenhuma das metades; se todos já são
+     conhecidos, mostrar de novo ainda vale (recoloca na tela). */
+  _revelarPar(rel){
+    const conta = {};
+    for(const c of this.fechadas()) (conta[c.par] ||= []).push(c);
+    const inteiros = Object.values(conta).filter(m=>m.length===2);
+    if(!inteiros.length) return this._revelarUma(rel);
+    const novos = inteiros.filter(m=>m.every(c=>!c.vista));
+    const m = this.rng.pick(novos.length ? novos : inteiros);
+    for(const c of m) this._mostrar(c);
+    rel.eventos.push({ e:'revelou', cartas:m.map(c=>c.id) });
   }
 
   /* A META É PISO, NÃO LINHA DE CHEGADA.
