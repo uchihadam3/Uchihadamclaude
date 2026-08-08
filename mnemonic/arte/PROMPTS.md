@@ -109,19 +109,28 @@ iguais e por isso continua desenhada até hoje.
 O glifo é lido a quarenta pixels sobre a cor da família. Por isso: **silhueta
 antes de detalhe**, nada de traço fino, nada de textura interna.
 
-### Molde comum (trocar só a lista e a cor de destaque)
+### Animais — `arte/glifo/animais/`
 
 ```
 A 6x3 grid sheet of 18 flat game symbols on a flat pure magenta #FF00FF
 background.
 
-<<LISTA DOS 18>>
+Row 1, left to right: a cat head with two pointed ears; a rabbit head with two
+long upright ears; a bear head with two small round ears; a fox head with a
+sharp triangular muzzle; a bull head with wide curved horns; an owl face with
+two big round eye discs.
+Row 2, left to right: a coiled snake; a fish seen from the side; a turtle shell
+with head and four feet; a frog seen from the front; a horse head in profile; a
+howling wolf head.
+Row 3, left to right: an elephant head with trunk and big ears; a monkey face; a
+small bird in profile with a pointed beak; a butterfly with open wings; a
+scorpion seen from above; a crab seen from above.
 
 All 18 symbols drawn in the same style: solid warm ivory #F2E9CE fill, thick
-charcoal #211C17 outline of uniform weight, one thin inner rim line in
-<<COR DA FAMÍLIA>>, completely flat — no shading, no gradient, no texture
-inside the shape. Bold simplified silhouettes that stay readable at 40 pixels.
-No thin lines, no small details, no interior hatching.
+charcoal #211C17 outline of uniform weight, one thin inner rim line in #e2843c,
+completely flat — no shading, no gradient, no texture inside the shape. Bold
+simplified silhouettes that stay readable at 40 pixels. No thin lines, no small
+details, no interior hatching.
 
 Each symbol fully inside its own cell with a wide empty margin, nothing touching
 or crossing a cell edge, no symbol overlapping another, all at the same scale,
@@ -132,63 +141,153 @@ vignette, no shadow cast on the background. No frames, no borders, no grid
 lines, no text, no numbers, no captions, no watermark.
 ```
 
-### Animais — cor `#e2843c`
-
-> Row 1: cat head with pointed ears; rabbit head with long upright ears; bear
-> head with round ears; fox head, sharp triangular muzzle; bull head with wide
-> curved horns; owl face with big round eye discs.
-> Row 2: coiled snake; fish seen from the side; turtle shell with head and four
-> feet; frog seen from the front; horse head in profile; howling wolf head.
-> Row 3: elephant head with trunk and big ears; monkey face; small bird in
-> profile with a pointed beak; butterfly with open wings; scorpion from above;
-> crab from above.
-
-### Piratas — cor `#2ec4c4`
-
-> Row 1: anchor; skull with two crossed bones below; ship's steering wheel;
-> sailing ship hull with two triangular sails; pennant flag on a pole; iron
-> hook.
-> Row 2: parrot in profile; rolled treasure map; compass rose; rum bottle;
-> treasure chest, closed; two crossed cutlasses.
-> Row 3: eye patch with strap; tricorn pirate hat; gold doubloon coin; cannon
-> on wheels; coiled rope with a knot; lighthouse tower.
-
-### Samurai — cor `#ff8fb3`
-
-> Row 1: katana blade, diagonal; two crossed short swords; open folding fan;
-> kabuto helmet with crescent crest; torii gate; four-pointed shuriken.
-> Row 2: five-petal family crest flower; bow with a nocked arrow; hanging paper
-> lantern; Mount Fuji with a flat snowy top; koi fish; standing crane bird.
-> Row 3: bamboo stalk with leaves; taiko drum on a stand; oni demon mask; temple
-> bell; braided shimenawa rope; ink brush with a drop of ink.
-
-### Dinossauros — cor `#35a86a`
-
-> Row 1: tyrannosaurus skull in profile; stegosaurus with back plates;
-> long-necked brachiosaurus; triceratops head with three horns and frill;
-> three-toed footprint; cracked egg.
-> Row 2: rib cage with spine; single curved claw; single fang tooth; pterodactyl
-> in flight; ankylosaurus tail club; raptor in profile.
-> Row 3: amber drop with an insect inside; erupting volcano; fern leaf; falling
-> meteor with a trail; fossilized feather in stone; curved horn.
-
-### Robôs — cor `#b8d43a`
-
-> Row 1: square robot head with an antenna; toothed gear; microchip with side
-> legs; two-finger mechanical claw; single glowing lens eye; small full-body
-> robot standing.
-> Row 2: battery cell; power plug; satellite dish; circuit board trace pattern;
-> coiled spring; wrench.
-> Row 3: horseshoe magnet; power button symbol in a ring; quadcopter drone; tank
-> tread wheel; hydraulic piston; loudspeaker cone.
-
-Recortar (o modo `mancha` é o seguro: a grade só agrupa, cada peça é cortada
-pela própria silhueta):
-
 ```
 python3 tools/recortar.py folhas/animais.png mancha 6 3 arte/glifo/animais
 python3 tools/distinguir.py animais
 ```
+
+### Piratas — `arte/glifo/piratas/`
+
+```
+A 6x3 grid sheet of 18 flat game symbols on a flat pure magenta #FF00FF
+background.
+
+Row 1, left to right: an anchor; a skull with two crossed bones below it; a
+ship's steering wheel; a sailing ship hull with two triangular sails; a pennant
+flag on a pole; an iron hook.
+Row 2, left to right: a parrot in profile; a rolled treasure map; a compass
+rose; a rum bottle; a closed treasure chest; two crossed cutlasses.
+Row 3, left to right: an eye patch with its strap; a tricorn pirate hat; a gold
+doubloon coin; a cannon on wheels; a coiled rope with a knot; a lighthouse
+tower.
+
+All 18 symbols drawn in the same style: solid warm ivory #F2E9CE fill, thick
+charcoal #211C17 outline of uniform weight, one thin inner rim line in #2ec4c4,
+completely flat — no shading, no gradient, no texture inside the shape. Bold
+simplified silhouettes that stay readable at 40 pixels. No thin lines, no small
+details, no interior hatching.
+
+Each symbol fully inside its own cell with a wide empty margin, nothing touching
+or crossing a cell edge, no symbol overlapping another, all at the same scale,
+centered in its cell.
+
+Flat pure magenta #FF00FF background, absolutely uniform, no gradient, no
+vignette, no shadow cast on the background. No frames, no borders, no grid
+lines, no text, no numbers, no captions, no watermark.
+```
+
+```
+python3 tools/recortar.py folhas/piratas.png mancha 6 3 arte/glifo/piratas
+python3 tools/distinguir.py piratas
+```
+
+### Samurai — `arte/glifo/samurai/`
+
+```
+A 6x3 grid sheet of 18 flat game symbols on a flat pure magenta #FF00FF
+background.
+
+Row 1, left to right: a katana blade held diagonally; two crossed short swords;
+an open folding fan; a kabuto helmet with a crescent crest; a torii gate; a
+four-pointed shuriken.
+Row 2, left to right: a five-petal family crest flower; a bow with a nocked
+arrow; a hanging paper lantern; Mount Fuji with a flat snowy top; a koi fish; a
+standing crane bird.
+Row 3, left to right: a bamboo stalk with leaves; a taiko drum on a stand; an
+oni demon mask; a temple bell; a braided shimenawa rope; an ink brush with a
+drop of ink.
+
+All 18 symbols drawn in the same style: solid warm ivory #F2E9CE fill, thick
+charcoal #211C17 outline of uniform weight, one thin inner rim line in #ff8fb3,
+completely flat — no shading, no gradient, no texture inside the shape. Bold
+simplified silhouettes that stay readable at 40 pixels. No thin lines, no small
+details, no interior hatching.
+
+Each symbol fully inside its own cell with a wide empty margin, nothing touching
+or crossing a cell edge, no symbol overlapping another, all at the same scale,
+centered in its cell.
+
+Flat pure magenta #FF00FF background, absolutely uniform, no gradient, no
+vignette, no shadow cast on the background. No frames, no borders, no grid
+lines, no text, no numbers, no captions, no watermark.
+```
+
+```
+python3 tools/recortar.py folhas/samurai.png mancha 6 3 arte/glifo/samurai
+python3 tools/distinguir.py samurai
+```
+
+### Dinossauros — `arte/glifo/dinossauros/`
+
+```
+A 6x3 grid sheet of 18 flat game symbols on a flat pure magenta #FF00FF
+background.
+
+Row 1, left to right: a tyrannosaurus skull in profile; a stegosaurus with back
+plates; a long-necked brachiosaurus; a triceratops head with three horns and a
+frill; a three-toed footprint; a cracked egg.
+Row 2, left to right: a rib cage with spine; a single curved claw; a single fang
+tooth; a pterodactyl in flight; an ankylosaurus tail club; a raptor in profile.
+Row 3, left to right: an amber drop with an insect inside; an erupting volcano;
+a fern leaf; a falling meteor with a trail; a fossilized feather in stone; a
+curved horn.
+
+All 18 symbols drawn in the same style: solid warm ivory #F2E9CE fill, thick
+charcoal #211C17 outline of uniform weight, one thin inner rim line in #35a86a,
+completely flat — no shading, no gradient, no texture inside the shape. Bold
+simplified silhouettes that stay readable at 40 pixels. No thin lines, no small
+details, no interior hatching.
+
+Each symbol fully inside its own cell with a wide empty margin, nothing touching
+or crossing a cell edge, no symbol overlapping another, all at the same scale,
+centered in its cell.
+
+Flat pure magenta #FF00FF background, absolutely uniform, no gradient, no
+vignette, no shadow cast on the background. No frames, no borders, no grid
+lines, no text, no numbers, no captions, no watermark.
+```
+
+```
+python3 tools/recortar.py folhas/dinossauros.png mancha 6 3 arte/glifo/dinossauros
+python3 tools/distinguir.py dinossauros
+```
+
+### Robôs — `arte/glifo/robos/`
+
+```
+A 6x3 grid sheet of 18 flat game symbols on a flat pure magenta #FF00FF
+background.
+
+Row 1, left to right: a square robot head with an antenna; a toothed gear; a
+microchip with side legs; a two-finger mechanical claw; a single glowing lens
+eye; a small full-body robot standing.
+Row 2, left to right: a battery cell; a power plug; a satellite dish; a circuit
+board trace pattern; a coiled spring; a wrench.
+Row 3, left to right: a horseshoe magnet; a power button symbol inside a ring; a
+quadcopter drone; a tank tread wheel; a hydraulic piston; a loudspeaker cone.
+
+All 18 symbols drawn in the same style: solid warm ivory #F2E9CE fill, thick
+charcoal #211C17 outline of uniform weight, one thin inner rim line in #b8d43a,
+completely flat — no shading, no gradient, no texture inside the shape. Bold
+simplified silhouettes that stay readable at 40 pixels. No thin lines, no small
+details, no interior hatching.
+
+Each symbol fully inside its own cell with a wide empty margin, nothing touching
+or crossing a cell edge, no symbol overlapping another, all at the same scale,
+centered in its cell.
+
+Flat pure magenta #FF00FF background, absolutely uniform, no gradient, no
+vignette, no shadow cast on the background. No frames, no borders, no grid
+lines, no text, no numbers, no captions, no watermark.
+```
+
+```
+python3 tools/recortar.py folhas/robos.png mancha 6 3 arte/glifo/robos
+python3 tools/distinguir.py robos
+```
+
+O modo `mancha` é o seguro para folha de glifo: a grade só agrupa, e cada peça
+é cortada pela própria silhueta.
 
 Se a folha voltar com mais de 18 desenhos aproveitáveis, não escolher a dedo:
 
