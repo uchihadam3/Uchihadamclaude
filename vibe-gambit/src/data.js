@@ -122,6 +122,113 @@ export const SKILLS = {
   parar:            { id:'parar',            name:'Parar',            kind:'ailment', targetType:'enemy', applies:{ status:'imobilizar', ticks:2 }, mp:8 },
   distorcao:        { id:'distorcao',        name:'Distorção',        kind:'damage',  targetType:'enemy', stat:'mag', power:0.90, mp:10, aoe:true },
 
+  // === PASSO 5 — DENSIDADE FFXII: famílias de magia com tiers por classe =====
+  // Guerreiro (Cavaleiro) — marcial defensivo
+  golpe_poderoso:   { id:'golpe_poderoso',   name:'Golpe Poderoso',   kind:'damage', targetType:'enemy', stat:'atk', power:1.60, mp:5 },
+  investida:        { id:'investida',        name:'Investida',        kind:'damage', targetType:'enemy', stat:'atk', power:1.20, mp:7, applies:{ status:'stun', ticks:1 } },
+  corte_amplo:      { id:'corte_amplo',      name:'Corte Amplo',      kind:'damage', targetType:'enemy', stat:'atk', power:0.85, mp:8, aoe:true },
+  grito_intimidador:{ id:'grito_intimidador',name:'Grito Intimidador',kind:'buff',   targetType:'enemy', buff:{ stat:'atk', amt:-4, scope:'target' }, duration:4, mp:7, aoe:true },
+  postura_defensiva:{ id:'postura_defensiva',name:'Postura Defensiva',kind:'buff',   targetType:'self',  buff:{ stat:'def', amt:8, scope:'self' }, duration:4, mp:4 },
+  vinganca:         { id:'vinganca',         name:'Vingança',         kind:'damage', targetType:'enemy', stat:'atk', power:2.00, mp:8, applies:{ status:'bleed', ticks:2, dmg:5 } },
+  // Clérigo (Mago Branco) — família completa (Cura/Buff/Cleanse/Holy)
+  cura3:            { id:'cura3',            name:'Cura III',         kind:'heal',   targetType:'ally',  stat:'mag', power:3.00, mp:16 },
+  renovar:          { id:'renovar',          name:'Renovar',          kind:'heal',   targetType:'ally',  stat:'mag', power:2.00, mp:24, aoe:true },
+  arise:            { id:'arise',            name:'Ressurgir',        kind:'revive', targetType:'ally',  revive:0.90, mp:26 },
+  abencoar:         { id:'abencoar',         name:'Bravura',          kind:'buff',   targetType:'ally',  buff:{ stat:'atk', amt:6, scope:'allies' }, duration:5, mp:10 },
+  fe:               { id:'fe',               name:'Fé',               kind:'buff',   targetType:'ally',  buff:{ stat:'mag', amt:6, scope:'allies' }, duration:5, mp:10 },
+  manto_arcano:     { id:'manto_arcano',     name:'Manto Arcano',     kind:'buff',   targetType:'ally',  buff:{ stat:'def', amt:6, scope:'allies' }, duration:5, mp:14 },
+  regenerar:        { id:'regenerar',        name:'Regenerar',        kind:'ailment',targetType:'ally',  applies:{ status:'regen', ticks:5, amt:9 }, mp:8 },
+  santa:            { id:'santa',            name:'Santo',            kind:'damage', targetType:'enemy', stat:'mag', power:2.20, mp:30, element:'holy' },
+  confundir:        { id:'confundir',        name:'Confundir',        kind:'ailment',targetType:'enemy', applies:{ status:'confusao', ticks:3 }, mp:8 },
+  // Arqueiro — arsenal de flechas
+  tiro_perfurante:  { id:'tiro_perfurante',  name:'Tiro Perfurante',  kind:'damage', targetType:'enemy', stat:'atk', power:1.65, mp:6 },
+  chuva_flechas:    { id:'chuva_flechas',    name:'Chuva de Flechas', kind:'damage', targetType:'enemy', stat:'atk', power:0.75, mp:8, aoe:true },
+  flecha_gelo:      { id:'flecha_gelo',      name:'Flecha de Gelo',   kind:'damage', targetType:'enemy', stat:'atk', power:1.35, mp:5, element:'gelo' },
+  flecha_atordoante:{ id:'flecha_atordoante',name:'Flecha Atordoante',kind:'damage', targetType:'enemy', stat:'atk', power:0.90, mp:6, applies:{ status:'stun', ticks:1 } },
+  tiro_cegante:     { id:'tiro_cegante',     name:'Tiro Cegante',     kind:'damage', targetType:'enemy', stat:'atk', power:0.80, mp:6, applies:{ status:'cegueira', ticks:3 } },
+  foco_cacador:     { id:'foco_cacador',     name:'Foco do Caçador',  kind:'buff',   targetType:'self',  buff:{ stat:'atk', amt:6, scope:'self' }, duration:4, mp:4 },
+  disparo_rapido:   { id:'disparo_rapido',   name:'Disparo Rápido',   kind:'damage', targetType:'enemy', stat:'atk', power:0.55, mp:5, hits:3 },
+  // Mago (Elemental) — famílias Fogo/Gelo/Raio em tiers + controle
+  raio2:            { id:'raio2',            name:'Raio II',          kind:'damage', targetType:'enemy', stat:'mag', power:1.90, mp:9,  element:'raio', applies:{ status:'stun', ticks:1 } },
+  gelo2:            { id:'gelo2',            name:'Gelo II',          kind:'damage', targetType:'enemy', stat:'mag', power:1.95, mp:9,  element:'gelo' },
+  tempestade_raios: { id:'tempestade_raios', name:'Tempestade',       kind:'damage', targetType:'enemy', stat:'mag', power:1.20, mp:14, element:'raio', aoe:true },
+  nevasca:          { id:'nevasca',          name:'Nevasca',          kind:'damage', targetType:'enemy', stat:'mag', power:1.25, mp:14, element:'gelo', aoe:true },
+  silenciar:        { id:'silenciar',        name:'Silenciar',        kind:'ailment',targetType:'enemy', applies:{ status:'silencio', ticks:3 }, mp:6 },
+  congelar:         { id:'congelar',         name:'Congelar',         kind:'ailment',targetType:'enemy', applies:{ status:'imobilizar', ticks:2 }, mp:8 },
+  comburir:         { id:'comburir',         name:'Comburir',         kind:'damage', targetType:'enemy', stat:'mag', power:1.60, mp:8, element:'fire', applies:{ status:'burn', ticks:3, dmg:7 } },
+  // Bárbaro — fúria e sangue
+  terremoto:        { id:'terremoto',        name:'Terremoto',        kind:'damage', targetType:'enemy', stat:'atk', power:1.00, mp:8, aoe:true },
+  brutalidade:      { id:'brutalidade',      name:'Brutalidade',      kind:'damage', targetType:'enemy', stat:'atk', power:1.80, mp:6, applies:{ status:'bleed', ticks:3, dmg:6 } },
+  esmagar:          { id:'esmagar',          name:'Esmagar',          kind:'damage', targetType:'enemy', stat:'atk', power:1.50, mp:7, applies:{ status:'stun', ticks:1 } },
+  rugido:           { id:'rugido',           name:'Rugido',           kind:'buff',   targetType:'enemy', buff:{ stat:'atk', amt:-4, scope:'target' }, duration:4, mp:6, aoe:true },
+  sede_sangue:      { id:'sede_sangue',      name:'Sede de Sangue',   kind:'damage', targetType:'enemy', stat:'atk', power:1.30, mp:6, lifesteal:0.5 },
+  frenesi:          { id:'frenesi',          name:'Frenesi',          kind:'buff',   targetType:'self',  buff:{ stat:'spd', amt:4, scope:'self' }, duration:4, mp:4 },
+  // Assassino — furtividade e veneno
+  apunhalar:        { id:'apunhalar',        name:'Apunhalar',        kind:'damage', targetType:'enemy', stat:'atk', power:1.60, mp:5, critBonus:0.30 },
+  ataque_furtivo:   { id:'ataque_furtivo',   name:'Ataque Furtivo',   kind:'damage', targetType:'enemy', stat:'atk', power:2.30, mp:8, critBonus:0.60 },
+  garrote:          { id:'garrote',          name:'Garrote',          kind:'damage', targetType:'enemy', stat:'atk', power:1.00, mp:6, applies:{ status:'silencio', ticks:3 } },
+  passo_sombrio:    { id:'passo_sombrio',    name:'Passo Sombrio',    kind:'buff',   targetType:'self',  buff:{ stat:'spd', amt:4, scope:'self' }, duration:4, mp:4 },
+  marca_morte:      { id:'marca_morte',      name:'Marca da Morte',   kind:'buff',   targetType:'enemy', buff:{ stat:'def', amt:-6, scope:'target' }, duration:4, mp:5 },
+  lamina_dupla:     { id:'lamina_dupla',     name:'Lâmina Dupla',     kind:'damage', targetType:'enemy', stat:'atk', power:0.65, mp:4, hits:2 },
+  // Paladino — sagrado híbrido
+  luz_curativa:     { id:'luz_curativa',     name:'Luz Curativa',     kind:'heal',   targetType:'ally',  stat:'mag', power:1.60, mp:6 },
+  bencao:           { id:'bencao',           name:'Bênção',           kind:'buff',   targetType:'ally',  buff:{ stat:'atk', amt:5, scope:'allies' }, duration:5, mp:8 },
+  punicao:          { id:'punicao',          name:'Punição',          kind:'damage', targetType:'enemy', stat:'mag', power:1.55, mp:8, element:'holy' },
+  martelo_justo:    { id:'martelo_justo',    name:'Martelo Justo',    kind:'damage', targetType:'enemy', stat:'atk', power:1.60, mp:7, applies:{ status:'stun', ticks:1 } },
+  luz_purificadora: { id:'luz_purificadora', name:'Luz Purificadora', kind:'cleanse',targetType:'ally',  cure:'all', aoe:true, mp:12 },
+  // Piromante — fogo em tiers
+  fogo3:            { id:'fogo3',            name:'Fogo III',         kind:'damage', targetType:'enemy', stat:'mag', power:2.60, mp:18, element:'fire', applies:{ status:'burn', ticks:2, dmg:8 } },
+  chamas_gemeas:    { id:'chamas_gemeas',    name:'Chamas Gêmeas',    kind:'damage', targetType:'enemy', stat:'mag', power:0.95, mp:9, element:'fire', hits:2, applies:{ status:'burn', ticks:2, dmg:5 } },
+  combustao:        { id:'combustao',        name:'Combustão',        kind:'damage', targetType:'enemy', stat:'mag', power:1.40, mp:10, element:'fire', applies:{ status:'burn', ticks:4, dmg:10 } },
+  inferno:          { id:'inferno',          name:'Inferno',          kind:'damage', targetType:'enemy', stat:'mag', power:1.70, mp:26, element:'fire', aoe:true, applies:{ status:'burn', ticks:3, dmg:8 } },
+  calor_escaldante: { id:'calor_escaldante', name:'Calor Escaldante', kind:'buff',   targetType:'enemy', buff:{ stat:'def', amt:-5, scope:'target' }, duration:4, mp:5 },
+  // Alquimista — poções e gases
+  elixir2:          { id:'elixir2',          name:'Elixir II',        kind:'heal',   targetType:'ally',  stat:'mag', power:1.90, mp:8 },
+  bomba_fogo:       { id:'bomba_fogo',       name:'Bomba Incendiária',kind:'damage', targetType:'enemy', stat:'mag', power:1.30, mp:10, element:'fire', aoe:true },
+  gas_sono:         { id:'gas_sono',         name:'Gás Soporífero',   kind:'ailment',targetType:'enemy', applies:{ status:'sono', ticks:3 }, aoe:true, mp:11 },
+  gas_cegueira:     { id:'gas_cegueira',     name:'Gás Cegante',      kind:'ailment',targetType:'enemy', applies:{ status:'cegueira', ticks:3 }, aoe:true, mp:10 },
+  pocao_forca:      { id:'pocao_forca',      name:'Poção de Força',   kind:'buff',   targetType:'ally',  buff:{ stat:'atk', amt:5, scope:'allies' }, duration:5, mp:8 },
+  corrosao:         { id:'corrosao',         name:'Corrosão',         kind:'damage', targetType:'enemy', stat:'mag', power:1.20, mp:5, applies:{ status:'poison', ticks:4, dmg:6 } },
+  // Duelista — esgrima ágil
+  perfurar:         { id:'perfurar',         name:'Perfurar',         kind:'damage', targetType:'enemy', stat:'atk', power:1.70, mp:6 },
+  estocada_dupla:   { id:'estocada_dupla',   name:'Estocada Dupla',   kind:'damage', targetType:'enemy', stat:'atk', power:0.75, mp:4, hits:2 },
+  golpe_preciso:    { id:'golpe_preciso',    name:'Golpe Preciso',    kind:'damage', targetType:'enemy', stat:'atk', power:1.40, mp:5, critBonus:0.40 },
+  provocacao_elegante:{ id:'provocacao_elegante', name:'Provocação Elegante', kind:'buff', targetType:'enemy', buff:{ stat:'atk', amt:-4, scope:'target' }, duration:4, mp:3 },
+  contra_ataque:    { id:'contra_ataque',    name:'Contra-Ataque',    kind:'buff',   targetType:'self',  buff:{ stat:'def', amt:5, scope:'self' }, duration:4, mp:3 },
+  // Monge — artes marciais de Ki
+  golpe_ki:         { id:'golpe_ki',         name:'Golpe de Ki',      kind:'damage', targetType:'enemy', stat:'atk', power:1.50, mp:5 },
+  explosao_ki:      { id:'explosao_ki',      name:'Explosão de Ki',   kind:'damage', targetType:'enemy', stat:'atk', power:0.90, mp:8, aoe:true },
+  cura_interior:    { id:'cura_interior',    name:'Cura Interior',    kind:'heal',   targetType:'self',  stat:'atk', power:1.20, mp:5 },
+  postura_ferro:    { id:'postura_ferro',    name:'Postura de Ferro', kind:'buff',   targetType:'self',  buff:{ stat:'def', amt:6, scope:'self' }, duration:4, mp:4 },
+  contra_golpe:     { id:'contra_golpe',     name:'Contra-Golpe',     kind:'damage', targetType:'enemy', stat:'atk', power:1.60, mp:6, critBonus:0.30 },
+  // Bardo — repertório de suporte
+  hino_coragem:     { id:'hino_coragem',     name:'Hino de Coragem',  kind:'buff',   targetType:'ally',  buff:{ stat:'atk', amt:5, scope:'allies' }, duration:5, mp:8 },
+  melodia_protecao: { id:'melodia_protecao', name:'Melodia Protetora',kind:'buff',   targetType:'ally',  buff:{ stat:'def', amt:5, scope:'allies' }, duration:5, mp:8 },
+  verso_silencio:   { id:'verso_silencio',   name:'Verso do Silêncio',kind:'ailment',targetType:'enemy', applies:{ status:'silencio', ticks:3 }, mp:6 },
+  balada_sono:      { id:'balada_sono',      name:'Balada do Sono',   kind:'ailment',targetType:'enemy', applies:{ status:'sono', ticks:3 }, mp:7 },
+  final_epico:      { id:'final_epico',      name:'Final Épico',      kind:'damage', targetType:'enemy', stat:'mag', power:1.10, mp:12, aoe:true },
+  // Guardião Rúnico — runas defensivas e selos
+  runa_vida:        { id:'runa_vida',        name:'Runa da Vida',     kind:'heal',   targetType:'ally',  stat:'mag', power:1.50, mp:7 },
+  runa_regeneracao: { id:'runa_regeneracao', name:'Runa Regeneradora',kind:'ailment',targetType:'ally',  applies:{ status:'regen', ticks:5, amt:8 }, mp:8 },
+  selo_silencio:    { id:'selo_silencio',    name:'Selo do Silêncio', kind:'ailment',targetType:'enemy', applies:{ status:'silencio', ticks:3 }, mp:6 },
+  explosao_runica:  { id:'explosao_runica',  name:'Explosão Rúnica',  kind:'damage', targetType:'enemy', stat:'mag', power:1.20, mp:12, aoe:true },
+  egide_maior:      { id:'egide_maior',      name:'Égide Maior',      kind:'shield', targetType:'ally',  shield:{ amount:50, scope:'allies' }, duration:3, mp:16 },
+  marca_runica:     { id:'marca_runica',     name:'Marca Rúnica',     kind:'buff',   targetType:'enemy', buff:{ stat:'def', amt:-5, scope:'target' }, duration:4, mp:5 },
+  // Necromante — sombra e dreno
+  drenar_vida:      { id:'drenar_vida',      name:'Drenar Vida',      kind:'damage', targetType:'enemy', stat:'mag', power:1.50, mp:7, element:'dark', lifesteal:0.7 },
+  toque_gelido:     { id:'toque_gelido',     name:'Toque Gélido',     kind:'damage', targetType:'enemy', stat:'mag', power:1.45, mp:6, element:'dark' },
+  explosao_sombria: { id:'explosao_sombria', name:'Explosão Sombria', kind:'damage', targetType:'enemy', stat:'mag', power:1.20, mp:13, element:'dark', aoe:true },
+  terror:           { id:'terror',           name:'Terror',           kind:'ailment',targetType:'enemy', applies:{ status:'confusao', ticks:3 }, mp:7 },
+  necrose:          { id:'necrose',          name:'Necrose',          kind:'damage', targetType:'enemy', stat:'mag', power:1.40, mp:7, element:'dark', applies:{ status:'poison', ticks:4, dmg:7 } },
+  maldicao:         { id:'maldicao',         name:'Maldição',         kind:'buff',   targetType:'enemy', buff:{ stat:'atk', amt:-5, scope:'target' }, duration:4, mp:5 },
+  // Feiticeiro do Tempo — controle temporal
+  acelerar_massa:   { id:'acelerar_massa',   name:'Acelerar em Massa',kind:'buff',   targetType:'ally',  buff:{ stat:'spd', amt:3, scope:'allies' }, duration:4, mp:10 },
+  lentidao_massa:   { id:'lentidao_massa',   name:'Lentidão em Massa',kind:'buff',   targetType:'enemy', buff:{ stat:'spd', amt:-3, scope:'target' }, duration:3, mp:10, aoe:true },
+  parar_maior:      { id:'parar_maior',      name:'Parar Maior',      kind:'ailment',targetType:'enemy', applies:{ status:'imobilizar', ticks:3 }, mp:12 },
+  reverter:         { id:'reverter',         name:'Reverter',         kind:'heal',   targetType:'ally',  stat:'mag', power:2.10, mp:10 },
+  estase:           { id:'estase',           name:'Estase',           kind:'ailment',targetType:'enemy', applies:{ status:'sono', ticks:3 }, mp:8 },
+  colapso:          { id:'colapso',          name:'Colapso',          kind:'damage', targetType:'enemy', stat:'mag', power:1.80, mp:10, element:'time' },
+
   // --- CONSUMÍVEIS (ações "Usar Poção" — universais; gastam CARGAS por expedição) ---
   usar_pocao_vida:  { id:'usar_pocao_vida',  name:'Usar Poção de Vida',kind:'item',   item:'potion_hp', targetType:'ally', heal:70, mp:0 },
   usar_pocao_mana:  { id:'usar_pocao_mana',  name:'Usar Poção de Mana',kind:'item',   item:'potion_mp', targetType:'ally', restoreMp:45, mp:0 },
@@ -208,7 +315,7 @@ export const HERO_DEFS = [
     armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield','twohand'],
     base:{ hp:120, atk:14, def:8, mag:2, mp:10, spd:6 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['basic_attack','provocar','golpe_escudo','muralha','quebra_armadura','brado_cura'],
+    skills:['basic_attack','provocar','golpe_escudo','golpe_poderoso','investida','corte_amplo','muralha','postura_defensiva','quebra_armadura','grito_intimidador','vinganca','brado_cura'],
     gambits:[
       { condition:'ally_hp_50',    action:'provocar' },
       { condition:'enemy_nearest', action:'basic_attack' },
@@ -219,7 +326,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:90, atk:7, def:5, mag:14, mp:40, spd:7 },
     weaponLevel:0, slots:2, maxSlots:5,
-    skills:['heal','cura2','cura_area','reviver','esuna','protecao','dissipar','holy_strike','basic_attack'],
+    skills:['heal','cura2','cura3','cura_area','renovar','regenerar','reviver','arise','esuna','luz_purificadora','protecao','manto_arcano','abencoar','fe','dissipar','confundir','holy_strike','santa','basic_attack'],
     gambits:[
       { condition:'ally_hp_50', action:'heal' },
       { condition:'enemy_any',  action:'holy_strike' },
@@ -230,7 +337,7 @@ export const HERO_DEFS = [
     armorWeight:'medium', weaponStyle:'ranged', weaponStyles:['ranged','dual'],
     base:{ hp:80, atk:12, def:4, mag:4, mp:20, spd:9 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['power_shot','basic_attack','flecha_venenosa','tiro_multiplo','flecha_marca'],
+    skills:['power_shot','basic_attack','tiro_perfurante','disparo_rapido','flecha_venenosa','flecha_gelo','flecha_atordoante','tiro_cegante','chuva_flechas','tiro_multiplo','flecha_marca','foco_cacador'],
     gambits:[
       { condition:'enemy_hp_50',   action:'power_shot' },
       { condition:'enemy_nearest', action:'basic_attack' },
@@ -241,7 +348,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:70, atk:5, def:3, mag:16, mp:45, spd:8 },
     weaponLevel:0, slots:2, maxSlots:5,
-    skills:['fireball','raio','gelo','chama_area','sono','meteoro','basic_attack'],
+    skills:['fireball','comburir','raio','raio2','gelo','gelo2','chama_area','tempestade_raios','nevasca','sono','silenciar','congelar','meteoro','basic_attack'],
     gambits:[
       { condition:'enemy_any',     action:'fireball' },
       { condition:'enemy_nearest', action:'basic_attack' },
@@ -254,7 +361,7 @@ export const HERO_DEFS = [
     armorWeight:'heavy', weaponStyle:'twohand', weaponStyles:['twohand','dual'],
     base:{ hp:130, atk:16, def:5, mag:0, mp:10, spd:5 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['basic_attack','machadada','furia','rodopio','decapitar','grito_guerra','pele_pedra'],
+    skills:['basic_attack','machadada','furia','frenesi','rodopio','terremoto','brutalidade','esmagar','sede_sangue','rugido','decapitar','grito_guerra','pele_pedra'],
     gambits:[
       { condition:'self_hp_50',    action:'furia' },
       { condition:'enemy_nearest', action:'machadada' },
@@ -266,7 +373,7 @@ export const HERO_DEFS = [
     armorWeight:'medium', weaponStyle:'dual', weaponStyles:['dual','ranged'],
     base:{ hp:76, atk:15, def:3, mag:0, mp:15, spd:12 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['basic_attack','execucao','golpe_sombras','lamina_venenosa','corte_cruzado'],
+    skills:['basic_attack','execucao','apunhalar','ataque_furtivo','golpe_sombras','lamina_venenosa','garrote','corte_cruzado','lamina_dupla','passo_sombrio','marca_morte'],
     gambits:[
       { condition:'enemy_hp_30',   action:'execucao' },
       { condition:'enemy_nearest', action:'basic_attack' },
@@ -277,7 +384,7 @@ export const HERO_DEFS = [
     armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield'],
     base:{ hp:115, atk:12, def:9, mag:10, mp:30, spd:6 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['basic_attack','provocar','heal','holy_strike','escudo_sagrado','muralha_sagrada','imposicao_maos','julgamento'],
+    skills:['basic_attack','provocar','heal','luz_curativa','imposicao_maos','holy_strike','punicao','martelo_justo','escudo_sagrado','muralha_sagrada','bencao','luz_purificadora','julgamento'],
     gambits:[
       { condition:'ally_hp_50',    action:'heal' },
       { condition:'enemy_any',     action:'holy_strike' },
@@ -291,7 +398,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:72, atk:4, def:3, mag:18, mp:50, spd:8 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['fireball','incinerar','basic_attack','fogo2','explosao','muralha_fogo','imolacao'],
+    skills:['fireball','incinerar','basic_attack','fogo2','fogo3','chamas_gemeas','combustao','explosao','muralha_fogo','inferno','imolacao','calor_escaldante'],
     gambits:[
       { condition:'enemy_hp_50',   action:'incinerar' },
       { condition:'enemy_any',     action:'fireball' },
@@ -302,7 +409,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:82, atk:5, def:4, mag:14, mp:45, spd:7 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['frasco_veneno','elixir','basic_attack','bomba_acida','nevoa_toxica','antidoto_area','fogo_grego'],
+    skills:['frasco_veneno','corrosao','elixir','elixir2','basic_attack','bomba_acida','bomba_fogo','nevoa_toxica','gas_sono','gas_cegueira','antidoto_area','pocao_forca','fogo_grego'],
     gambits:[
       { condition:'ally_hp_50',    action:'elixir' },
       { condition:'enemy_any',     action:'frasco_veneno' },
@@ -313,7 +420,7 @@ export const HERO_DEFS = [
     armorWeight:'medium', weaponStyle:'dual', weaponStyles:['dual'],
     base:{ hp:88, atk:13, def:5, mag:2, mp:20, spd:11 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['estocada','basic_attack','danca_laminas','finta','riposte'],
+    skills:['estocada','basic_attack','perfurar','estocada_dupla','golpe_preciso','danca_laminas','finta','provocacao_elegante','riposte','contra_ataque'],
     gambits:[
       { condition:'enemy_nearest', action:'estocada' },
       { condition:'enemy_any',     action:'basic_attack' },
@@ -324,7 +431,7 @@ export const HERO_DEFS = [
     armorWeight:'medium', weaponStyle:'fists', weaponStyles:['fists','dual'],
     base:{ hp:95, atk:12, def:6, mag:4, mp:25, spd:10 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['palma_ki','postura_ki','basic_attack','rajada_golpes','meditar','toque_atordoante'],
+    skills:['palma_ki','golpe_ki','postura_ki','basic_attack','rajada_golpes','explosao_ki','contra_golpe','cura_interior','postura_ferro','meditar','toque_atordoante'],
     gambits:[
       { condition:'self_no_buff',  action:'postura_ki' },
       { condition:'enemy_nearest', action:'palma_ki' },
@@ -335,7 +442,7 @@ export const HERO_DEFS = [
     armorWeight:'medium', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:92, atk:9, def:5, mag:13, mp:44, spd:9 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['hino_de_guerra','cancao_guarda','melodia_cura','basic_attack','balada_veloz','requiem','melodia_rest','grito_sonico'],
+    skills:['hino_de_guerra','hino_coragem','cancao_guarda','melodia_protecao','melodia_cura','basic_attack','balada_veloz','verso_silencio','balada_sono','requiem','melodia_rest','final_epico','grito_sonico'],
     gambits:[
       { condition:'self_no_buff',  action:'hino_de_guerra' },
       { condition:'ally_hp_50',    action:'melodia_cura' },
@@ -349,7 +456,7 @@ export const HERO_DEFS = [
     armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield'],
     base:{ hp:125, atk:11, def:10, mag:8, mp:30, spd:5 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['barreira_runica','basic_attack','egide_runica','runa_guarda','runa_forca','selo_runico','selo_lentidao'],
+    skills:['barreira_runica','basic_attack','egide_runica','egide_maior','runa_guarda','runa_forca','runa_vida','runa_regeneracao','selo_runico','selo_silencio','selo_lentidao','marca_runica','explosao_runica'],
     gambits:[
       { condition:'self_no_shield', action:'barreira_runica' },
       { condition:'enemy_nearest',  action:'basic_attack' },
@@ -360,7 +467,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:78, atk:5, def:3, mag:16, mp:50, spd:7 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['reanimar','colheita','basic_attack','praga','toque_vampirico','medo'],
+    skills:['reanimar','colheita','basic_attack','praga','toque_vampirico','drenar_vida','toque_gelido','necrose','explosao_sombria','terror','medo','maldicao'],
     gambits:[
       { condition:'corpse_ready', action:'reanimar' },
       { condition:'enemy_any',    action:'colheita' },
@@ -371,7 +478,7 @@ export const HERO_DEFS = [
     armorWeight:'light', weaponStyle:'caster', weaponStyles:['caster'],
     base:{ hp:74, atk:4, def:3, mag:17, mp:55, spd:8 },
     weaponLevel:0, slots:3, maxSlots:5,
-    skills:['fluxo_temporal','lentidao','basic_attack','acelerar','parar','distorcao'],
+    skills:['fluxo_temporal','colapso','lentidao','lentidao_massa','basic_attack','acelerar','acelerar_massa','parar','parar_maior','estase','reverter','distorcao'],
     gambits:[
       { condition:'enemy_any',     action:'fluxo_temporal' },
       { condition:'enemy_nearest', action:'basic_attack' },
@@ -399,18 +506,38 @@ const CROSS_SKILLS = {
   paladin:['cancao_guarda'], monk:['minor_heal'],
 };
 // Prancha de licença por classe: nós de SKILL (próprias travadas + multiclasse) + AUMENTOS.
+// Densidade FFXII: além das skills, uma ESCADA de atributos em tiers (a maior parte
+// da prancha do FFXII são células de HP/MP/Força/Magia). reqLevel escalona no MAX_LEVEL.
 export function skillBoard(def){
   const starter = new Set(starterSkills(def));
   const nodes = []; let ci = 0;
   for(const s of def.skills){ if(starter.has(s)) continue;
-    nodes.push({ type:'skill', id:`sk_${s}`, skill:s, cost:1+ci, reqLevel:2+ci*2 }); ci++; }
+    nodes.push({ type:'skill', id:`sk_${s}`, skill:s, cost:1+Math.floor(ci/2), reqLevel:Math.min(MAX_LEVEL, 2+ci) }); ci++; }
   for(const s of (CROSS_SKILLS[def.id]||[])){
-    nodes.push({ type:'skill', id:`sk_${s}`, skill:s, cost:2+ci, reqLevel:3+ci*2 }); ci++; }
+    nodes.push({ type:'skill', id:`sk_${s}`, skill:s, cost:2, reqLevel:Math.min(MAX_LEVEL, 3+ci) }); ci++; }
+  // ESCADA DE ATRIBUTOS — tiers por stat. amt por tier depende do stat.
   const main = mainStatOf(def);
-  const a1 = main==='hp'?25:3, a2 = main==='hp'?45:6;
-  nodes.push({ type:'stat', id:'aug_hp', stat:'hp',  amt:15, cost:1, reqLevel:2 });
-  nodes.push({ type:'stat', id:'aug_m1', stat:main, amt:a1, cost:2, reqLevel:5 });
-  nodes.push({ type:'stat', id:'aug_m2', stat:main, amt:a2, cost:3, reqLevel:10 });
+  const STAT_TIERS = {
+    hp:  { amts:[15,20,25,30,40], label:'HP'  },
+    mp:  { amts:[6,8,10,12,15],   label:'MP'  },
+    atk: { amts:[3,4,5,6,8],      label:'ATK' },
+    mag: { amts:[3,4,5,6,8],      label:'MAG' },
+    def: { amts:[2,3,4,5,6],      label:'DEF' },
+    spd: { amts:[2,2,3,3,4],      label:'SPD' },
+  };
+  // Cada classe recebe: HP (5 tiers), MP (3), stat principal (5), + 2 secundários (3 cada).
+  const secondaries = main==='mag'
+    ? ['def','spd'] : main==='atk' ? ['def','hp'] : ['atk','mag'];
+  const plan = [ ['hp',5], ['mp',3], [main, 5], [secondaries[0],3], [secondaries[1],3] ];
+  let lvl = 2;
+  for(const [stat, count] of plan){
+    const t = STAT_TIERS[stat];
+    for(let i=0;i<count;i++){
+      nodes.push({ type:'stat', id:`aug_${stat}_${i}`, stat, amt:t.amts[i],
+        cost:1+Math.floor(i/2), reqLevel:Math.min(MAX_LEVEL, lvl) });
+      lvl += 1;
+    }
+  }
   return nodes;
 }
 

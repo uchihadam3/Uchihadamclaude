@@ -185,13 +185,24 @@
   .lic-xpbar{height:8px;background:#e2d4f2;border:1px solid #cbb8e6;border-radius:5px;overflow:hidden;margin:4px 0 2px}
   .lic-xpbar>i{display:block;height:100%;background:linear-gradient(90deg,#9b6fe0,#c9a2ff)}
   .lic-xptxt{font-size:10px;font-weight:700;color:var(--dim)}
-  .lic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:7px}
-  .lic-node{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 5px;border-radius:10px;border:1px solid var(--line);background:#fff8e8;cursor:pointer;min-width:0}
-  .lic-node .ln-ic{font-size:20px;line-height:1} .lic-node .ln-nm{font-size:11.5px;font-weight:800;color:var(--ink);text-align:center;line-height:1.1}
-  .lic-node .ln-cost{font-size:10px;font-weight:800;color:var(--dim)}
+  .lic-sec{font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:10px 3px 5px;display:flex;align-items:center;gap:6px}
+  .lic-sec::before,.lic-sec::after{content:'';height:1px;flex:1;background:var(--line)}
+  .lic-sec span{background:var(--inset);border:1px solid var(--line);border-radius:20px;padding:0 7px;color:var(--ink2)}
+  .lic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px}
+  .lic-node{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 3px 5px;border-radius:10px;border:1px solid var(--line);background:#fff8e8;cursor:pointer;min-width:0}
+  /* moldura do nódulo (recebe a arte PNG depois: background-image no .ln-frame) */
+  .lic-node .ln-frame{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:9px;
+    background:radial-gradient(circle at 50% 32%,#fffdf6,#ecdcb6);border:1.5px solid #d9c48f;box-shadow:inset 0 -2px 4px rgba(120,90,30,.18);background-size:cover;background-position:center}
+  .lic-node.stat .ln-frame{background:radial-gradient(circle at 50% 32%,#eef4ff,#c9d8f2);border-color:#9db8e0}
+  .lic-node .ln-ic{font-size:19px;line-height:1}
+  .lic-node .ln-nm{font-size:10.5px;font-weight:800;color:var(--ink);text-align:center;line-height:1.05;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .lic-node .ln-cost{font-size:9.5px;font-weight:800;color:var(--dim)}
   .lic-node.owned{background:#e9f6ec;border-color:#a7d8b3} .lic-node.owned .ln-cost{color:#3f8f5a}
-  .lic-node.buy{border-color:#c9a2ff;box-shadow:inset 0 0 0 1px #e0cbff} .lic-node.buy .ln-cost{color:#7a4bc0}
-  .lic-node.lock{opacity:.5;filter:grayscale(.4);cursor:default}
+  .lic-node.owned .ln-frame{box-shadow:inset 0 0 0 2px #7ecb96,inset 0 -2px 4px rgba(120,90,30,.18)}
+  .lic-node.buy{border-color:#c9a2ff;box-shadow:0 0 0 1px #e0cbff,0 2px 8px rgba(155,111,224,.25)} .lic-node.buy .ln-cost{color:#7a4bc0}
+  .lic-node.buy .ln-frame{animation:licpulse 1.6s ease-in-out infinite}
+  @keyframes licpulse{0%,100%{box-shadow:inset 0 -2px 4px rgba(120,90,30,.18)}50%{box-shadow:inset 0 -2px 4px rgba(120,90,30,.18),0 0 8px rgba(155,111,224,.55)}}
+  .lic-node.lock{opacity:.5;filter:grayscale(.5);cursor:default}
   .d-stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .d-stat{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:800;color:var(--ink2);background:var(--inset);border:1px solid var(--line);border-radius:7px;padding:2px 7px}
   .d-stat b{color:var(--ink)}

@@ -277,24 +277,33 @@ function openSkillBoard(heroId){
     const draw = ()=>{
       const nodes = skillBoard(def);
       const need = xpToNext(hs.level); const pct = hs.level>=MAX_LEVEL ? 100 : Math.min(100, 100*hs.xp/need);
-      const nodeHTML = nodes.map(n=>{
+      const STAT_IC = { hp:'❤️', mp:'💧', atk:'⚔️', mag:'🔮', def:'🛡️', spd:'💨' };
+      const cell = n=>{
         const owned = hs.boughtNodes.includes(n.id) || (n.type==='skill' && hs.unlockedSkills.includes(n.skill));
         const lvlOk = hs.level >= n.reqLevel; const canBuy = !owned && lvlOk && hs.lp >= n.cost;
         const label = n.type==='skill' ? SKILLS[n.skill].name : `+${n.amt} ${n.stat.toUpperCase()}`;
-        const icon  = n.type==='skill' ? '✨' : '💪';
-        const sub   = owned ? 'Adquirido' : (!lvlOk ? `Requer Nv.${n.reqLevel}` : `${n.cost} LP`);
-        return `<button class="lic-node ${owned?'owned':canBuy?'buy':'lock'}" data-id="${n.id}" ${canBuy?'':'disabled'}>
-          <span class="ln-ic">${icon}</span>
+        const icon  = n.type==='skill' ? '✨' : (STAT_IC[n.stat]||'💪');
+        const sub   = owned ? '✓ Adquirido' : (!lvlOk ? `Nv.${n.reqLevel}` : `${n.cost} LP`);
+        return `<button class="lic-node ${n.type} ${owned?'owned':canBuy?'buy':'lock'}" data-id="${n.id}" ${canBuy?'':'disabled'}>
+          <span class="ln-frame"><span class="ln-ic">${icon}</span></span>
           <span class="ln-nm">${label}</span>
-          <span class="ln-cost">${owned?'✓':sub}</span></button>`;
-      }).join('');
+          <span class="ln-cost">${sub}</span></button>`;
+      };
+      const skillNodes = nodes.filter(n=>n.type==='skill');
+      const statNodes  = nodes.filter(n=>n.type==='stat');
+      const ownedCount = nodes.filter(n=> hs.boughtNodes.includes(n.id) || (n.type==='skill'&&hs.unlockedSkills.includes(n.skill))).length;
+      const nodeHTML = `
+        <div class="lic-sec">Ações <span>${skillNodes.length}</span></div>
+        <div class="lic-grid">${skillNodes.map(cell).join('')}</div>
+        <div class="lic-sec">Atributos <span>${statNodes.length}</span></div>
+        <div class="lic-grid">${statNodes.map(cell).join('')}</div>`;
       body.innerHTML = `
         <div class="lic-head" style="--acc:${accentOf(def.id)}">
           <div class="lic-face">${faceMedia(def.id)}</div>
           <div class="lic-meta">
             <div class="lic-lv">Nível <b>${hs.level}</b>${hs.level>=MAX_LEVEL?' (máx)':''} · <span class="lic-lp">${hs.lp} LP</span></div>
             <div class="lic-xpbar"><i style="width:${pct}%"></i></div>
-            <div class="lic-xptxt">${hs.level>=MAX_LEVEL?'XP máx':`XP ${hs.xp}/${need}`}</div>
+            <div class="lic-xptxt">${hs.level>=MAX_LEVEL?'XP máx':`XP ${hs.xp}/${need}`} · <b>${ownedCount}/${nodes.length}</b> licenças</div>
           </div>
         </div>
         <p class="muted tiny" style="margin:2px 2px 8px">Ganhe XP e LP nas expedições. Gaste LP p/ destravar ações e aumentos. As <b>condições</b> são universais (Loja de Gambits).</p>
