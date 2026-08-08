@@ -368,8 +368,7 @@ function openSkillBoard(heroId){
           <div class="ah-port">${faceMedia(def.id)}</div>
           <div class="ah-info">
             <div class="ah-nm">${def.name}</div>
-            <div class="ah-rl">${def.klass||''}</div>
-            <div class="ah-lv">Nível <b>${hs.level}</b>${hs.level>=MAX_LEVEL?'':` · <b>${hs.lp} LP</b>`} · ${ownedCount}/${total}</div>
+            <div class="ah-sub">${def.klass||''} · Nv.<b>${hs.level}</b>${hs.level>=MAX_LEVEL?'':` · <b>${hs.lp} LP</b>`} · ${ownedCount}/${total}</div>
             <div class="ah-st"><span>❤️${rs.hp}</span><span>⚔️${rs.atk}</span><span>🛡️${rs.defense}</span><span>🔮${rs.mag}</span><span>💧${rs.mp}</span></div>
           </div>
         </div>
