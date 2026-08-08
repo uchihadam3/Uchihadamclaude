@@ -645,14 +645,21 @@ def salvar(peca, destino, lado=None):
 # ─────────────────────────── linha de comando ───────────────────────────
 if __name__ == '__main__':
     if len(sys.argv) < 6:
-        print('uso: recortar.py <folha> <magenta|brilho|celula|xadrez|branco> '
+        print('uso: recortar.py <folha> <magenta|brilho|celula|mancha|xadrez|branco> '
               '<colunas> <linhas> <destino> [nomes...]')
         print('  celula = cada célula descobre a própria cor de fundo')
+        print('  mancha = a grade só AGRUPA; cada peça é cortada pela própria '
+              'silhueta (use quando o desenho estourar a célula)')
         sys.exit(1)
     folha, metodo, cols, linhas, destino = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5]
     nomes = sys.argv[6:]
     if metodo == 'celula':
         pecas = celulas_por_fundo(folha, cols, linhas)
+    elif metodo == 'mancha':
+        # a folha do Egito voltou com as dezoito peças estourando a célula, e o
+        # corte em retângulo decepou todas. Este é o caminho para folha assim,
+        # e por isso ele precisa estar na linha de comando e não só no arquivo.
+        pecas = pecas_por_mancha(folha, cols, linhas)
     else:
         pecas = celulas(limpar(folha, metodo), cols, linhas)
     d = pathlib.Path(destino)
