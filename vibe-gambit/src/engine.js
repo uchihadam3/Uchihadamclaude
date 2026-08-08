@@ -9,6 +9,9 @@
 import { SKILLS, HERO_DEFS, ENEMY_DEFS, ENEMY_GAMBITS, FORGE_LEVELS, itemBonuses, MINION_DEF } from './data.js';
 import { CONDITION_FNS, canPay, execute } from './gambits.js';
 
+// status que fazem a unidade PERDER o turno
+const CONTROL_KINDS = new Set(['stun','sleep','immobile']);
+
 // --- RNG determinístico (mulberry32) ----------------------------------------
 export function makeRng(seed = 12345){
   let s = seed >>> 0;
@@ -137,43 +140,58 @@ export class Combat {
   }
 
   // Processa os STATUS da unidade no INÍCIO do seu turno:
-  //  - DoT (queimadura/veneno/sangramento) causa dano;
-  //  - STUN faz pular o turno;
+  //  - DoT causa dano · REGEN cura · controle (stun/sono/imobilizar) pula o turno;
   //  - decai a duração de todos e expira (buffs restauram o atributo).
-  // Retorna true se a unidade está atordoada (deve pular a ação).
+  // Retorna { skip, skipKind, confused, silenced }.
   processStatuses(u){
-    if(!u.statuses || !u.statuses.length) return false;
-    let stunned = false;
+    if(!u.statuses || !u.statuses.length) return {};
     for(const st of u.statuses){
-      if(st.kind === 'dot' && st.ticks > 0 && u.hp > 0){
+      if(st.ticks <= 0 || u.hp <= 0) continue;
+      if(st.kind === 'dot'){
         const dmg = Math.max(1, st.dmg || 0);
         u.hp = Math.max(0, u.hp - dmg);
         if(u.hp === 0 && u.side === 'enemy') this.corpses++;   // virou cadáver
         this.log.push({ type:'dot', status:st.id, source:u, target:u, amount:dmg, tick:this.tick, dead: u.hp === 0 });
+      } else if(st.kind === 'regen' && u.hp < u.maxHp){
+        const heal = Math.max(1, st.amt || 0); const before = u.hp;
+        u.hp = Math.min(u.maxHp, u.hp + heal);
+        this.log.push({ type:'regen', status:'regen', source:u, target:u, amount: u.hp - before, tick:this.tick });
       }
     }
-    const stun = u.statuses.find(s => s.kind === 'stun' && s.ticks > 0);
-    if(stun) stunned = true;
+    // impedimentos (checados ANTES de decair a duração)
+    const ctrl = u.statuses.find(s => s.ticks > 0 && CONTROL_KINDS.has(s.kind));
+    const confused = u.statuses.some(s => s.ticks > 0 && s.kind === 'confuse');
+    const silenced = u.statuses.some(s => s.ticks > 0 && s.kind === 'silence');
     // decai + expira
     for(const st of u.statuses){
       st.ticks--;
       if(st.ticks <= 0 && st.kind === 'buff') u.stats[st.stat] = (u.stats[st.stat] || 0) - (st.amt || 0);
     }
     u.statuses = u.statuses.filter(s => s.ticks > 0);
-    return stunned;
+    return { skip: !!ctrl, skipKind: ctrl && ctrl.id, confused, silenced };
   }
 
   // Resolve UMA unidade: varre gambits topo→baixo, executa a 1ª aplicável, para.
   act(u){
-    const stunned = this.processStatuses(u);
+    const ss = this.processStatuses(u);
     if(u.hp <= 0) return null;               // morreu de DoT no início do turno
-    if(stunned){ this.log.push({ type:'stun', source:u, target:u, tick:this.tick }); return null; }
+    if(ss.skip){ this.log.push({ type:'incap', status: ss.skipKind || 'stun', source:u, target:u, tick:this.tick }); return null; }
     const ctx = { alliesOf: x => this.alliesOf(x), enemiesOf: x => this.enemiesOf(x), rng: this.rng, corpses: this.corpses };
+    // CONFUSÃO: ignora os gambits e ataca um alvo aleatório (aliado ou inimigo)
+    if(ss.confused){
+      const pool = this.units.filter(x => x.hp > 0 && x !== u);
+      if(!pool.length) return null;
+      const t = pool[Math.floor(this.rng() * pool.length)];
+      const ev = execute(u, SKILLS.basic_attack, t, ctx);
+      if(ev.dead && ev.target.side === 'enemy') this.corpses++;
+      ev.tick = this.tick; ev.confused = true; this.log.push(ev); return ev;
+    }
     for(const g of u.gambits){
       if(g.enabled === false) continue;     // linha DESLIGADA → ignora
       const condFn = CONDITION_FNS[g.condition];
       const skill  = SKILLS[g.action];
       if(!condFn || !skill) continue;       // linha inválida → ignora
+      if(ss.silenced && (skill.mp || 0) > 0) continue;  // SILÊNCIO: só ações sem MP
       let target = condFn(u, ctx);
       if(!target) continue;                 // condição FALSA → próxima linha
       if(!canPay(u, skill)) continue;       // sem MP → tenta a próxima (fallback)

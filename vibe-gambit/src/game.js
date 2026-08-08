@@ -813,11 +813,25 @@ function presentEvent(ev){
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">ergue um Esqueleto ⚔️</span>`);
     return;
   }
-  // STUN: pulou o turno
-  if(ev.type==='stun'){
+  // REGEN: cura por turno
+  if(ev.type==='regen'){
+    const be = battlerEl(ev.target);
+    if(be){ const f=document.createElement('div'); f.className='float heal'; f.textContent=`💚${ev.amount}`; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    return;
+  }
+  // INCAPACITADO: perdeu o turno (atordoado/dormindo/imobilizado)
+  if(ev.type==='incap' || ev.type==='stun'){
+    const meta = STATUS_META[ev.status] || { icon:'💫', label:'Atordoado' };
     const be = battlerEl(ev.source);
-    if(be){ const f=document.createElement('div'); f.className='float stun'; f.textContent='💫'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
-    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> <span class="muted">atordoado — perde o turno</span>`);
+    if(be){ const f=document.createElement('div'); f.className='float stun'; f.textContent=meta.icon; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> <span class="muted">${meta.label.toLowerCase()} — perde o turno</span>`);
+    return;
+  }
+  // ERROU (cegueira)
+  if(ev.type==='damage' && ev.missed){
+    const be = battlerEl(ev.source);
+    if(be){ const f=document.createElement('div'); f.className='float stun'; f.textContent='errou'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="muted">errou (cegueira)</span>`);
     return;
   }
   // dano/cura flutuante + hit flash
@@ -828,9 +842,10 @@ function presentEvent(ev){
     be.appendChild(f); setTimeout(()=>f.remove(),1000);
     if(ev.type!=='heal'){ be.classList.add('hit'); setTimeout(()=>be.classList.remove('hit'),300); }
   }
+  if(ev.type==='damage' || ev.type==='heal') refreshBattlerStatus(ev.target);
   // log
   if(ev.type==='damage')
-    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b> <span class="${ev.crit?'c':''}">${ev.amount}${ev.crit?' CRIT':''} DMG</span>${ev.holy?' ✨':''}${ev.dead?' ☠️':''}`);
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b> <span class="${ev.crit?'c':''}">${ev.amount}${ev.crit?' CRIT':''} DMG</span>${ev.confused?' 😵':''}${ev.holy?' ✨':''}${ev.applied?' '+(STATUS_META[ev.applied]?.icon||''):''}${ev.dead?' ☠️':''}`);
   else
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b> <span class="g">+${ev.amount} HP</span>`);
 }

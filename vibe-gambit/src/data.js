@@ -55,14 +55,22 @@ export const MINION_DEF = {
 };
 
 // Metadados de STATUS (para ícones/labels na View). kind: 'dot' | 'stun' | 'buff'.
+// kind: dot(dano/turno) · regen(cura/turno) · stun/sleep/immobile(pula turno) ·
+//       silence(sem magia) · blind(erra) · confuse(ataca aleatório) · buff · shield
 export const STATUS_META = {
-  burn:   { id:'burn',   label:'Queimadura', icon:'🔥', kind:'dot' },
-  poison: { id:'poison', label:'Veneno',     icon:'🧪', kind:'dot' },
-  bleed:  { id:'bleed',  label:'Sangramento',icon:'🩸', kind:'dot' },
-  stun:   { id:'stun',   label:'Atordoado',  icon:'💫', kind:'stun' },
-  buff:   { id:'buff',   label:'Buff',        icon:'💢', kind:'buff' },
-  slow:   { id:'slow',   label:'Lentidão',    icon:'🐌', kind:'buff' },
-  shield: { id:'shield', label:'Escudo',      icon:'🛡️', kind:'shield' },
+  burn:      { id:'burn',      label:'Queimadura',  icon:'🔥', kind:'dot' },
+  poison:    { id:'poison',    label:'Veneno',      icon:'🧪', kind:'dot' },
+  bleed:     { id:'bleed',     label:'Sangramento', icon:'🩸', kind:'dot' },
+  regen:     { id:'regen',     label:'Regeneração', icon:'💚', kind:'regen' },
+  stun:      { id:'stun',      label:'Atordoado',   icon:'💫', kind:'stun' },
+  sono:      { id:'sono',      label:'Dormindo',    icon:'💤', kind:'sleep' },
+  imobilizar:{ id:'imobilizar',label:'Imobilizado', icon:'🕸️', kind:'immobile' },
+  silencio:  { id:'silencio',  label:'Silenciado',  icon:'🤐', kind:'silence' },
+  cegueira:  { id:'cegueira',  label:'Cegueira',    icon:'🌫️', kind:'blind' },
+  confusao:  { id:'confusao',  label:'Confuso',     icon:'😵', kind:'confuse' },
+  buff:      { id:'buff',      label:'Buff',        icon:'💢', kind:'buff' },
+  slow:      { id:'slow',      label:'Debuff',      icon:'🐌', kind:'buff' },
+  shield:    { id:'shield',    label:'Escudo',      icon:'🛡️', kind:'shield' },
 };
 
 // --- CONDIÇÕES DE GAMBIT (metadados) ----------------------------------------
@@ -80,17 +88,25 @@ export const CONDITIONS = {
   // TIPO do inimigo
   enemy_flying:    { id:'enemy_flying',    label:'Inimigo: Voador',       scope:'enemy' },
   enemy_undead:    { id:'enemy_undead',    label:'Inimigo: Morto-vivo',   scope:'enemy' },
-  // STATUS (Fase 2)
+  // STATUS do inimigo (gatilhos de gambit)
   enemy_burning:   { id:'enemy_burning',   label:'Inimigo: Queimando',    scope:'enemy' },
+  enemy_poisoned:  { id:'enemy_poisoned',  label:'Inimigo: Envenenado',   scope:'enemy' },
+  enemy_stunned:   { id:'enemy_stunned',   label:'Inimigo: Incapacitado', scope:'enemy' },
+  enemy_slowed:    { id:'enemy_slowed',    label:'Inimigo: Enfraquecido', scope:'enemy' },
+  enemy_buffed:    { id:'enemy_buffed',    label:'Inimigo: Com Buff',     scope:'enemy' },
   // ALIADO
   ally_hp_75:      { id:'ally_hp_75',      label:'Aliado: HP < 75%',      scope:'ally' },
   ally_hp_50:      { id:'ally_hp_50',      label:'Aliado: HP < 50%',      scope:'ally',  starter:true },
   ally_hp_25:      { id:'ally_hp_25',      label:'Aliado: HP < 25%',      scope:'ally' },
   ally_dead:       { id:'ally_dead',       label:'Aliado: Morto',         scope:'ally' },
+  ally_no_shield:  { id:'ally_no_shield',  label:'Aliado: Sem Escudo',    scope:'ally' },
+  ally_no_buff:    { id:'ally_no_buff',    label:'Aliado: Sem Buff',      scope:'ally' },
+  ally_afflicted:  { id:'ally_afflicted',  label:'Aliado: Com Status Ruim',scope:'ally' },
   // EU (auto — enrage/defensivo)
   self_hp_50:      { id:'self_hp_50',      label:'Eu: HP < 50%',          scope:'self',  starter:true },
   self_hp_30:      { id:'self_hp_30',      label:'Eu: HP < 30%',          scope:'self' },
   self_no_buff:    { id:'self_no_buff',    label:'Eu: Sem Buff',          scope:'self',  starter:true },
+  self_has_buff:   { id:'self_has_buff',   label:'Eu: Com Buff',          scope:'self' },
   self_no_shield:  { id:'self_no_shield',  label:'Eu: Sem Escudo',        scope:'self',  starter:true },
   corpse_ready:    { id:'corpse_ready',    label:'Há um Cadáver',         scope:'self',  starter:true },
   self_mp_low:     { id:'self_mp_low',     label:'Eu: MP < 10',           scope:'self' },
@@ -356,6 +372,14 @@ export const ACADEMY = {
     enemy_flying:    { gold:120, crystals:1 },
     enemy_undead:    { gold:120, crystals:1 },
     enemy_burning:   { gold:130, crystals:1 },
+    enemy_poisoned:  { gold:130, crystals:1 },
+    enemy_stunned:   { gold:150, crystals:2 },
+    enemy_slowed:    { gold:130, crystals:1 },
+    enemy_buffed:    { gold:140, crystals:2 },
+    ally_no_shield:  { gold:120, crystals:1 },
+    ally_no_buff:    { gold:120, crystals:1 },
+    ally_afflicted:  { gold:150, crystals:2 },
+    self_has_buff:   { gold:110, crystals:1 },
     ally_hp_75:      { gold:90,  crystals:1 },
     ally_hp_25:      { gold:120, crystals:1 },
     ally_dead:       { gold:200, crystals:3 },
