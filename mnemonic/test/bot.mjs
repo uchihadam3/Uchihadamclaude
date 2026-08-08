@@ -83,6 +83,14 @@ export function jogarSala(run, opt={}){
     if(!s.fim) abrir(b);
     if(a.resolvida) naoCasa.delete(parDe(a.id,b.id));
   };
+  /* SAIR COM AS MOEDAS. `opt.encerra` é a chance de o bot bater a meta e ir
+     embora em vez de limpar o tabuleiro — a decisão central do jogo, e a
+     única jogada que nenhuma run automatizada tocava. Ficou anos assim, e foi
+     exatamente por aí que passou o defeito da partida salva: o replay da tela
+     não conhecia `fim` porque nada no teste jamais produzia um `fim`.
+     Desligado por padrão para não mexer nos números de balanceamento. */
+  const chanceSair = opt.encerra || 0;
+
   usarFerramenta(run, s, mem, 'inicio');
   anotar();
 
@@ -91,6 +99,7 @@ export function jogarSala(run, opt={}){
     anotar();
     usarFerramenta(run, s, mem, 'meio');
     if(s.fim) break;
+    if(chanceSair && s.passou && dado() < chanceSair){ run.encerrarSala(); break; }
     const fechadas = s.fechadas();
     if(fechadas.length < 2) break;
 

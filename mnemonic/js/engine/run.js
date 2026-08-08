@@ -512,59 +512,80 @@ export class Run {
    =================================================================== */
 export const MAX_JOGADAS = 20000;
 
-export function verificar(placar, registro){
-  if(!placar || !Array.isArray(registro)) return { ok:false, por:'pacote incompleto' };
-  if(registro.length > MAX_JOGADAS) return { ok:false, por:'registro grande demais' };
-  if(!CLASSES[placar.classe]) return { ok:false, por:'classe inexistente' };
-  let r;
-  try {
-    r = new Run({ semente:placar.semente, classe:placar.classe,
-                  diario:placar.diario, replay:true });
-  } catch(e){ return { ok:false, por:'não deu para montar a run' }; }
+/* REFAZER UMA JOGADA — a máquina que transforma registro em partida.
+   Ela é UMA, e é de propósito. Antes existiam duas: esta, dentro do
+   verificador, e uma cópia menor dentro da tela, que restaurava a partida
+   salva quando o jogador voltava. As duas discordavam — a da tela não
+   conhecia `fim`, o encerramento de sala por vontade própria, que é a
+   decisão central do jogo. Quem fechasse uma sala pelas moedas e recarregasse
+   a página voltava com a sala aberta, e daí em diante o registro dele
+   deixava de bater com o replay: placar honesto recusado pelo ranking, sem
+   nada na tela dizendo por quê.
 
+   Duas implementações da mesma regra sempre acabam discordando. Esta é a
+   segunda vez que este projeto aprende isso — a primeira foi o código `e`,
+   que servia para duas jogadas diferentes. */
+export function refazerJogada(r, j){
+  switch(j?.s){
+    case 'sala':
+      if(r.mundo!==j.m || r.indice!==j.i || r.tentativa!==(j.t||0))
+        return { ok:false, por:'entrou numa sala fora de ordem' };
+      if(!r.entrar()) return { ok:false, por:'essa sala não abre' };
+      return { ok:true };
+    case 'v': {
+      const res = r.virar(j.c);
+      return res.erro ? { ok:false, por:'virada inválida: '+res.erro } : { ok:true };
+    }
+    case 'fim': {
+      const res = r.encerrarSala();
+      return res.erro ? { ok:false, por:'encerramento inválido: '+res.erro } : { ok:true };
+    }
+    case 'f': {
+      const res = r.usarFerramenta(j.a===null?undefined:j.a);
+      return res.erro ? { ok:false, por:'ferramenta inválida: '+res.erro } : { ok:true };
+    }
+    case 'rel':
+      return r.ganharReliquia(j.r) ? { ok:true }
+                                   : { ok:false, por:'relíquia que não foi oferecida' };
+    case 'c': {
+      const res = r.comprar(j.r);
+      return res.ok ? { ok:true } : { ok:false, por:'compra inválida: '+res.por };
+    }
+    case 'e': {
+      const res = r.escolher(j.o);
+      return res.ok ? { ok:true } : { ok:false, por:'escolha inválida' };
+    }
+    case 'passa':
+      if(r.mundo!==j.m || r.indice!==j.i) return { ok:false, por:'pulou a sala errada' };
+      return r.passar() ? { ok:true } : { ok:false, por:'não dava para pular aqui' };
+    default:
+      return { ok:false, por:'jogada desconhecida' };
+  }
+}
+
+/* REMONTAR A RUN INTEIRA a partir do registro. O verificador do ranking e a
+   restauração da partida salva chamam esta mesma função. */
+export function refazer({ semente, classe, diario, registro, replay=true }){
+  if(!Array.isArray(registro)) return { ok:false, por:'registro incompleto' };
+  if(registro.length > MAX_JOGADAS) return { ok:false, por:'registro grande demais' };
+  if(!CLASSES[classe]) return { ok:false, por:'classe inexistente' };
+  let r;
+  try { r = new Run({ semente, classe, diario, replay }); }
+  catch(e){ return { ok:false, por:'não deu para montar a run' }; }
   for(const j of registro){
     if(r.morto) return { ok:false, por:'jogada depois da derrota' };
-    switch(j?.s){
-      case 'sala':
-        if(r.mundo!==j.m || r.indice!==j.i || r.tentativa!==(j.t||0))
-          return { ok:false, por:'entrou numa sala fora de ordem' };
-        if(!r.entrar()) return { ok:false, por:'essa sala não abre' };
-        break;
-      case 'v': {
-        const res = r.virar(j.c);
-        if(res.erro) return { ok:false, por:'virada inválida: '+res.erro };
-        break;
-      }
-      case 'fim': {
-        const res = r.encerrarSala();
-        if(res.erro) return { ok:false, por:'encerramento inválido: '+res.erro };
-        break;
-      }
-      case 'f': {
-        const res = r.usarFerramenta(j.a===null?undefined:j.a);
-        if(res.erro) return { ok:false, por:'ferramenta inválida: '+res.erro };
-        break;
-      }
-      case 'rel':
-        if(!r.ganharReliquia(j.r)) return { ok:false, por:'relíquia que não foi oferecida' };
-        break;
-      case 'c': {
-        const res = r.comprar(j.r);
-        if(!res.ok) return { ok:false, por:'compra inválida: '+res.por };
-        break;
-      }
-      case 'e': {
-        const res = r.escolher(j.o);
-        if(!res.ok) return { ok:false, por:'escolha inválida' };
-        break;
-      }
-      case 'passa':
-        if(r.mundo!==j.m || r.indice!==j.i) return { ok:false, por:'pulou a sala errada' };
-        if(!r.passar()) return { ok:false, por:'não dava para pular aqui' };
-        break;
-      default: return { ok:false, por:'jogada desconhecida' };
-    }
+    const res = refazerJogada(r, j);
+    if(!res.ok) return { ok:false, por:res.por, run:r };
   }
+  return { ok:true, run:r };
+}
+
+export function verificar(placar, registro){
+  if(!placar || !Array.isArray(registro)) return { ok:false, por:'pacote incompleto' };
+  const feito = refazer({ semente:placar.semente, classe:placar.classe,
+                          diario:placar.diario, registro });
+  if(!feito.ok) return { ok:false, por:feito.por };
+  const r = feito.run;
   /* não basta o número final bater: onde a run PAROU também faz parte da
      prova. Sem isso, cortar as últimas jogadas passaria despercebido sempre
      que elas não tivessem rendido ponto. */
@@ -579,5 +600,3 @@ export function verificar(placar, registro){
   return { ok: !erro, calculado:r.pontos, alegado:placar.pontos, run:r,
            por: erro ? `o placar não bate com as jogadas (${erro[2]})` : null };
 }
-
-export const TOTAL_RELIQUIAS = RELIQUIAS.length;

@@ -588,7 +588,6 @@ export const CLIMAS = ['mundo0','mundo1','mundo2','mundo3','mundo4','mundo5']
   .map(id => ({ ...FAIXAS[id], id }));
 export const CHEFES = ['chefe0','chefe1','chefe2','chefe3','chefe4','chefe5']
   .map(id => ({ ...FAIXAS[id], id }));
-export const CLIMA_MENU = { ...FAIXAS.menu, id:'menu' };
 export const TODAS = Object.keys(FAIXAS).map(id => ({ ...FAIXAS[id], id }));
 export { grau, arranjo };
 

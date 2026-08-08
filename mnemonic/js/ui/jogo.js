@@ -27,7 +27,8 @@
    par, isso impede a grade de se remexer no meio da partida, que num jogo
    da memória arruinaria o que o jogador tinha decorado das OUTRAS cartas.
    ===================================================================== */
-import { Run, verificar, SALAS, MUNDOS, COMBATE, planoDaSala } from '../engine/run.js';
+import { Run, verificar, refazer, SALAS, MUNDOS, COMBATE, planoDaSala }
+  from '../engine/run.js';
 import { degrauCombo, COMBOS } from '../engine/tabuleiro.js';
 import { TIPOS, LISTA_TIPOS } from '../data/cartas.js';
 import { FAMILIAS, LISTA_FAMILIAS } from '../data/familias.js';
@@ -771,10 +772,15 @@ function cartaHTML(c, pequena){
     </span>${selada ? '<span class="ok"></span>' : ''}</button>`;
 }
 
-/* `refazer` reconstrói o HTML; `chegada` faz as cartas caírem uma a uma, e
-   só vale ao abrir a sala. No meio da partida, refazer sem necessidade
-   mataria a animação de virada bem quando ela mais importa. */
-function mesa(refazer, chegada){
+/* `remontar` reconstrói o HTML; `chegada` faz as cartas caírem uma a uma, e
+   só vale ao abrir a sala. No meio da partida, remontar sem necessidade
+   mataria a animação de virada bem quando ela mais importa.
+
+   O nome era `refazer` — e passou a colidir com o `refazer` do motor, que
+   este arquivo importa para retomar a partida salva. Dentro desta função o
+   parâmetro apagava o import; ninguém chamava o motor daqui, então não havia
+   defeito, mas era uma armadilha carregada esperando a próxima linha. */
+function mesa(remontar, chegada){
   const s = run.sala || salaViva; if(!s) return;
   const el = $('#mesa');
   ajustar();
@@ -806,7 +812,7 @@ function mesa(refazer, chegada){
     el.innerHTML = todas.map(c=>cartaHTML(c, peq)).join('')
       + (centro >= 0 ? '<span class="ornato" aria-hidden="true"></span>' : '');
   };
-  if(refazer || el.children.length !== todas.length + (centro>=0 ? 1 : 0)){
+  if(remontar || el.children.length !== todas.length + (centro>=0 ? 1 : 0)){
     monta();
     if(chegada) el.querySelectorAll('.ct').forEach((e,i)=>{
       e.classList.add('chega'); e.style.setProperty('--d', Math.min(650, i*16)+'ms');
@@ -2021,26 +2027,24 @@ function salvar(){
       registro:run.registro }));
   } catch(e){}
 }
-/* retomar usa o MESMO caminho do verificador do ranking: refazer a run a
-   partir das jogadas. Um save que guardasse o estado direto seria um segundo
-   jeito de descrever a partida, e dois jeitos acabam discordando. */
+/* RETOMAR CHAMA A MESMA MÁQUINA DO VERIFICADOR, e agora de verdade.
+   O comentário aqui já dizia isso, e era mentira: existia uma segunda lista
+   de `else if` logo abaixo, e ela não conhecia a jogada `fim` — o
+   encerramento de sala por vontade própria, que é a decisão central do jogo.
+   Quem fechasse a sala pelas moedas e recarregasse a página voltava com a
+   sala aberta de novo, e daí em diante o registro deixava de bater com o
+   replay: o ranking recusaria o placar dele, honesto, sem nada explicando.
+
+   Agora é `refazer` do motor, a mesma função que o verificador usa. Não há
+   mais duas listas para discordarem. E `replay:false` porque esta run vai
+   CONTINUAR sendo jogada: ela precisa registrar as jogadas novas. */
 function retomar(){
   let d; try { d = JSON.parse(localStorage.getItem(CHAVE)||'null'); } catch(e){}
   if(!d?.registro?.length) return false;
-  let r;
-  try { r = new Run({ semente:d.semente, classe:d.classe, diario:d.diario }); }
-  catch(e){ return false; }
-  for(const j of d.registro){
-    if(j.s==='sala') r.entrar();
-    else if(j.s==='v') r.virar(j.c);
-    else if(j.s==='f') r.usarFerramenta(j.a===null?undefined:j.a);
-    else if(j.s==='rel') r.ganharReliquia(j.r);
-    else if(j.s==='c') r.comprar(j.r);
-    else if(j.s==='e') r.escolher(j.o);
-    else if(j.s==='passa') r.passar();
-  }
-  if(r.acabou()) return false;
-  run = r; mostrando = new Set();
+  const feito = refazer({ semente:d.semente, classe:d.classe, diario:d.diario,
+                          registro:d.registro, replay:false });
+  if(!feito.ok || feito.run.acabou()) return false;
+  run = feito.run; mostrando = new Set();
   return true;
 }
 setInterval(salvar, 4000);
@@ -2103,7 +2107,8 @@ document.addEventListener('pointerdown', ()=>{ acordar(); reavaliar(); },
 ir('titulo');
 
 /* deixa o motor à mão no console — é assim que se investiga um bug de regra */
-window.MN = { get run(){ return run; }, Run, verificar, planoDaSala, RANK,
+window.MN = { get run(){ return run; }, Run, verificar, refazer, planoDaSala, RANK,
+  CHAVE,
   /* o estado que decide se um toque na carta é aceito. Sem isto à mão, um
      travamento vira adivinhação: não dá para separar "a regra recusou" de "a
      tela ainda estava animando" olhando de fora. */

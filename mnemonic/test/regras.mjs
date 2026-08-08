@@ -30,7 +30,8 @@ import { ICO, ICO_TRACO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, ICO_RELIQUIA,
 import { CONQUISTAS, DEGRAUS } from '../js/data/conquistas.js';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { Sala, COMBOS, degrauCombo, pontosPerfeitos, colunasPara } from '../js/engine/tabuleiro.js';
-import { Run, verificar, planoDaSala, SALAS, MUNDOS, COMBATE, MAX_JOGADAS } from '../js/engine/run.js';
+import { Run, verificar, refazer, planoDaSala, SALAS, MUNDOS, COMBATE,
+         MAX_JOGADAS } from '../js/engine/run.js';
 import { jogarRun } from './bot.mjs';
 
 let passou = 0, falhou = 0; const erros = [];
@@ -858,6 +859,93 @@ secao('14. VERIFICAR — o anti-cheat que dispensa servidor');
   ok(verificar(doRelay.placar, doRelay.registro).ok,
      'o pacote sobrevive à ida e volta por JSON');
   ok(json.length < 400000, `o pacote cabe num evento de relay (${(json.length/1024|0)} KB)`);
+}
+
+/* ════════════════════════════════════════════════════════ 14b */
+secao('14b. RETOMAR — a partida salva volta exatamente onde parou');
+{
+  /* Fechar a sala pelas moedas em vez de limpar o tabuleiro é a decisão
+     central do jogo, e nenhuma run automatizada jamais a tomava: o bot só
+     sabia limpar. Por isso o registro de teste nunca continha um `fim`, e por
+     isso ninguém percebeu que o replay da TELA — a segunda cópia, a que
+     restaura a partida salva — não conhecia esse código. Quem fechava uma
+     sala e recarregava a página voltava com a sala aberta, e daí em diante o
+     registro dele deixava de bater com o replay do ranking: placar honesto
+     recusado, sem nada na tela dizendo por quê.
+
+     Agora existe UMA máquina de refazer, `refazer()`, e tanto o verificador
+     quanto a tela chamam ela. O que este bloco prova é que ela realmente
+     serve para as duas coisas. */
+  const comFim = [];
+  for(const cl of Object.keys(CLASSES))
+    for(const sem of ['r1','r2','r3'])
+      comFim.push(jogarRun(new Run({ semente:sem, classe:cl }), { encerra:0.5 }));
+
+  const quantosFim = comFim.reduce((n,r)=>
+    n + r.pacote().registro.filter(j=>j.s==='fim').length, 0);
+  ok(quantosFim > 0, `o bot agora encerra sala por escolha (${quantosFim} vezes)`);
+  for(const r of comFim){
+    const { placar, registro } = r.pacote();
+    ok(verificar(placar, registro).ok,
+       `run que fecha sala pelas moedas confere (${placar.classe}/${placar.semente})`);
+  }
+
+  /* AGORA O CAMINHO DA TELA: salvar no meio e voltar. `replay:false` é o
+     único ajuste — a partida retomada volta a ser jogável, não uma auditoria.
+     O estado tem que bater peça por peça, senão o jogador continua de um
+     lugar e o ranking cobra dele outro. */
+  let retomadas = 0;
+  for(const r of comFim){
+    const cheio = r.pacote().registro;
+    /* corta logo depois de cada `fim` — é o instante exato do defeito antigo */
+    const cortes = cheio.map((j,i)=>j.s==='fim' ? i+1 : -1).filter(i=>i>0);
+    for(const corte of cortes.slice(0,3)){
+      const parcial = cheio.slice(0, corte);
+      /* como estava: refeito para AUDITAR, é a verdade a que o ranking obriga */
+      const auditoria = refazer({ semente:r.semente, classe:r.classeId,
+                                  diario:r.diario, registro:parcial });
+      /* como a tela retoma */
+      const salva = refazer({ semente:r.semente, classe:r.classeId,
+                              diario:r.diario, registro:parcial, replay:false });
+      ok(salva.ok, `retomar depois de fechar sala não falha (${r.classeId})`);
+      if(!salva.ok || !auditoria.ok) continue;
+      const a = auditoria.run, b = salva.run;
+      const campos = [['pontos','pontos'], ['moedas','moedas'], ['mundo','mundo'],
+                      ['indice','sala'], ['foco','foco'], ['morto','derrota']];
+      for(const [k, rot] of campos)
+        eq(b[k], a[k], `${r.classeId}: a partida retomada tem o mesmo ${rot}`);
+      eq(b.reliquias.join(','), a.reliquias.join(','),
+         `${r.classeId}: a partida retomada tem as mesmas relíquias`);
+      /* e a sala está FECHADA, que era literalmente o sintoma */
+      ok(!b.sala, `${r.classeId}: sala fechada por escolha continua fechada ao voltar`);
+      retomadas++;
+    }
+  }
+  ok(retomadas > 0, `${retomadas} pontos de salvamento conferidos depois de um 'fim'`);
+
+  /* PROVA POR MUTAÇÃO: uma máquina de refazer que não conheça `fim` tem de
+     falhar aqui. Se este bloco passasse de qualquer jeito, ele não estaria
+     provando nada. */
+  {
+    const r = comFim.find(x=>x.pacote().registro.some(j=>j.s==='fim'));
+    const reg = r.pacote().registro;
+    const semFim = reg.filter(j=>j.s!=='fim');   // a lista antiga IGNORAVA 'fim'
+    const mutante = refazer({ semente:r.semente, classe:r.classeId,
+                              diario:r.diario, registro:semFim, replay:false });
+    ok(!mutante.ok || mutante.run.pontos !== r.pontos,
+       'ignorar a jogada `fim` quebra o replay — o teste realmente cobra isso');
+  }
+
+  /* e o resto do contrato de refazer, que a tela também depende */
+  ok(!refazer({ semente:'x', classe:'inexistente', registro:[] }).ok,
+     'refazer recusa classe inventada');
+  ok(!refazer({ semente:'x', classe:Object.keys(CLASSES)[0], registro:null }).ok,
+     'refazer recusa registro que não é lista');
+  ok(!refazer({ semente:'x', classe:Object.keys(CLASSES)[0],
+                registro:new Array(MAX_JOGADAS+1).fill({s:'v',c:0}) }).ok,
+     'refazer recusa registro grande demais antes de rodar');
+  ok(refazer({ semente:'x', classe:Object.keys(CLASSES)[0], registro:[] }).ok,
+     'registro vazio devolve uma run nova, que é a partida sem jogada nenhuma');
 }
 
 /* ════════════════════════════════════════════════════════ 15 */

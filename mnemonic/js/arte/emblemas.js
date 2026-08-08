@@ -111,6 +111,3 @@ export function emblema(i, cls='gl'){
        + `<path d="${m} ${k}" fill="currentColor" fill-rule="evenodd"`
        + ` stroke="none"${t}/></svg>`;
 }
-
-/* quantos emblemas distintos existem antes de o desenho se repetir */
-export const DISTINTOS = MOLDURAS.length * MARCAS.length;
