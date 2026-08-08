@@ -179,6 +179,52 @@
   /* botão Licenças + prancha */
   .lic-btn{width:100%;margin:8px 0 2px;padding:9px;border-radius:10px;border:1px solid #cdb8e6;background:#f0e8fa;color:#5a3e8e;font-weight:900;font-size:13px;cursor:pointer}
   .lic-btn:active{transform:translateY(1px)}
+  /* ===== PRANCHA DE TALENTOS estilo ATLAS (moldura + cabeçalho por arte) ===== */
+  .atlas-hdr{position:relative;width:100%;aspect-ratio:1300/292;background:url('art/tree_header.png') no-repeat center/100% 100%;margin-bottom:4px}
+  .atlas-hdr .ah-port{position:absolute;left:5.2%;top:19%;width:15%;height:62%;overflow:hidden;border-radius:8px}
+  .atlas-hdr .ah-port img,.atlas-hdr .ah-port svg{width:100%;height:100%;object-fit:cover;display:block}
+  .atlas-hdr .ah-info{position:absolute;left:24%;top:14%;right:9%;bottom:14%;display:flex;flex-direction:column;justify-content:center;color:#f2e6c8;line-height:1.1}
+  .atlas-hdr .ah-nm{font-size:clamp(15px,4.6vw,22px);font-weight:900;text-shadow:0 1px 2px #000,0 0 6px #000}
+  .atlas-hdr .ah-rl{font-size:clamp(9px,2.7vw,12px);font-weight:700;color:#e0ca92;text-shadow:0 1px 2px #000}
+  .atlas-hdr .ah-lv{font-size:clamp(10px,3vw,12.5px);font-weight:800;color:#ffd98a;margin-top:2px;text-shadow:0 1px 2px #000}
+  .atlas-hdr .ah-st{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}
+  .atlas-hdr .ah-st span{font-size:clamp(9px,2.7vw,11.5px);font-weight:800;color:#efe6d2;text-shadow:0 1px 2px #000}
+  .atlas-hint{display:flex;justify-content:space-between;align-items:center;margin:2px 2px 6px;color:#b7ac93;font-size:11px}
+  .atlas-z button{background:#26221c;color:#f4e6c8;border:1px solid #5a4e3a;border-radius:7px;width:28px;height:26px;font-size:15px;font-weight:900;cursor:pointer;margin-left:4px}
+  .atlas-framed{border:38px solid transparent;border-image:url('art/tree_frame.png') 108 stretch;border-radius:8px}
+  .atlas-vp{overflow:auto;height:54vh;touch-action:none;position:relative;background:radial-gradient(circle at 50% 50%,#1a1b1e 0%,#101113 60%,#08090a 100%)}
+  .atlas-outer{position:relative}
+  .atlas-tree{position:absolute;top:0;left:0;transform-origin:0 0}
+  svg.atlas-links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  svg.atlas-links .atg{fill:none;stroke:#fff;opacity:.045;stroke-width:2}
+  svg.atlas-links line{stroke-linecap:round}
+  svg.atlas-links .off{stroke:#4a4640;stroke-width:3;opacity:.5}
+  svg.atlas-links .ghost{stroke:#33312c;stroke-width:2.5;opacity:.3}
+  svg.atlas-links .near{stroke:#e9e4d6;stroke-width:3.5;opacity:.85}
+  svg.atlas-links .on{stroke:#e7b73c;stroke-width:5;filter:drop-shadow(0 0 5px rgba(231,183,60,.9))}
+  .atn{position:absolute;border-radius:50%;display:grid;place-items:center;text-align:center;padding:0;cursor:default;border:none;background:none}
+  .atn .ic{line-height:1}
+  .atn .tier{position:absolute;bottom:4%;left:50%;transform:translateX(-50%);font-size:38%;font-weight:900}
+  .atn.owned{background:radial-gradient(circle at 50% 35%,#f3d873,#c79a2b);border:3px solid #ffe9a6;box-shadow:0 0 12px rgba(231,183,60,.7),inset 0 2px 4px rgba(255,255,255,.4)}
+  .atn.owned .ic{color:#4a3608;filter:none} .atn.owned .tier{color:#4a3608}
+  .atn.avail{background:radial-gradient(circle at 50% 35%,#fbfbfb,#c9cbd0);border:3px solid #fff;box-shadow:0 0 10px rgba(255,255,255,.55);cursor:pointer}
+  .atn.avail .ic{filter:grayscale(1) brightness(.25)} .atn.avail .tier{color:#333}
+  .atn.buyable{animation:atpulse 1.5s ease-in-out infinite}
+  @keyframes atpulse{0%,100%{box-shadow:0 0 10px rgba(255,255,255,.55)}50%{box-shadow:0 0 20px rgba(255,235,150,.95)}}
+  .atn.locked{background:radial-gradient(circle at 50% 35%,#3b3a3e,#26262a);border:2.5px solid #55545a}
+  .atn.locked .ic{filter:grayscale(1) brightness(1.6);opacity:.6} .atn.locked .ic.q{filter:none;color:#9a9098;opacity:.85;font-weight:900} .atn.locked .tier{color:#8d8b93}
+  .atn.ghost{opacity:.3;filter:saturate(.4)}
+  .atn.milestone{background:radial-gradient(circle at 50% 40%,#ffe07a,#b8860f);border:3px solid #fff1b8;box-shadow:0 0 16px rgba(255,200,60,.8),inset 0 2px 5px rgba(255,255,255,.5)}
+  .atn.milestone .ic{color:#3a2c08;filter:none}
+  .atn.milestone.locked{background:radial-gradient(circle at 50% 40%,#6a5a3a,#3a3020);border-color:#8a7a52;box-shadow:none}
+  .atn.milestone.locked .ic{color:#c8b98a}
+  .atn.core{z-index:6;cursor:default}
+  .atlas-legend{display:flex;justify-content:center;gap:12px;margin-top:8px;flex-wrap:wrap;color:#7a6a4e;font-size:11px;font-weight:700}
+  .atlas-legend span{display:flex;align-items:center;gap:5px}
+  .atlas-legend i{width:16px;height:16px;border-radius:50%;display:inline-block}
+  .atlas-legend .lo{background:radial-gradient(circle at 50% 35%,#f3d873,#c79a2b);border:2px solid #ffe9a6}
+  .atlas-legend .la{background:radial-gradient(circle at 50% 35%,#fbfbfb,#c9cbd0);border:2px solid #fff}
+  .atlas-legend .ll{background:#2c2c30;border:2px solid #55545a}
   .lic-head{display:flex;gap:11px;align-items:center;background:#f5eefb;border:1px solid #ddccef;border-left:5px solid var(--acc);border-radius:10px;padding:8px 11px;margin-bottom:6px}
   .lic-face{width:52px;height:52px;flex:none;border-radius:10px;overflow:hidden;background:radial-gradient(circle at 50% 35%,#fff,#e9d6ab);border:2px solid var(--acc)}
   .lic-meta{flex:1;min-width:0} .lic-lv{font-size:14px;font-weight:800;color:var(--ink)} .lic-lp{color:#7a4bc0}

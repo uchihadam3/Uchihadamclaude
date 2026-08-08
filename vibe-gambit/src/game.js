@@ -271,45 +271,133 @@ function openPartyPicker(){
 }
 
 // ---- PRANCHA DE LICENÇA (FFXII-like): XP/Level + destravar skills/aumentos ----
+// ---- PRANCHA DE TALENTOS estilo ATLAS/PoE (árvore circular + moldura por arte) ----
+const STAT_IC = { hp:'❤️', mp:'💧', atk:'⚔️', mag:'🔮', def:'🛡️', spd:'💨' };
+function seededRng(seed){ let s=seed>>>0||1; return ()=>{ s=(s*1103515245+12345)&0x7fffffff; return s/0x7fffffff; }; }
+function hashStr(str){ let h=2166136261; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function tierBadge(name){ const m=(''+name).match(/\b(III|II|I)\b/); if(m) return m[1]; const d=(''+name).match(/([1-4])\s*$/); return d?['','I','II','III','IV'][+d[1]]:''; }
+// Gera o layout (posições + arestas) UMA vez por classe — determinístico.
+function buildTreeLayout(def){
+  const raw = skillBoard(def).slice().sort((a,b)=> (a.reqLevel-b.reqLevel) || (a.cost-b.cost));
+  const rnd = seededRng(hashStr(def.id));
+  const items = []; // {node, x,y,r,ring, kind, ic, tier, mile}
+  const CX=900, CY=900;
+  const caps=[6,9,12,15,18,21,24,27]; const R0=140, RSTEP=118;
+  let idx=0, ring=0; const ringArr=[];
+  while(idx<raw.length){
+    const cap=caps[Math.min(ring,caps.length-1)];
+    const count=Math.min(cap, raw.length-idx);
+    const arr=[]; const a0=(ring%2)*(Math.PI/count);
+    for(let k=0;k<count;k++){
+      const n=raw[idx++];
+      const a=a0 + k*(2*Math.PI/count) + (rnd()-0.5)*0.06;
+      const R=R0+ring*RSTEP + (rnd()-0.5)*14;
+      const x=CX+Math.cos(a)*R, y=CY+Math.sin(a)*R;
+      const isSkill = n.type==='skill';
+      const mile = isSkill && (n.cost>=3);
+      const r = mile?30 : isSkill?27 : 21;
+      const ic = isSkill ? '' : (STAT_IC[n.stat]||'💪');
+      const tier = isSkill ? tierBadge(SKILLS[n.skill]?.name||'') : '';
+      arr.push({ node:n, x,y,r, ring, kind: mile?'milestone':(isSkill?'skill':'stat'), ic, tier, mile, a });
+    }
+    ringArr.push(arr); ring++;
+  }
+  ringArr.forEach(a=>items.push(...a));
+  // arestas: angular (mesmo anel) + radial (nó -> mais próximo por ângulo no anel interno)
+  const edges=[]; const adj = items.map(()=>[]);
+  const indexOf = new Map(); items.forEach((it,i)=>indexOf.set(it,i));
+  const angDiff=(a,b)=>{let d=Math.abs(a-b)%(2*Math.PI);return d>Math.PI?2*Math.PI-d:d;};
+  ringArr.forEach(arr=>{ if(arr.length<2) return; for(let k=0;k<arr.length;k++){ const i=indexOf.get(arr[k]), j=indexOf.get(arr[(k+1)%arr.length]); edges.push([i,j]); adj[i].push(j); adj[j].push(i); } });
+  for(let ri=1;ri<ringArr.length;ri++){ const A=ringArr[ri], B=ringArr[ri-1];
+    for(const it of A){ const s=B.slice().sort((p,q)=>angDiff(it.a,p.a)-angDiff(it.a,q.a)); const near=[s[0]]; if(s[1]&&rnd()<0.4)near.push(s[1]);
+      for(const nb of near){ const i=indexOf.get(it), j=indexOf.get(nb); edges.push([i,j]); adj[i].push(j); adj[j].push(i); } } }
+  // ring0 conecta ao CENTRO (start) — marca esses como "raiz"
+  const roots = ringArr[0] ? ringArr[0].map(it=>indexOf.get(it)) : [];
+  // bounds
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9; for(const it of items){ minx=Math.min(minx,it.x-it.r);miny=Math.min(miny,it.y-it.r);maxx=Math.max(maxx,it.x+it.r);maxy=Math.max(maxy,it.y+it.r); }
+  const PAD=60; const W=Math.round(maxx-minx+PAD*2), H=Math.round(maxy-miny+PAD*2); const ox=PAD-minx, oy=PAD-miny;
+  const rings = ringArr.map((_,i)=>R0+i*RSTEP);
+  return { items, edges, adj, roots, W, H, ox, oy, cx:CX, cy:CY, rings };
+}
+const _treeCache = {};
 function openSkillBoard(heroId){
   const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
-  openPanelModal(`🎓 Licenças — ${def.name}`, body=>{
+  const L = (_treeCache[heroId] ||= buildTreeLayout(def));
+  openPanelModal(`🎓 Licenças`, body=>{
+    const isOwned = it => hs.boughtNodes.includes(it.node.id) || (it.node.type==='skill' && hs.unlockedSkills.includes(it.node.skill));
+    const view = { z:0.5, sl:null, st:null };   // zoom/scroll persistentes entre redesenhos
     const draw = ()=>{
-      const nodes = skillBoard(def);
-      const need = xpToNext(hs.level); const pct = hs.level>=MAX_LEVEL ? 100 : Math.min(100, 100*hs.xp/need);
-      const STAT_IC = { hp:'❤️', mp:'💧', atk:'⚔️', mag:'🔮', def:'🛡️', spd:'💨' };
-      const cell = n=>{
-        const owned = hs.boughtNodes.includes(n.id) || (n.type==='skill' && hs.unlockedSkills.includes(n.skill));
-        const lvlOk = hs.level >= n.reqLevel; const canBuy = !owned && lvlOk && hs.lp >= n.cost;
-        const label = n.type==='skill' ? SKILLS[n.skill].name : `+${n.amt} ${n.stat.toUpperCase()}`;
-        const icon  = n.type==='skill' ? '✨' : (STAT_IC[n.stat]||'💪');
-        const sub   = owned ? '✓ Adquirido' : (!lvlOk ? `Nv.${n.reqLevel}` : `${n.cost} LP`);
-        return `<button class="lic-node ${n.type} ${owned?'owned':canBuy?'buy':'lock'}" data-id="${n.id}" ${canBuy?'':'disabled'}>
-          <span class="ln-frame"><span class="ln-ic">${icon}</span></span>
-          <span class="ln-nm">${label}</span>
-          <span class="ln-cost">${sub}</span></button>`;
-      };
-      const skillNodes = nodes.filter(n=>n.type==='skill');
-      const statNodes  = nodes.filter(n=>n.type==='stat');
-      const ownedCount = nodes.filter(n=> hs.boughtNodes.includes(n.id) || (n.type==='skill'&&hs.unlockedSkills.includes(n.skill))).length;
-      const nodeHTML = `
-        <div class="lic-sec">Ações <span>${skillNodes.length}</span></div>
-        <div class="lic-grid">${skillNodes.map(cell).join('')}</div>
-        <div class="lic-sec">Atributos <span>${statNodes.length}</span></div>
-        <div class="lic-grid">${statNodes.map(cell).join('')}</div>`;
+      // estados (adjacência: raiz sempre alcançável; senão vizinho adquirido)
+      const owned = L.items.map(isOwned);
+      const reach = L.items.map((it,i)=>{
+        if(owned[i]) return false;
+        if(hs.level < it.node.reqLevel) return false;
+        if(L.roots.includes(i)) return true;
+        return L.adj[i].some(j=>owned[j]);
+      });
+      const stateArr = L.items.map((it,i)=> owned[i]?'owned' : reach[i]?'avail' : 'locked');
+      const ghost = L.items.map((it,i)=> stateArr[i]==='locked' && it.ring>=3 && !L.adj[i].some(j=>owned[j]||reach[j]));
+      const conCls=(a,b)=>{ const sa=stateArr[a],sb=stateArr[b];
+        if(sa==='owned'&&sb==='owned')return 'on'; if(sa==='owned'||sb==='owned')return 'near';
+        if(ghost[a]||ghost[b])return 'ghost'; return 'off'; };
+      const ownedCount = owned.filter(Boolean).length, total=L.items.length;
+      // SVG (anéis-guia + centro->raízes + arestas)
+      const guide = L.rings.map(r=>`<circle cx="${L.cx+L.ox}" cy="${L.cy+L.oy}" r="${r}" class="atg"/>`).join('');
+      const rootLines = L.roots.map(i=>{ const it=L.items[i]; const cl = owned[i]?'on':(stateArr[i]==='avail'?'near':'off');
+        return `<line x1="${L.cx+L.ox}" y1="${L.cy+L.oy}" x2="${(it.x+L.ox).toFixed(1)}" y2="${(it.y+L.oy).toFixed(1)}" class="${cl}"/>`; }).join('');
+      const lines = L.edges.map(([a,b])=>{ const A=L.items[a],B=L.items[b];
+        return `<line x1="${(A.x+L.ox).toFixed(1)}" y1="${(A.y+L.oy).toFixed(1)}" x2="${(B.x+L.ox).toFixed(1)}" y2="${(B.y+L.oy).toFixed(1)}" class="${conCls(a,b)}"/>`; }).join('');
+      // nós
+      const nodesHTML = L.items.map((it,i)=>{
+        const st=stateArr[i]; const n=it.node; const lx=it.x+L.ox, ly=it.y+L.oy, d=it.r*2;
+        const label = n.type==='skill' ? (SKILLS[n.skill]?.name||n.skill) : `+${n.amt} ${n.stat.toUpperCase()}`;
+        const buyable = st==='avail' && hs.lp>=n.cost;
+        let icHTML;
+        if(it.kind==='milestone') icHTML = `<span class="ic" style="font-size:${it.r*0.9}px">${st==='owned'?'✓':'★'}</span>`;
+        else if(st==='owned') icHTML = `<span class="ic" style="font-size:${it.r}px">✓</span>`;
+        else if(st==='locked' && n.type==='skill') icHTML = `<span class="ic q" style="font-size:${it.r}px">?</span>`;
+        else icHTML = `<span class="ic" style="font-size:${it.r}px">${it.ic}</span>`;
+        const tierHTML = (it.tier && st!=='owned') ? `<span class="tier">${it.tier}</span>` : '';
+        return `<button class="atn ${st} ${it.kind} ${ghost[i]?'ghost':''} ${buyable?'buyable':''}" data-i="${i}"
+          style="left:${lx}px;top:${ly}px;width:${d}px;height:${d}px;margin:${-it.r}px 0 0 ${-it.r}px"
+          title="${label}${n.cost?` · ${n.cost} LP`:''}${n.reqLevel>1?` · Nv.${n.reqLevel}`:''}">${icHTML}${tierHTML}</button>`;
+      }).join('');
+      const rs = heroRuntimeStats(hs);
       body.innerHTML = `
-        <div class="lic-head" style="--acc:${accentOf(def.id)}">
-          <div class="lic-face">${faceMedia(def.id)}</div>
-          <div class="lic-meta">
-            <div class="lic-lv">Nível <b>${hs.level}</b>${hs.level>=MAX_LEVEL?' (máx)':''} · <span class="lic-lp">${hs.lp} LP</span></div>
-            <div class="lic-xpbar"><i style="width:${pct}%"></i></div>
-            <div class="lic-xptxt">${hs.level>=MAX_LEVEL?'XP máx':`XP ${hs.xp}/${need}`} · <b>${ownedCount}/${nodes.length}</b> licenças</div>
+        <div class="atlas-hdr">
+          <div class="ah-port">${faceMedia(def.id)}</div>
+          <div class="ah-info">
+            <div class="ah-nm">${def.name}</div>
+            <div class="ah-rl">${def.klass||''}</div>
+            <div class="ah-lv">Nível <b>${hs.level}</b>${hs.level>=MAX_LEVEL?'':` · <b>${hs.lp} LP</b>`} · ${ownedCount}/${total}</div>
+            <div class="ah-st"><span>❤️${rs.hp}</span><span>⚔️${rs.atk}</span><span>🛡️${rs.defense}</span><span>🔮${rs.mag}</span><span>💧${rs.mp}</span></div>
           </div>
         </div>
-        <p class="muted tiny" style="margin:2px 2px 8px">Ganhe XP e LP nas expedições. Gaste LP p/ destravar ações e aumentos. As <b>condições</b> são universais (Loja de Gambits).</p>
-        ${nodeHTML}`;
-      body.querySelectorAll('.lic-node.buy').forEach(b=> b.onclick = ()=>{
-        const n = skillBoard(def).find(x=>x.id===b.dataset.id); if(!n || hs.lp<n.cost) return;
+        <div class="atlas-hint"><span>👆 arraste · compre nós ligados aos adquiridos</span>
+          <span class="atlas-z"><button id="atz-">−</button><button id="atz+">+</button></span></div>
+        <div class="atlas-framed"><div class="atlas-vp" id="atvp"><div class="atlas-outer" id="atou"><div class="atlas-tree" id="attr" style="width:${L.W}px;height:${L.H}px">
+          <svg class="atlas-links" viewBox="0 0 ${L.W} ${L.H}" style="width:${L.W}px;height:${L.H}px">${guide}${rootLines}${lines}</svg>
+          <div class="atn core owned" style="left:${L.cx+L.ox}px;top:${L.cy+L.oy}px;width:76px;height:76px;margin:-38px 0 0 -38px"><span class="ic" style="font-size:30px">☀️</span></div>
+          ${nodesHTML}
+        </div></div></div></div>
+        <div class="atlas-legend"><span><i class="lo"></i>Adquirido</span><span><i class="la"></i>Disponível</span><span><i class="ll"></i>Bloqueado</span><span>? = skill travada</span></div>`;
+      // pan/zoom (z/scroll persistem entre redesenhos)
+      const tr=$('attr'), ou=$('atou'), vp=$('atvp');
+      const applyZ=()=>{ tr.style.transform='scale('+view.z+')'; ou.style.width=(L.W*view.z)+'px'; ou.style.height=(L.H*view.z)+'px'; };
+      applyZ();
+      if(view.sl==null){ requestAnimationFrame(()=>{ vp.scrollLeft=(L.cx+L.ox)*view.z - vp.clientWidth/2; vp.scrollTop=(L.cy+L.oy)*view.z - vp.clientHeight/2; view.sl=vp.scrollLeft; view.st=vp.scrollTop; }); }
+      else { vp.scrollLeft=view.sl; vp.scrollTop=view.st; }
+      const rezoom=(dz)=>{ const cx=vp.scrollLeft+vp.clientWidth/2, cy=vp.scrollTop+vp.clientHeight/2; const nz=Math.max(0.26,Math.min(1.3,view.z+dz)); const k=nz/view.z; view.z=nz; applyZ(); vp.scrollLeft=cx*k-vp.clientWidth/2; vp.scrollTop=cy*k-vp.clientHeight/2; view.sl=vp.scrollLeft; view.st=vp.scrollTop; };
+      $('atz+').onclick=()=>rezoom(0.14); $('atz-').onclick=()=>rezoom(-0.1);
+      let down=false,sx,sy,sl,stp,moved=false;
+      vp.addEventListener('pointerdown',e=>{down=true;moved=false;sx=e.clientX;sy=e.clientY;sl=vp.scrollLeft;stp=vp.scrollTop;});
+      vp.addEventListener('pointermove',e=>{ if(!down)return; if(Math.abs(e.clientX-sx)+Math.abs(e.clientY-sy)>4)moved=true; vp.scrollLeft=sl-(e.clientX-sx); vp.scrollTop=stp-(e.clientY-sy); view.sl=vp.scrollLeft; view.st=vp.scrollTop; });
+      vp.addEventListener('pointerup',()=>{ down=false; });
+      vp.addEventListener('pointerleave',()=>{ down=false; });
+      // compra
+      body.querySelectorAll('.atn.buyable').forEach(bt=> bt.onclick = ()=>{
+        if(moved) return;
+        const it = L.items[+bt.dataset.i]; const n=it.node; if(!n || hs.lp<n.cost) return;
         hs.lp -= n.cost; hs.boughtNodes.push(n.id);
         if(n.type==='skill'){ if(!hs.unlockedSkills.includes(n.skill)) hs.unlockedSkills.push(n.skill); }
         else { hs.augments[n.stat] = (hs.augments[n.stat]||0) + n.amt; }
