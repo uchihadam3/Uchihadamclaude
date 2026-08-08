@@ -152,9 +152,11 @@ export const ICO_CHEFE = {
 const PINTADOS = ['combate','elite','chefe','loja','evento','fogueira','tesouro',
   'meta','virada','foco','combo','vista','conhecida','feito','orfa','curinga',
   'semente','prova',
-  /* os catorze tipos de carta, e mais três marcas que aparecem em toda tela */
+  /* os dezoito tipos de carta, e mais três marcas que aparecem em toda tela */
   'normal','ouro','cristal','lendaria','fantasma','camaleao','espelho','bomba',
-  'gelo','corrente','portal','mimic','veneno','raio','reliquia','recusa','moeda'];
+  'gelo','corrente','portal','mimic','veneno','raio','reliquia','recusa','moeda',
+  /* os quatro que o GDD pedia e chegaram pintados depois */
+  'prisma','amuleto','tempo','maldicao'];
 export const TEM_ARTE = new Set(PINTADOS);
 /* `mold` marca a arte que JÁ VEM emoldurada — classe e chefe chegaram dentro
    de um quadro de madeira. Essa arte não pode ser exibida no tamanho de um

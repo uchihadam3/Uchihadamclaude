@@ -632,6 +632,11 @@ def celulas_por_fundo(caminho, cols, linhas):
 
 def salvar(peca, destino, lado=None):
     if peca is None: return False
+    # CENTRAR AQUI, E SÓ AQUI. `centrar_massa` existia desde a folha das runas
+    # e não era chamado de lugar nenhum: a correção tinha sido aplicada uma vez
+    # na mão, e toda folha depois disso voltou torta de novo. Salvar é o funil
+    # por onde passa toda peça de toda folha, então é onde a regra mora.
+    peca = centrar_massa(peca)
     destino.parent.mkdir(parents=True, exist_ok=True)
     if lado:
         p = peca.copy()
