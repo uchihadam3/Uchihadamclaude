@@ -307,7 +307,7 @@ function openSkillBoard(heroId){
           </div>
         </div>
         <p class="muted tiny" style="margin:2px 2px 8px">Ganhe XP e LP nas expedições. Gaste LP p/ destravar ações e aumentos. As <b>condições</b> são universais (Loja de Gambits).</p>
-        <div class="lic-grid">${nodeHTML}</div>`;
+        ${nodeHTML}`;
       body.querySelectorAll('.lic-node.buy').forEach(b=> b.onclick = ()=>{
         const n = skillBoard(def).find(x=>x.id===b.dataset.id); if(!n || hs.lp<n.cost) return;
         hs.lp -= n.cost; hs.boughtNodes.push(n.id);
