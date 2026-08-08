@@ -236,14 +236,46 @@ def alfa_branco(a):
 METODOS = { 'magenta': alfa_magenta, 'xadrez': alfa_xadrez, 'branco': alfa_branco,
             'brilho': alfa_magenta_suave }
 
+# a cor que cada método está tirando — é dela que a franja precisa ser limpa
+CHAVE_DO_METODO = { 'magenta': (255, 0, 255), 'brilho': (255, 0, 255),
+                    'branco': (255, 255, 255) }
+
 def limpar(caminho, metodo):
     im = Image.open(caminho).convert('RGB')
     a = np.array(im)
     saida = METODOS[metodo](a)
     # os métodos duros devolvem máscara booleana; o suave já devolve o alfa
     alfa = saida if saida.dtype == np.uint8 else np.where(saida, 255, 0).astype(np.uint8)
-    rgba = np.dstack([a, alfa])
+    # DESCONTAMINAR TAMBÉM AQUI. O contorno preto não termina no pixel: ele
+    # desbota contra o fundo por dois ou três pixels que ficam meio pretos e
+    # meio magenta, e continuam meio magenta depois do recorte. Os caminhos por
+    # cor-chave já desfaziam isso; o recorte por magenta chapado — que é o
+    # caminho da maioria das folhas — não, e toda peça saía com uma franja roxa
+    # em volta que só aparece quando ela é posta sobre o azul do jogo.
+    k = CHAVE_DO_METODO.get(metodo)
+    if k and saida.dtype != np.uint8:
+        # MÁSCARA DURA: a franja não tem alfa fracionário para desfazer a
+        # mistura, ela está OPACA e meio magenta. Descascar um pixel da borda
+        # resolve o que a conta não alcança — e um pixel de quatrocentos, numa
+        # peça que a tela mostra com sessenta, ninguém vê. O que se vê é a
+        # franja roxa em volta de tudo quando a peça cai sobre o azul do jogo.
+        alfa = descascar(alfa, 2)
+    rgba = np.dstack([descontaminar(a, k, alfa) if k else a, alfa])
     return Image.fromarray(rgba, 'RGBA')
+
+def descascar(alfa, n=1):
+    """erode a máscara em n pixels: só continua opaco quem tem vizinho opaco.
+
+    Dois é o número medido: com um, sobrava um fio roxo visível na moldura de
+    ouro; com dois, some. Três já começa a comer a ponta da coroa.
+    """
+    m = alfa > 127
+    for _ in range(n):
+        v = m.copy()
+        v[1:, :] &= m[:-1, :]; v[:-1, :] &= m[1:, :]
+        v[:, 1:] &= m[:, :-1]; v[:, :-1] &= m[:, 1:]
+        m = v
+    return np.where(m, 255, 0).astype(np.uint8)
 
 # ─────────────────────────── corte em células ───────────────────────────
 

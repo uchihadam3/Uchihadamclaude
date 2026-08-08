@@ -46,6 +46,11 @@ export const ICO = {
   veneno:   S('<path d="M8.5 3.5 h7 v3.5 l3 8.5 a6.5 6.5 0 0 1-13 0 l3-8.5 Z"/>'
              +'<path d="M6.6 15.5 h10.8"/>'),
   raio:     S('<path d="M13.5 2.5 L6 13.5 h5 L10.5 21.5 L18 10.5 h-5 Z"/>'),
+  /* CURINGA só existia pintado, e a medalha precisa do traço: o miolo de um
+     aro de metal é gravado, não é uma placa colada. Seis raios, sem círculo —
+     a semente já é o círculo cortado. */
+  curinga:  S('<path d="M12 2.5 v19"/><path d="M3.8 7.2 L20.2 16.8"/>'
+             +'<path d="M20.2 7.2 L3.8 16.8"/>'),
   /* --- as quatro do desenho original que faltavam --- */
   prisma:   S('<path d="M12 3 L21 19 H3 Z"/><path d="M12 3 V19"/>'
              +'<path d="M12 11 L20 7"/><path d="M12 13 L20 15"/>'),
@@ -164,6 +169,12 @@ export const TEM_ARTE = new Set(PINTADOS);
    mancha. A tela lê essa marca e dá mais espaço. */
 const pintura = (pasta, id, mold='') =>
   `<img class="gl art ${mold}" src="arte/${pasta}/${id}.png" alt="" aria-hidden="true">`;
+/* GUARDA O TRAÇO ANTES DE COBRIR COM A PINTURA. A arte pintada de várias
+   destas veio com placa própria — um quadrado arredondado por trás do
+   desenho — e dentro do aro redondo de uma medalha isso lê como quadrado
+   dentro de círculo. O traço, que herda a cor de quem o coloca, lê como
+   gravado no metal. É o mesmo desenho; muda o que ele veste. */
+export const ICO_TRACO = { ...ICO };
 for(const id of PINTADOS) ICO[id] = pintura('ico', id);
 for(const id of Object.keys(ICO_CLASSE)) ICO_CLASSE[id] = pintura('classe', id, 'mold');
 for(const id of Object.keys(ICO_CHEFE))  ICO_CHEFE[id]  = pintura('chefe', id, 'mold');
@@ -185,7 +196,16 @@ for(const id of ['olho_coruja','caderno','ima','luva','ampulheta','lampada',
 
 export const ICO_FAM = {};
 for(const id of ['runas','espaco','alquimia','xadrez','mitologia','tecnologia',
-  'dragoes','egito']) ICO_FAM[id] = pintura('fam', id);
+  'dragoes','egito','animais','piratas','samurai','dinossauros','robos'])
+  ICO_FAM[id] = pintura('fam', id);
+
+/* OS AROS DAS MEDALHAS — um por degrau, e não um por conquista.
+   Vinte e sete medalhas pintadas seriam vinte e sete folhas de arte para uma
+   tela que se abre uma vez por run. Quatro aros vazios e o ícone que a
+   conquista já tem por dentro dizem a mesma coisa: o desenho conta O QUE foi
+   feito, o aro conta o QUANTO custou. */
+export const ICO_MEDALHA = {};
+for(const g of ['bronze','prata','ouro','lenda']) ICO_MEDALHA[g] = pintura('medalha', g);
 
 /* O BRASÃO DE QUEM AINDA NÃO TEM PINTURA.
    Oito folhas de brasão chegaram e cinco famílias entraram depois. Deixar as

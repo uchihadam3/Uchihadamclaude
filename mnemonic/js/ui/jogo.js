@@ -294,8 +294,7 @@ function ladrilho(tipo, id, extra=''){
     return `<button class="lad ${feita?'':'apagado'}" data-peca="${tipo}:${esc(id)}"
                     style="--fc:${feita ? p.cor : '#5b6683'}">
       <span class="agu">${p.ico}</span>
-      ${feita ? `<span class="selo">${ICO.feito}</span>` : ''}
-      <span class="ic">${p.ico}</span>
+      ${medalhao(p)}
       <span class="nm">${esc(p.nome)}</span>
       <span class="tg">${feita ? esc(p.tag) : 'ainda não'}</span>
       ${extra}</button>`;
@@ -313,6 +312,13 @@ function ladrilho(tipo, id, extra=''){
     ${p.tag ? `<span class="tg">${esc(p.tag)}</span>` : ''}
     ${extra}</button>`;
 }
+/* A MEDALHA MONTADA: o aro do degrau por fora, o ícone da conquista dentro.
+   Os dois vêm separados da arte de propósito — o desenho conta O QUE foi
+   feito, o aro conta o QUANTO custou, e são perguntas diferentes. */
+const medalhao = (p, grande=false) => p.moldura
+  ? `<span class="med-aro ${grande?'g':''}">${p.moldura}<span class="miolo">${p.ico}</span></span>`
+  : `<span class="ic">${p.ico}</span>`;
+
 /* o que se descobre e onde se descobre — a resposta para o toque no fechado */
 const ONDE_ACHA = {
   carta:'Virando uma na mesa. Elas aparecem conforme a run avança.',
@@ -328,7 +334,7 @@ function abrirPeca(tipo, id){
   const p = peca(tipo, id); if(!p) return;
   SFX.clique();
   ficha(`<div class="pecao" style="--fc:${p.cor}">
-      <div class="ic">${p.ico}</div>
+      ${p.moldura ? medalhao(p, true) : `<div class="ic">${p.ico}</div>`}
       <h3>${esc(p.nome)}</h3>
       ${p.tag ? `<div class="rot" style="color:${p.cor}">${esc(p.tag)}</div>` : ''}
       ${p.texto ? `<p class="tx">${esc(p.texto)}</p>` : ''}

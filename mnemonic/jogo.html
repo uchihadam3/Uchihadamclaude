@@ -693,6 +693,21 @@ img.gl{object-fit:contain;stroke:none;
 .lad .selo{position:absolute;left:8px;top:7px;width:15px;height:15px;z-index:1;
   color:var(--ouro);filter:drop-shadow(0 1px 0 rgba(0,0,0,.8))}
 .lad .selo .gl{width:15px;height:15px}
+/* ───────── A MEDALHA ─────────
+   O aro é arte pintada e o miolo é o ícone da conquista. Vão empilhados no
+   mesmo quadrado: o aro em tamanho cheio, o desenho a 44% no centro, que é o
+   tamanho do vazado. */
+.med-aro{position:relative;width:74px;height:74px;flex:0 0 auto;z-index:1;
+  display:grid;place-items:center}
+.med-aro .art{width:74px;height:74px}
+.med-aro .miolo{position:absolute;width:33px;height:33px;display:grid;place-items:center;
+  color:#fff}
+.med-aro .miolo .gl{width:33px;height:33px;stroke-width:2.1}
+.med-aro .miolo img.gl{width:33px;height:33px}
+.med-aro.g{width:104px;height:104px;margin:0 auto 4px}
+.med-aro.g .art{width:104px;height:104px}
+.med-aro.g .miolo,.med-aro.g .miolo .gl{width:46px;height:46px}
+.lad.apagado .med-aro{filter:grayscale(.85) brightness(.62)}
 .lad.apagado{filter:saturate(.28) brightness(.82)}
 /* a barra de quanto já foi encontrado, no ladrilho do capítulo */
 .lad .barra{position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--escT)}

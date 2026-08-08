@@ -24,8 +24,10 @@ import { RELIQUIAS, POR_ID, sortearReliquias } from '../js/data/reliquias.js';
 import { BOSSES, LISTA_BOSSES, BOSS_DO_MUNDO } from '../js/data/bosses.js';
 import { EVENTOS } from '../js/data/eventos.js';
 import { glifo, POR_FAMILIA, FAMILIA_PINTADA, svgGlifo } from '../js/arte/glifos.js';
-import { ICO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, ICO_RELIQUIA, TEM_ARTE,
-         icoReliquia, MOLDURA_DO_TIPO } from '../js/ui/icones.js';
+import { ICO, ICO_TRACO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, ICO_RELIQUIA,
+         ICO_MEDALHA, TEM_ARTE, icoReliquia, MOLDURA_DO_TIPO }
+  from '../js/ui/icones.js';
+import { CONQUISTAS, DEGRAUS } from '../js/data/conquistas.js';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { Sala, COMBOS, degrauCombo, pontosPerfeitos, colunasPara } from '../js/engine/tabuleiro.js';
 import { Run, verificar, planoDaSala, SALAS, MUNDOS, COMBATE, MAX_JOGADAS } from '../js/engine/run.js';
@@ -981,6 +983,13 @@ secao('16b. Todo nome do jogo tem um desenho');
      catálogo cresceu para setenta e cinco e o problema voltaria inteiro se as
      novas ficassem esperando arte: por isso quem não tem pintura ganha um
      emblema montado de moldura mais marca. */
+  /* toda conquista tem marca e todo degrau tem aro — a medalha é montada de
+     duas peças e falta de qualquer uma sai como buraco na parede de medalhas */
+  for(const c of CONQUISTAS)
+    ok(!!ICO_TRACO[c.ico], `a conquista ${c.id} tem marca desenhada`);
+  for(const g of Object.keys(DEGRAUS))
+    ok(!!ICO_MEDALHA[g], `o degrau ${g} tem aro de medalha`);
+
   const marcas = RELIQUIAS.map(r=>icoReliquia(r.id));
   for(let i=0;i<RELIQUIAS.length;i++)
     ok(!!marcas[i] && marcas[i] !== ICO.reliquia,

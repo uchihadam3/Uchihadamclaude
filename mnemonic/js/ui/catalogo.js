@@ -23,7 +23,8 @@ import { BOSSES, LISTA_BOSSES } from '../data/bosses.js';
 import { COMBOS, degrauCombo } from '../engine/tabuleiro.js';
 import { CONQUISTAS, POR_ID_CONQ, DEGRAUS } from '../data/conquistas.js';
 import { svgGlifo } from '../arte/glifos.js';
-import { ICO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, icoReliquia } from './icones.js';
+import { ICO, ICO_TRACO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, ICO_MEDALHA, icoReliquia }
+  from './icones.js';
 
 const vg = n => String(n).replace('.', ',');
 
@@ -152,13 +153,18 @@ export const FAMILIA_DE_PECA = {
       return { cor:RARIDADE[r.r], ico:icoReliquia(r.id), nome:r.nome, tag:r.r, texto:r.d }; },
   },
   conquista: {
-    nome:'As medalhas', ico:ICO.meta, cor:'#ffc23c',
+    nome:'As medalhas', ico:ICO_MEDALHA.ouro, cor:'#ffc23c',
     resumo:'Nenhuma delas ajuda dentro da partida — de propósito. '
          + 'Elas são a meta que sobra quando a run acaba.',
     lista: () => CONQUISTAS.map(c => c.id),
+    /* `moldura` é o aro do degrau, e ele vem SEPARADO do ícone de propósito:
+       vinte e sete medalhas pintadas seriam vinte e sete folhas de arte, e o
+       que o jogador precisa distinguir são duas coisas independentes — o QUE
+       foi feito (o ícone, no miolo) e o QUANTO custou (o aro, em volta). */
     peca: id => { const c = POR_ID_CONQ[id]; const g = DEGRAUS[c.g] || DEGRAUS.bronze;
-      return { cor:g.cor, ico:ICO[c.ico] || ICO.meta, nome:c.nome, tag:g.nome,
-               texto:c.d }; },
+      return { cor:g.cor, ico:ICO_TRACO[c.ico] || ICO_TRACO.meta, nome:c.nome,
+               tag:g.nome, texto:c.d,
+               moldura:ICO_MEDALHA[c.g] || ICO_MEDALHA.bronze }; },
   },
   combo: {
     nome:'A escada do combo', ico:ICO.combo, cor:'#ffa24d',

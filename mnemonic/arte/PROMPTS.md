@@ -341,15 +341,13 @@ python3 tools/recortar.py folhas/brasoes.png celula 3 2 arte/fam \
 
 ---
 
-## 4 · As medalhas (opcional)
+## 4 · As medalhas
 
-As vinte e sete conquistas usam hoje um ícone pintado que já existe no jogo,
-uma para cada — distintas entre si, e o teste cobra isso. Funciona. O que
-falta é elas parecerem MEDALHA: hoje uma conquista de lenda tem a mesma cara
-de uma de bronze, e o degrau só aparece na cor da etiqueta.
-
-O caminho barato é pedir só as quatro **molduras** e continuar usando os
-ícones que já existem por dentro. Quatro peças, não vinte e sete.
+Quatro aros, e não vinte e sete medalhas: o desenho da conquista conta O QUE
+foi feito e o aro conta O QUANTO custou, e são perguntas diferentes. O miolo
+usa o ícone de TRAÇO (`ICO_TRACO`) e não o pintado — a arte pintada de várias
+delas veio com placa própria, e quadrado dentro de círculo lê mal; traço
+dentro de aro de metal lê como gravado.
 
 ```
 A 2x2 grid sheet of four empty award medal frames on a flat pure magenta
@@ -387,6 +385,12 @@ python3 tools/recortar.py folhas/medalhas.png magenta 2 2 arte/medalha \
 ```
 
 ---
+
+## O que já chegou
+
+Cartas novas ✓ · Animais ✓ · Piratas ✓ · Samurai ✓ · Dinossauros ✓ · Robôs ✓
+· Brasões ✓ · Medalhas ✓. Espaço continua desenhada de propósito: a folha dela
+voltou com dois sóis quase iguais.
 
 ## Quando a arte chega
 

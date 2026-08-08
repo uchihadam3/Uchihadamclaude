@@ -371,7 +371,8 @@ export function glifo(fam, i){
    fecha e um jogador que acha que o jogo trapaceou. */
 export const FAMILIA_PINTADA = new Set(['runas','alquimia','xadrez',
                                         'egito','dragoes','tecnologia','mitologia',
-                                        'animais','piratas','samurai']);
+                                        'animais','piratas','samurai',
+                                        'dinossauros','robos']);
 
 /* svg pronto, do tamanho que a tela pedir — ou a peça pintada, se houver */
 export function svgGlifo(fam, i, cls='gl'){
