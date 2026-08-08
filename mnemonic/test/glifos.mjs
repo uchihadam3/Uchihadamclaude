@@ -105,6 +105,11 @@ const relatorio = await p.evaluate(async (perto) => {
      deixou passar dezoito Animais idênticos. Na tela, "Rede de Pesca",
      "Cristal Bruto" e "Ferradura" apareciam com a mesma gota. */
   const semArte = RELIQUIAS.map((r,i)=>({ r, i })).filter(x => !ICO_RELIQUIA[x.r.id]);
+  /* e quando TODAS tiverem pintura, esta medição deixa de existir — que era o
+     plano desde o começo. O emblema continua no código como rede para
+     relíquia que nasça sem arte; enquanto não nascer nenhuma, não há o que
+     medir, e um teste que mede o vazio inventa resultado. */
+  if(semArte.length < 2) return saida;
   const ass = [];
   for(const x of semArte) ass.push(await medir(soMiolo(emblema(x.i))));
   const pares = [];

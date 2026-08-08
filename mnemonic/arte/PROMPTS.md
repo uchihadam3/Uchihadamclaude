@@ -392,8 +392,13 @@ Cartas novas ✓ · Animais ✓ · Piratas ✓ · Samurai ✓ · Dinossauros ✓
 · Brasões ✓ · Medalhas ✓. Espaço continua desenhada de propósito: a folha dela
 voltou com dois sóis quase iguais.
 
-FALTA: as 54 relíquias sem pintura (pedido 5). São elas que deixam a parede de
-relíquias com duas caras.
+Relíquias ✓ — as 75 estão pintadas. O emblema montado continua no código
+como rede para relíquia que nasça sem arte, e hoje não sobra nenhuma.
+
+Medido: par mais próximo 25,3 (Chave Mestra × Fio de Prata — duas peças de
+metal claro e fino), mediana 53,4. As vinte e uma do primeiro lote têm 41,7
+no pior par, então esse é o único aperto do conjunto; numa relíquia isso pesa
+menos que numa carta, porque a ficha traz o nome ao lado do desenho.
 
 ## 5 · As 54 relíquias sem pintura
 

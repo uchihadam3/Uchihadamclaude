@@ -192,11 +192,29 @@ for(const id of Object.keys(ICO_CHEFE))  ICO_CHEFE[id]  = pintura('chefe', id, '
    sem sorteio, igual em qualquer aparelho */
 const ORDEM_RELIQUIA = new Map(RELIQUIAS.map((r,i)=>[r.id, i]));
 
+/* AS SETENTA E CINCO, TODAS PINTADAS. Vinte e uma chegaram no primeiro lote e
+   as outras cinquenta e quatro ficaram um tempo com emblema montado — o que
+   deixava a parede da coleção com duas caras, uma metade de objeto pintado e
+   outra de silhueta vazada. O emblema continua no arquivo como rede para
+   relíquia que nasça sem arte, mas hoje não sobra nenhuma. */
 export const ICO_RELIQUIA = {};
 for(const id of ['olho_coruja','caderno','ima','luva','ampulheta','lampada',
   'moeda_torta','dado_viciado','memoria_fotografica','espelho_antigo','coroa',
   'biblioteca','pena','bussola','sino','cofre','mente_palacio','relogio_parado',
-  'olho_abismo','mao_do_tempo','nucleo']) ICO_RELIQUIA[id] = pintura('rel', id);
+  'olho_abismo','mao_do_tempo','nucleo',
+  /* as comuns */
+  'luneta','marcador','lupa_rachada','cofrinho','relogio_areia','pedra_afiada',
+  'corda','escudo_couro','trevo','bolsa_furada','lente_azul','luva_ouro',
+  'vela','linha','pente','mapa_velho','anel_ferro','caneca',
+  /* as raras */
+  'oculos_leitura','fio_prata','tambor','balanca','faca_dupla','chave_mestra',
+  'espelho_agua','cinzeiro','agulha','livro_cinzas','coroa_espinhos','sacola',
+  'vidro_fume','runa_gasta','placa_circuito','escaravelho','meteorito','alambique',
+  'peao','escama','lira','rede','cristal_bruto','ferradura','bolso_secreto','venda',
+  /* e as lendárias */
+  'cronometro','biblioteca_perdida','coracao','caleidoscopio','lente_do_mundo',
+  'moeda_de_ouro','sino_mudo','ampulheta_negra','grimorio','pedra_filosofal',
+]) ICO_RELIQUIA[id] = pintura('rel', id);
 
 export const ICO_FAM = {};
 for(const id of ['runas','espaco','alquimia','xadrez','mitologia','tecnologia',
