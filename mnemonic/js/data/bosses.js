@@ -9,13 +9,13 @@
 export const BOSSES = {
   ilusionista: {
     id:'ilusionista', nome:'O Ilusionista', glifo:'✧', cor:'#b06bff',
-    regra:'A cada 3 viradas, embaralha duas cartas fechadas.',
+    regra:'A cada 3 tentativas, embaralha duas cartas fechadas.',
     dica:'Posição não se guarda. Guarde o par que ainda falta.',
     turno(s, rel){ if(s.turno % 3 === 0) s._embaralhar(1, rel); },
   },
   hipnotizador: {
     id:'hipnotizador', nome:'O Hipnotizador', glifo:'◉', cor:'#e05a8a',
-    regra:'A cada 4 viradas, apaga da tela uma carta que você já tinha visto.',
+    regra:'A cada 4 tentativas, apaga da tela uma carta que você já tinha visto.',
     dica:'Ele come a memória mais antiga. Feche os pares na ordem em que achou.',
     turno(s, rel){
       if(s.turno % 4) return;
@@ -26,7 +26,7 @@ export const BOSSES = {
   },
   tempo: {
     id:'tempo', nome:'O Tempo', glifo:'⧗', cor:'#7fd4ff',
-    regra:'A cada 5 viradas, uma carta fechada some do tabuleiro levando o par junto.',
+    regra:'A cada 5 tentativas, uma carta fechada some do tabuleiro levando o par junto.',
     dica:'Não guarde par para depois. Depois pode não existir.',
     turno(s, rel){
       if(s.turno % 5) return;
@@ -45,7 +45,7 @@ export const BOSSES = {
   },
   espelho: {
     id:'espelho', nome:'O Espelho', glifo:'⧉', cor:'#d8d8e8',
-    regra:'O tabuleiro inteiro é espelhado na horizontal a cada 6 viradas.',
+    regra:'O tabuleiro inteiro é espelhado na horizontal a cada 6 tentativas.',
     dica:'O que estava à esquerda passa para a direita. A ordem sobrevive, o lado não.',
     /* Espelha DENTRO de cada fila, trocando entre si as posições que
        realmente existem. A conta ingênua (`lin*cols + cols-1-col`) inventa
