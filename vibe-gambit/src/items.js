@@ -22,12 +22,12 @@ export const STAT_META = {
 };
 export const STAT_KEYS = ['atk','def','mag','spd','hp','mp'];
 
-// 4 raridades: cor + rank + [min,max] de modificadores
+// 4 raridades: cor da BORDA (branco→azul→amarelo→vermelho) + rank + [min,max] mods
 export const RARITY_META = {
-  comum:    { label:'Comum',    color:'#9aa0a6', rank:0, mods:[0,1] },
-  magico:   { label:'Mágico',   color:'#3a7bd5', rank:1, mods:[1,2] },
-  raro:     { label:'Raro',     color:'#c9a227', rank:2, mods:[2,3] },
-  lendario: { label:'Lendário', color:'#e0662a', rank:3, mods:[4,4] },
+  comum:    { label:'Comum',    color:'#c7ccd2', rank:0, mods:[0,1] },   // branco
+  magico:   { label:'Mágico',   color:'#3a86e0', rank:1, mods:[1,2] },   // azul
+  raro:     { label:'Raro',     color:'#e3b53a', rank:2, mods:[2,3] },   // amarelo
+  lendario: { label:'Lendário', color:'#d6392f', rank:3, mods:[4,4] },   // vermelho
 };
 export const RARITY_ORDER = ['comum','magico','raro','lendario'];
 
@@ -152,7 +152,27 @@ export function sellPrice(inst){
   return Math.max(2, Math.round(itemPower(inst) * (1 + RARITY_META[inst.rarity].rank*0.9)));
 }
 export function itemIcon(inst){ return SLOT_EMOJI[inst.slot] || '❔'; }
-export function rarityColor(inst){ return RARITY_META[inst.rarity]?.color || '#9aa0a6'; }
+export function rarityColor(inst){ return RARITY_META[inst.rarity]?.color || '#c7ccd2'; }
+
+// FAIXA de nível (1..10) — a arte é a mesma dentro da faixa; só a raridade muda a borda.
+// ilvl 1–10 → t1, 11–20 → t2 … 91–100 → t10.
+export function itemTier(inst){ return Math.max(1, Math.min(10, Math.ceil((inst.ilvl||1)/10))); }
+
+// Caminho da ARTE do item (reaproveita os PNGs de tier que já temos).
+//  - Armadura: assets/item_<weight>_<part>_t<tier>.png  (existe: 3×4×10)
+//  - Arma:     assets/wpn_<arch>_t<tier>.png             (arte futura → cai no emoji)
+//  - Acessório: anel/amuleto
+// Arquétipos de arma que JÁ têm arte (folha de tiers). Enquanto vazio, armas
+// caem no emoji (sem 404). Ao gerar a arte, adicione o arquétipo aqui.
+export const WEAPON_ART_READY = new Set([]);
+export function itemArt(inst){
+  if(!inst) return null;
+  const t = itemTier(inst);
+  if(inst.slot === 'trinket') return inst.base==='amulet' ? 'assets/item_vital_amulet.png' : 'assets/item_power_ring.png';
+  if(inst.weight)             return `assets/item_${inst.weight}_${inst.slot}_t${t}.png`;
+  if(inst.slot === 'weapon')  return WEAPON_ART_READY.has(inst.arch) ? `assets/wpn_${inst.arch}_t${t}.png` : null;
+  return null;
+}
 
 // pode o herói (def) equipar esta instância?
 export function canEquip(def, inst){

@@ -15,6 +15,7 @@ import { spriteFor } from './sprites.js';
 import {
   STAT_META, STAT_KEYS, RARITY_META, RARITY_ORDER, SLOT_EMOJI, SLOT_LABEL,
   itemTotals, itemPower, sellPrice, itemIcon, rarityColor, canEquip, rollDrop,
+  itemTier, itemArt,
 } from './items.js';
 
 const S = loadOrNew();
@@ -433,7 +434,7 @@ function renderDetail(){
     if(inst){
       return `<button class="d-slot on" data-slot="${s.key}" title="${s.label} · ${inst.name} (${RARITY_META[inst.rarity].label}) — tocar p/ trocar"
         style="--acc:${accentOf(hs.id)};--rar:${rarityColor(inst)}">
-        <span class="ds-emoji">${itemIcon(inst)}</span><span class="ds-rar"></span></button>`;
+        <span class="ds-thumb">${itemThumb(inst)}</span></button>`;
     }
     return `<button class="d-slot" data-slot="${s.key}" title="${s.label} (vazio) — tocar p/ abrir o inventário" style="--acc:${accentOf(hs.id)}">
       ${slotImg('assets/slot_'+s.key+'.png','ghost')}<span class="ds-add">+</span></button>`;
@@ -475,9 +476,15 @@ function openInventory(heroId, opts={}){
   bindModalDismiss();
   renderInventory($('inv-mount'), heroId);
 }
+// ícone de item (arte do tier por cima, emoji atrás como fallback se a arte faltar)
+function itemThumb(it){
+  const art = itemArt(it);
+  return `<span class="it-emoji">${itemIcon(it)}</span>${art?`<img class="it-art" src="${art}" alt="" onerror="this.style.display='none'">`:''}`;
+}
+const MIN_BAG = 24;                 // nº mínimo de células (visual de "mochila")
+
 function renderInventory(mount, heroId){
   const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
-  const eq = heroEquip(hs);
   const inv = S.inventory || [];
   const SLOTS = ['all','weapon','head','chest','hands','feet','trinket'];
   const slotChip = k => `<button class="ivf ${invFilter.slot===k?'on':''}" data-slot="${k}">${k==='all'?'Tudo':SLOT_EMOJI[k]}</button>`;
@@ -495,33 +502,15 @@ function renderInventory(mount, heroId){
   };
   rows.sort(sorters[invFilter.sort]||sorters.power);
 
-  const rowHTML = ({it,idx})=>{
-    const equippable = canEquip(def, it);
-    const totals = itemTotals(it);
-    const cur = eq[it.slot] ? itemTotals(eq[it.slot]) : {};   // item equipado no MESMO slot
-    const stat = k => {
-      const v = totals[k]||0; if(!v) return '';
-      const d = v - (cur[k]||0);
-      const dl = equippable && (cur[k]!=null || eq[it.slot]) ? `<i class="${d>0?'up':d<0?'dn':'eq'}">${d>0?'▲':d<0?'▼':''}${d?Math.abs(d):''}</i>` : '';
-      return `<span class="iv-st">${STAT_META[k].icon}${v}${dl}</span>`;
-    };
-    const line = STAT_KEYS.map(stat).join('');
-    const isEq = eq[it.slot] === it;
-    return `<div class="iv-row" style="--rar:${rarityColor(it)}">
-      <span class="iv-ic">${itemIcon(it)}</span>
-      <span class="iv-main">
-        <b class="iv-nm">${it.name} <em class="iv-rar">${RARITY_META[it.rarity].label}</em>${isEq?'<em class="iv-on">equipado</em>':''}</b>
-        <span class="iv-line">${line||'—'}</span>
-      </span>
-      <span class="iv-acts">
-        ${equippable && !isEq ? `<button class="iv-eq" data-eq="${idx}">Equipar</button>` : ''}
-        ${equippable &&  isEq ? `<button class="iv-uneq" data-uneq="${it.slot}">Tirar</button>` : ''}
-        <button class="iv-sell" data-sell="${idx}" title="Vender">💰${sellPrice(it)}</button>
-      </span>
-    </div>`;
-  };
-  const listHTML = rows.length ? rows.map(rowHTML).join('')
-    : `<div class="iv-empty">Nada aqui com esse filtro.${invFilter.onlyClass?`<br><small>Toque em “Todas as classes” p/ ver o resto.</small>`:''}</div>`;
+  // GRADE de slots (estilo mochila MMO): ícone do item + borda pela raridade.
+  const cell = ({it,idx}) =>
+    `<button class="bag-cell" data-idx="${idx}" style="--rar:${rarityColor(it)}" title="${it.name} · ${RARITY_META[it.rarity].label}">
+      ${itemThumb(it)}</button>`;
+  const cells = rows.map(cell).join('');
+  const pad = Array.from({length: Math.max(0, MIN_BAG - rows.length)}, () => `<div class="bag-cell empty"></div>`).join('');
+  const gridHTML = rows.length || inv.length===0
+    ? `<div class="bag-grid">${cells}${pad}</div>`
+    : `<div class="iv-empty">Nada com esse filtro.${invFilter.onlyClass?`<br><small>Toque em “Todas as classes”.</small>`:''}</div>`;
 
   mount.innerHTML = `
     <div class="iv-head">
@@ -533,14 +522,52 @@ function renderInventory(mount, heroId){
       <button class="ivf cls ${invFilter.onlyClass?'on':''}" id="iv-cls">${invFilter.onlyClass?`✓ Só ${def.name}`:'Todas as classes'}</button>
       <span class="iv-sortlbl">Ordenar:</span>${sortChip('power','Mais forte')}${sortChip('rarity','Raridade')}${sortChip('recent','Recente')}
     </div>
-    <div class="iv-list">${listHTML}</div>`;
+    <div class="bag-wrap">${gridHTML}</div>
+    <div class="ivd-layer" id="ivd" hidden></div>`;
 
   mount.querySelectorAll('.ivf[data-slot]').forEach(b=>b.onclick=()=>{ invFilter.slot=b.dataset.slot; renderInventory(mount,heroId); });
   mount.querySelectorAll('.ivs[data-sort]').forEach(b=>b.onclick=()=>{ invFilter.sort=b.dataset.sort; renderInventory(mount,heroId); });
   mount.querySelector('#iv-cls').onclick=()=>{ invFilter.onlyClass=!invFilter.onlyClass; renderInventory(mount,heroId); };
-  mount.querySelectorAll('.iv-eq').forEach(b=>b.onclick=()=>{ equipItem(heroId,+b.dataset.eq); renderInventory(mount,heroId); });
-  mount.querySelectorAll('.iv-uneq').forEach(b=>b.onclick=()=>{ unequipItem(heroId,b.dataset.uneq); renderInventory(mount,heroId); });
-  mount.querySelectorAll('.iv-sell').forEach(b=>b.onclick=()=>{ sellItem(+b.dataset.sell); renderInventory(mount,heroId); });
+  mount.querySelectorAll('.bag-cell[data-idx]').forEach(b=>b.onclick=()=>showItemDetail(mount, heroId, +b.dataset.idx));
+}
+
+// POPUP de detalhe do item (abre ao clicar num slot): atributos + comparativo + ações.
+function showItemDetail(mount, heroId, invIdx){
+  const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
+  const eq = heroEquip(hs); const it = S.inventory[invIdx];
+  const layer = mount.querySelector('#ivd'); if(!it || !layer) return;
+  const equippable = canEquip(def, it);
+  const totals = itemTotals(it);
+  const cur = eq[it.slot] ? itemTotals(eq[it.slot]) : {};
+  const cmp = equippable && eq[it.slot];
+  const statLine = STAT_KEYS.map(k=>{
+    const v = totals[k]||0; if(!v) return '';
+    const d = v-(cur[k]||0);
+    const dl = cmp ? `<i class="${d>0?'up':d<0?'dn':'eq'}">${d>0?'▲':d<0?'▼':''}${d?Math.abs(d):''}</i>` : '';
+    return `<div class="ivd-st"><span>${STAT_META[k].icon} ${STAT_META[k].label}</span><b>${v}${dl}</b></div>`;
+  }).join('') || '<div class="ivd-st muted">Sem atributos</div>';
+  layer.innerHTML = `<div class="ivd-back"></div>
+    <div class="ivd-card" style="--rar:${rarityColor(it)}">
+      <button class="ivd-x" title="Fechar">✕</button>
+      <div class="ivd-top"><span class="ivd-ic">${itemThumb(it)}</span>
+        <div class="ivd-id"><b>${it.name}</b>
+          <span class="ivd-tags"><em class="ivd-rar">${RARITY_META[it.rarity].label}</em><em class="ivd-tier">${SLOT_LABEL[it.slot]} · Nível ${it.ilvl} (faixa T${itemTier(it)})</em></span></div>
+      </div>
+      <div class="ivd-stats">${statLine}</div>
+      ${cmp?'<p class="ivd-hint">Comparado com o item equipado — <span class="up">▲ verde</span> melhora · <span class="dn">▼ vermelho</span> piora.</p>':''}
+      ${!equippable?`<p class="ivd-hint warn">${def.name} não pode usar este item.</p>`:''}
+      <div class="ivd-acts">
+        ${equippable?`<button class="ivd-eq">⚔️ Equipar</button>`:''}
+        <button class="ivd-sell">💰 Vender · ${sellPrice(it)}</button>
+      </div>
+    </div>`;
+  layer.hidden = false;
+  const close = ()=>{ layer.hidden = true; layer.innerHTML=''; };
+  layer.querySelector('.ivd-x').onclick = close;
+  layer.querySelector('.ivd-back').onclick = close;
+  const eqBtn = layer.querySelector('.ivd-eq');
+  if(eqBtn) eqBtn.onclick = ()=>{ equipItem(heroId, invIdx); close(); renderInventory(mount, heroId); };
+  layer.querySelector('.ivd-sell').onclick = ()=>{ sellItem(invIdx); close(); renderInventory(mount, heroId); };
 }
 
 function equipItem(heroId, invIdx){
