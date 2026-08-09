@@ -252,9 +252,16 @@ secao('5b. A meta acompanha o crescimento do jogador');
 
   ok(so.every((c,k)=> k===0 || c.aperto >= so[k-1].aperto - 1e-9),
      'o aperto nunca afrouxa de uma sala para a seguinte');
-  ok(ult.aperto / prim.aperto > 2.5,
+  /* O DEFEITO ERA ×1,2 — vinte por cento de aperto numa run em que o
+     jogador multiplica os próprios pontos por dez. O piso aqui é ×1,8, e
+     não um número maior, porque o valor certo ANDA: ele é a contraparte de
+     quanto a build multiplica, e muda toda vez que uma relíquia de ponto
+     muda de força. Já esteve em ×2,8 (com as relíquias fortes) e está em
+     ×2,1 agora que elas foram enfraquecidas. O que este teste guarda é a
+     FORMA — a meta acompanhando o jogador —, não a calibragem do mês. */
+  ok(ult.aperto / prim.aperto > 1.8,
      `a run inteira aperta de verdade (×${(ult.aperto/prim.aperto).toFixed(1)} `
-     + `do começo ao fim, era ×1,2)`);
+     + `do começo ao fim, era ×1,2 quando estava quebrado)`);
   /* e o aperto tem de estar NO FIM: dobrar a meta da sala 3 castigaria quem
      está aprendendo, que nunca foi o problema */
   const primeiraMetade = meio.aperto / prim.aperto;

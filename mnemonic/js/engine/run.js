@@ -100,42 +100,56 @@ export const COMBATE = new Set(['combate','elite','boss']);
    forma somada. Nenhum ajuste do 0,21 conserta isso; o que conserta é a
    meta crescer no mesmo formato.
 
-   `Math.pow(3,5, dif^1,5)` faz isso. O expoente 1,5 é o que segura o começo:
+   `Math.pow(2,2, dif^1,5)` faz isso. O expoente 1,5 é o que segura o começo:
    na primeira metade da run ele quase não mexe, e o aperto se concentra
-   onde o problema estava. Medido depois da mudança, mesmo bot:
+   onde o problema estava. Medido, mesmo bot esquecendo 10%:
 
        sala  0   meta     86   marcado    120    ×1,4    91%   (igual)
-       sala 15   meta    282   marcado    626    ×2,2    80%
-       sala 21   meta    457   marcado  1.324    ×2,9    95%
-       sala 44   meta  1.768   marcado  5.576    ×3,2
-       sala 51   meta  2.411   marcado 10.383    ×4,3
+       sala 15   meta    263   marcado    472    ×1,8    73%
+       sala 21   meta    407   marcado    976    ×2,4    90%
+       sala 44   meta  1.244   marcado  2.997    ×2,4
+       sala 51   meta  1.556   marcado  5.637    ×3,6
 
-   A folga do fim caiu de 12,4× para 4,3×, e a meta da última sala subiu de
-   912 para 2.411. Que a razão ainda cresça um pouco é certo e não defeito:
-   quem chega na sala 51 chegou porque a build ficou monstruosa, e a régua
-   não deve fingir que não. O que não pode é ela crescer TRÊS VEZES mais que
-   a régua, que era o caso.
+   A folga do fim caiu de 12,4× para 3,6×, e a meta da última sala subiu de
+   912 para 1.556. Que a razão ainda cresça um pouco é certo e não defeito:
+   quem chega na sala 51 chegou porque a build ficou grande, e a régua não
+   deve fingir que não. O que não pode é ela crescer TRÊS VEZES mais que a
+   régua, que era o caso.
+
+   ═══ POR QUE O NÚMERO É 2,2 E NÃO 3,5 ══════════════════════════════════
+   Ele foi 3,5 por um dia. Aí as relíquias de PONTO foram enfraquecidas — a
+   pedido, porque estavam fortes demais — e as duas mudanças se somaram: com
+   3,5 e as relíquias novas, memória perfeita vencia só 31% das runs. Não é
+   dificuldade, é castigo.
+
+   Isto é a lição que esta fórmula ensina a cada lote: `fator` não é um
+   número solto, é a CONTRAPARTE do quanto a build multiplica. Mexeu num, tem
+   de remedir o outro. Enfraquecer relíquia e apertar a meta ao mesmo tempo
+   corta o jogador duas vezes pelo mesmo motivo.
 
    Na run inteira, com 96 runs por linha (`test/curva.mjs 12`):
 
-                          antes    agora
-       memória perfeita     66%      56%
-       esquece  3%          56%      45%
-       esquece  6%          51%      36%
-       esquece 10%          33%      23%
-       esquece 15%          17%      11%
+                        antes   com meta 3,5   agora (2,2 + relíquias fracas)
+       memória perfeita   66%        56%              57%
+       esquece  3%        56%        45%              45%
+       esquece  6%        51%        36%              26%
+       esquece 10%        33%        23%              17%
+       esquece 15%        17%        11%               7%
 
-   É o formato pedido: build boa leva longe, build ruim mata, e ninguém
-   passeia até o fim. Os números continuam MEDIDOS e não escolhidos —
-   `test/curva.mjs` para a run inteira, `test/quebrar.mjs` para o teto das
-   builds, e `test/regras.mjs` §5b para a forma desta curva. */
+   O topo voltou para onde estava e o meio ficou mais íngreme — que é
+   exatamente o efeito de tirar força das relíquias: quem joga bem depende
+   menos delas, quem esquece dependia. Esquecer voltou a custar caro.
+
+   Os números continuam MEDIDOS e não escolhidos — `test/curva.mjs` para a
+   run inteira, `test/quebrar.mjs` para o teto das builds, e
+   `test/regras.mjs` §5b para a forma desta curva. */
 export function planoDaSala(mundo, indice, tipo){
   const total = MUNDOS*SALAS.length;
   const passo = mundo*SALAS.length + indice;
   const dif   = total>1 ? Math.min(1, passo/(total-1)) : 0;
   const pares = Math.min(30, 6 + Math.round(dif*24));
   const peso  = tipo==='elite' ? 1.06 : tipo==='boss' ? 1.12 : 1;
-  const fator = 0.95 * Math.pow(3.5, Math.pow(dif, 1.5)) * peso;
+  const fator = 0.95 * Math.pow(2.2, Math.pow(dif, 1.5)) * peso;
   return {
     pares,
     dificuldade: dif * (tipo==='boss' ? 1 : 0.9),
@@ -324,7 +338,11 @@ export class Run {
       this.estatisticas.viradasSobrando += Math.max(0, s.viradas);
       let p = s.pontos;
       if(this.C.dobraTudo) p*=2;
-      if(s.mods.dobra) p*=2;
+      /* `dobra` virou um NÚMERO. Era `true` e valia 2 fixo, e o nome ficou —
+         mas o Núcleo Instável multiplica por 1,6 hoje. Ler o valor em vez de
+         só perguntar se existe é o que impede o texto da relíquia e a conta
+         de discordarem na próxima vez que este número mudar. */
+      if(s.mods.dobra) p *= (s.mods.dobra === true ? 2 : s.mods.dobra);
       /* moeda vira ponto. O passo é de 3 moedas por padrão e de 2 com a Pedra
          Filosofal, que é o que faz uma build de moeda deixar de ser só compra */
       if(s.mods.moedaVale)
