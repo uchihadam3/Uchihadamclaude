@@ -21,6 +21,35 @@ export function estaMudo(){ return !ligado; }
    dois contextos são dois relógios, e o navegador limita quantos existem */
 export const contexto = () => ac();
 
+/* ════════════════ O BARRAMENTO DOS EFEITOS ════════════════
+   Antes cada efeito ia direto no alto-falante, cada um com o seu volume solto
+   entre 0,08 e 0,20 — e a trilha, somada e comprimida, entrava por cima a
+   0,85. O efeito simplesmente sumia. A solução de então foi ABAIXAR A MÚSICA
+   durante a jogada, e ela é pior que o problema: virar duas cartas é o que
+   se faz o tempo todo neste jogo, então a trilha mergulhava e voltava a cada
+   poucos segundos, e música que muda de altura sozinha soa quebrada.
+
+   O caminho certo é este: os efeitos têm barramento próprio, ganho acima da
+   trilha e um limitador no fim. Assim o acerto ATRAVESSA a música em vez de
+   empurrá-la para baixo, e a trilha nunca se mexe.
+
+   O limitador é o que torna isso seguro. Ganho de 2,6 sem limitador ceifaria
+   no primeiro efeito com duas notas juntas (a vitória tem quatro); com
+   limiar em −11 dB, razão 16 e ataque de 1 ms, o pico fica preso e o que
+   passa é volume, não distorção. */
+const GANHO_SFX = 2.6;
+let mestre = null;
+function saida(){
+  const c = ac(); if(!c) return null;
+  if(mestre) return mestre;
+  mestre = c.createGain(); mestre.gain.value = GANHO_SFX;
+  const lim = c.createDynamicsCompressor();
+  lim.threshold.value = -11; lim.ratio.value = 16;
+  lim.attack.value = 0.001; lim.release.value = 0.12; lim.knee.value = 3;
+  mestre.connect(lim).connect(c.destination);
+  return mestre;
+}
+
 function tom({ f=440, f2=null, t=0.12, v=0.18, tipo='sine', atraso=0 }){
   if(!ligado) return;
   const c = ac(); if(!c) return;
@@ -31,7 +60,8 @@ function tom({ f=440, f2=null, t=0.12, v=0.18, tipo='sine', atraso=0 }){
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(v, t0+0.012);
   g.gain.exponentialRampToValueAtTime(0.0001, t0+t);
-  o.connect(g).connect(c.destination);
+  const m = saida(); if(!m) return;
+  o.connect(g).connect(m);
   o.start(t0); o.stop(t0+t+0.02);
 }
 function ruido({ t=0.1, v=0.12, atraso=0, corte=1200 }){
@@ -44,7 +74,8 @@ function ruido({ t=0.1, v=0.12, atraso=0, corte=1200 }){
   const s = c.createBufferSource(); s.buffer = buf;
   const f = c.createBiquadFilter(); f.type='lowpass'; f.frequency.value = corte;
   const g = c.createGain(); g.gain.value = v;
-  s.connect(f).connect(g).connect(c.destination);
+  const m = saida(); if(!m) return;
+  s.connect(f).connect(g).connect(m);
   s.start(c.currentTime + atraso);
 }
 

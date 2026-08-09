@@ -31,6 +31,7 @@ class No {
                  this.detune = new Param(0); this.Q = new Param(1);
                  this.delayTime = new Param(0);
                  this.threshold = new Param(0); this.ratio = new Param(1);
+                 this.knee = new Param(30);
                  this.attack = new Param(0); this.release = new Param(0); }
   connect(x){ return x; }
   disconnect(){}
@@ -53,6 +54,7 @@ class FakeCtx {
 const ctx = new FakeCtx();
 globalThis.window = { AudioContext: function(){ return ctx; } };
 
+import { readFileSync } from 'node:fs';
 const M = await import('../js/ui/musica.js');
 
 /* ---------- utilidades ---------- */
@@ -225,13 +227,47 @@ secao('7. Quem desliga a música fica sem música');
   M.querMusica(true);
   await rodar(1);
   ok(M.diagnostico().volume > 0, 'e volta quando se liga de novo');
-  M.abaixar(true); await rodar(1);
-  const baixo = M.diagnostico().volume;
-  M.abaixar(false); await rodar(1);
-  const cheio = M.diagnostico().volume;
-  ok(baixo > 0 && baixo < cheio,
-     `a trilha recua na jogada e volta depois (${baixo} → ${cheio})`);
   M.parar();
+}
+
+/* ════════════════════════════════════════════════════════ 8 */
+secao('8. O volume da trilha NÃO se mexe enquanto ela toca');
+{
+  /* Existia um `abaixar()`: a trilha caía de 0,85 para 0,24 durante a
+     resolução de cada par, para o som do acerto aparecer. Só que virar duas
+     cartas é o que se faz o tempo todo neste jogo — a música mergulhava e
+     voltava a cada poucos segundos, e o ouvido lê isso como música quebrada,
+     não como efeito destacado. O conserto certo foi dar barramento próprio
+     aos efeitos, em `sfx.js`; aqui se cobra que a trilha ficou parada.
+
+     Cobrar isso por MEDIÇÃO não bastaria: um `abaixar()` novo entraria pela
+     tela e este teste, que não toca na tela, não veria. Então cobra-se
+     também o CÓDIGO: nada pode oferecer um jeito de mexer no volume da
+     trilha por fora, e a tela não pode ter chamada nenhuma disso. */
+  M.querMusica(true);
+  M.trilha('mundo0'); await rodar(2);
+  const leituras = [];
+  for(let i=0;i<12;i++){ await rodar(1); leituras.push(M.diagnostico().volume); }
+  const menor = Math.min(...leituras), maior = Math.max(...leituras);
+  ok(menor > 0, 'a trilha está tocando durante a medição');
+  eq(menor, maior, `o volume não oscila ao longo da faixa (${menor})`);
+  M.parar();
+
+  const fonte = readFileSync(new URL('../js/ui/musica.js', import.meta.url), 'utf8');
+  ok(!/^export function abaixar/m.test(fonte),
+     'a trilha não exporta jeito nenhum de abaixar o volume por fora');
+  const tela = readFileSync(new URL('../js/ui/jogo.js', import.meta.url), 'utf8');
+  ok(!/\babaixar\s*\(/.test(tela), 'e a tela não abaixa a trilha em lugar nenhum');
+
+  /* E OS EFEITOS TÊM DE TER BARRAMENTO PRÓPRIO — é o que os faz aparecer sem
+     empurrar a música para baixo. Sem isto o `abaixar` voltaria por
+     necessidade, e com razão. */
+  const som = readFileSync(new URL('../js/ui/sfx.js', import.meta.url), 'utf8');
+  ok(/createDynamicsCompressor/.test(som),
+     'os efeitos passam por um limitador próprio');
+  const soltos = som.match(/connect\(c\.destination\)/g) || [];
+  eq(soltos.length, 1,
+     'só o barramento dos efeitos fala com o alto-falante — nenhum efeito solto');
 }
 
 console.log('\n' + '─'.repeat(56));

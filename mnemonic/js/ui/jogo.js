@@ -37,7 +37,7 @@ import { RELIQUIAS, POR_ID, RARIDADE } from '../data/reliquias.js';
 import { LISTA_BOSSES } from '../data/bosses.js';
 import { svgGlifo } from '../arte/glifos.js';
 import { SFX, acordar, mudo, estaMudo } from './sfx.js';
-import { trilha, abaixar, querMusica, temMusica, reavaliar } from './musica.js';
+import { trilha, querMusica, temMusica, reavaliar } from './musica.js';
 import * as MUSICA from './musica.js';
 import { ICO, ICO_CLASSE, ICO_CHEFE, icoReliquia, MOLDURA_DO_TIPO } from './icones.js';
 import { CAPITULOS, FAMILIA_DE_PECA, peca, PALAVRAS, COR_COMBO, corDoCombo }
@@ -1021,9 +1021,11 @@ async function tocarCarta(id){
 
   travado = true;
   $('#bfer').disabled = true;
-  abaixar(true);                 // o som que importa agora é o do par
+  /* a trilha NÃO recua aqui. Recuava — de 0,85 para 0,24 — e como virar duas
+     cartas é o que se faz o tempo todo, a música mergulhava a cada poucos
+     segundos e soava quebrada. O acerto passa por cima dela agora, pelo
+     barramento próprio dos efeitos em `sfx.js`. */
   await animar(rel);
-  abaixar(false);
   travado = false;
   medidores();
   if(!run.sala){ await espera(360); seguir(); }

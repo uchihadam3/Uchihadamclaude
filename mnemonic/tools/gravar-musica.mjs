@@ -19,11 +19,16 @@ const num = (bandeira, padrao) => {
   return i >= 0 ? Number(args[i+1]) : padrao;
 };
 const SEG  = num('--seg', 45);
+/* RENDERIZAR MAIS COMPRIDO DO QUE A MÚSICA. O rabo do reverb só dá para
+   cronometrar depois da última nota; se a gravação acaba junto com ela, o que
+   se mede é o corte do arquivo, não a sala. `--cauda 6` agenda música até
+   SEG−6 e deixa seis segundos de decaimento puro no fim. */
+const CAUDA = num('--cauda', 0);
 const TAXA = num('--taxa', 44100);
 const MONO = args.includes('--mono');   /* metade do arquivo, e para julgar
                                            a música o estéreo não faz falta */
 const consumidos = new Set();
-for(const b of ['--seg','--taxa']){
+for(const b of ['--seg','--taxa','--cauda']){
   const i = args.indexOf(b);
   if(i >= 0){ consumidos.add(i); consumidos.add(i+1); }
 }
@@ -49,7 +54,7 @@ mkdirSync('/tmp/trilha', { recursive:true });
 for(const id of alvos){
   const p = await b.newPage();
   await p.goto(VAZIA, { waitUntil:'domcontentloaded' });
-  const b64 = await p.evaluate(async ({ id, SEG, MOD, TAXA, MONO }) => {
+  const b64 = await p.evaluate(async ({ id, SEG, MOD, TAXA, MONO, CAUDA }) => {
     const off = new OfflineAudioContext(MONO ? 1 : 2, TAXA * SEG, TAXA);
     /* o módulo de som pede o contexto ao navegador uma vez só; trocamos a
        fábrica antes de ele acordar, e carregamos uma cópia nova do módulo
@@ -71,7 +76,7 @@ for(const id of alvos){
     const M = await import(MOD);
     M.querMusica(true);
     M.trilha(id);
-    M.girarAte(SEG);
+    M.girarAte(SEG - CAUDA);
     /* a fábrica só volta ao normal DEPOIS de a faixa estar agendada: o módulo
        de som pede o contexto na primeira nota, não no import, e devolvê-la
        antes disso fazia a música ir para o alto-falante e o arquivo sair mudo */
@@ -103,7 +108,7 @@ for(const id of alvos){
     for(let i=0;i<u8.length;i+=8192)
       bin += String.fromCharCode.apply(null, u8.subarray(i, i+8192));
     return btoa(bin);
-  }, { id, SEG, MOD, TAXA, MONO });
+  }, { id, SEG, MOD, TAXA, MONO, CAUDA });
   await p.close();
   const arq = `/tmp/trilha/${id}.wav`;
   writeFileSync(arq, Buffer.from(b64, 'base64'));

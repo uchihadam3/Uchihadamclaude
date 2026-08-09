@@ -216,18 +216,65 @@ export const tema = f => {
 /* ════════════════════ O SOM ════════════════════ */
 let bus = null, filtro = null, reverb = null, eco = null, secoNo = null;
 let quer = true, atual = null, clima = null, plano = null;
-let relogio = null, proximo = 0, passo = 0, abaixado = 0, agendadas = 0;
+let relogio = null, proximo = 0, passo = 0, agendadas = 0;
 
-/* REVERB SEM ARQUIVO: ruído que decai é uma sala. Não é uma catedral medida,
-   e não precisa ser — o que ele resolve é o oscilador soar dentro de algum
-   lugar em vez de encostado no alto-falante. */
-function salaImpulso(c, seg = 2.2, decaimento = 3.2){
+/* O NÍVEL DA TRILHA, MEDIDO E NÃO CHUTADO — e CONSTANTE.
+   ────────────────────────────────────────────────────────────────────────
+   A primeira versão saía a −40 dBFS: no celular, na rua, era silêncio. Este
+   número é o que `tools/gravar-musica.mjs` renderiza e `tools/medir-som.py`
+   confere; quem segura o pico é o compressor logo depois, porque nos trechos
+   cheios somam entre seis e nove vozes.
+
+   E ELE NÃO SE MEXE ENQUANTO A MÚSICA TOCA. Existia um `abaixar()` que
+   derrubava o barramento de 0,85 para 0,24 — 71% a menos — durante a
+   resolução de cada par, para "deixar o som do acerto aparecer". A intenção
+   era boa e o resultado, não: virar duas cartas é o que se faz o tempo todo
+   neste jogo, então a trilha mergulhava e voltava a cada poucos segundos.
+   Uma música que muda de volume sozinha o tempo inteiro soa quebrada, e o
+   ouvido culpa a música, não o efeito.
+
+   O conserto certo não é abaixar a música — é fazer o efeito ser alto o
+   bastante sozinho. Isso é problema do `sfx.js`, e é lá que foi resolvido:
+   os efeitos ganharam barramento próprio com limitador, acima da trilha.
+   Aqui só existem duas alturas: tocando e calada. */
+const NIVEL = 0.78;
+
+/* REVERB SEM ARQUIVO: ruído que decai é uma sala.
+   ────────────────────────────────────────────────────────────────────────
+   A PRIMEIRA VERSÃO CONSTRUIU UMA CATEDRAL. Eram 2,2 s de ruído BRANCO
+   decaindo, e ruído branco não é sala nenhuma: parede de verdade come agudo
+   a cada rebatida, e é por isso que um quarto soa abafado e um banheiro de
+   azulejo soa metálico. Sem esse escurecimento o rabo fica chiando no mesmo
+   brilho do ataque, e o ouvido lê isso como "estou num lugar enorme e vazio".
+   Medido com `tools/medir-som.py`: o rabo levava de 3,4 a 8 SEGUNDOS para
+   cair 60 dB. Sala de estar fica em 0,4 s; catedral, de 4 a 8. Estávamos
+   literalmente numa catedral, e num jogo de celular isso não é atmosfera,
+   é sopa — tapa o ataque das notas, que é justamente o que dá o pulso.
+
+   Três coisas fazem a sala virar SALA:
+
+   1. PRÉ-ATRASO. Uns 14 ms de silêncio antes do rabo. É o tempo que o som
+      leva para ir até a parede e voltar, e é o que separa a nota do eco
+      dela — sem isso a reverberação nasce colada no ataque e o embola.
+   2. AMORTECIMENTO. Um filtro de um polo cujo corte DESCE ao longo do rabo:
+      o fim do decaimento é mais escuro que o começo, como em qualquer lugar
+      de verdade.
+   3. RABO CURTO. 0,85 s. Dá lugar sem dar caverna. */
+function salaImpulso(c, seg = 0.85, decaimento = 5.4, preAtraso = 0.014){
   const n = Math.floor(c.sampleRate * seg);
-  const buf = c.createBuffer(2, n, c.sampleRate);
+  const p = Math.floor(c.sampleRate * preAtraso);
+  const buf = c.createBuffer(2, n + p, c.sampleRate);
   for(let ch = 0; ch < 2; ch++){
     const d = buf.getChannelData(ch);
-    for(let i = 0; i < n; i++)
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decaimento);
+    /* um polo, coeficiente andando de 0,35 (claro) a 0,88 (abafado): é o
+       agudo sendo comido rebatida a rebatida */
+    let z = 0;
+    for(let i = 0; i < n; i++){
+      const t = i / n;
+      const a = 0.35 + 0.53 * t;
+      z = z * a + (Math.random() * 2 - 1) * (1 - a);
+      d[p + i] = z * Math.pow(1 - t, decaimento);
+    }
   }
   return buf;
 }
@@ -243,24 +290,50 @@ function montar(){
   bus.connect(comp).connect(c.destination);
 
   /* o seco e o molhado entram no mesmo barramento: o reverb some por trás e
-     não engole o ataque, que é o que dá o pulso da música */
+     não engole o ataque, que é o que dá o pulso da música.
+
+     O RETORNO DO REVERB TEM DE SER FILTRADO, e antes não era. Mandar a
+     mistura inteira para o convolutor e trazer de volta em faixa cheia faz
+     duas coisas ruins ao mesmo tempo: o grave reverberado empasta com o
+     baixo seco (dois graves no mesmo lugar viram lama) e o agudo
+     reverberado vira chiado permanente em cima de tudo. Passa-alta em 260
+     limpa o baixo; passa-baixa em 2100 tira o chiado. O que sobra é a parte
+     do reverb que se PERCEBE como lugar, sem a parte que só suja.
+
+     E o molhado caiu de 0,30 para 0,11. Trinta por cento de molhado numa
+     mistura inteira é ajuste de sala de concerto, não de trilha de jogo. */
   secoNo = c.createGain(); secoNo.gain.value = 1;
-  const molhado = c.createGain(); molhado.gain.value = 0.3;
+  const molhado = c.createGain(); molhado.gain.value = 0.11;
   const rv = c.createConvolver(); rv.buffer = salaImpulso(c);
+  const rvGrave = c.createBiquadFilter();
+  rvGrave.type = 'highpass'; rvGrave.frequency.value = 260;
+  const rvAgudo = c.createBiquadFilter();
+  rvAgudo.type = 'lowpass'; rvAgudo.frequency.value = 2100;
   reverb = c.createGain(); reverb.gain.value = 1;
-  reverb.connect(rv).connect(molhado).connect(bus);
+  reverb.connect(rv).connect(rvGrave).connect(rvAgudo).connect(molhado).connect(bus);
   secoNo.connect(bus);
 
-  /* eco pontilhado só para a melodia: dá tamanho sem sujar o baixo */
-  const atraso = c.createDelay(1.0); atraso.delayTime.value = 0.34;
-  const volta = c.createGain(); volta.gain.value = 0.28;
-  const ecoSaida = c.createGain(); ecoSaida.gain.value = 0.32;
-  atraso.connect(volta).connect(atraso);
+  /* ECO PONTILHADO só para a melodia: dá tamanho sem sujar o baixo. Mas a
+     realimentação estava em 0,28 e a saída em 0,32, e eco assim é o SEGUNDO
+     rabo — somado ao reverb longo, era ele que fazia o som demorar segundos
+     para sumir. Agora a repetição morre em três batidas e vai ESCURECENDO no
+     caminho (a passa-baixa dentro do laço), que é como eco se comporta em
+     qualquer lugar real e o que impede a repetição de competir com a nota
+     nova que está entrando. */
+  const atraso = c.createDelay(1.0); atraso.delayTime.value = 0.26;
+  const volta = c.createGain(); volta.gain.value = 0.11;
+  const escurece = c.createBiquadFilter();
+  escurece.type = 'lowpass'; escurece.frequency.value = 1700;
+  const ecoSaida = c.createGain(); ecoSaida.gain.value = 0.15;
+  atraso.connect(escurece).connect(volta).connect(atraso);
   atraso.connect(ecoSaida).connect(bus);
   eco = atraso;
 
+  /* A MISTURA SECA ESTAVA ABAFADA EM 2400, e som abafado com reverb claro em
+     cima é exatamente a receita de "longe, numa sala grande". Invertido: o
+     seco fica na frente (3200) e quem é escuro é o rabo. */
   filtro = c.createBiquadFilter(); filtro.type = 'lowpass';
-  filtro.frequency.value = 2400; filtro.Q.value = 0.5;
+  filtro.frequency.value = 3200; filtro.Q.value = 0.5;
   filtro.connect(secoNo); filtro.connect(reverb);
   return c;
 }
@@ -355,7 +428,9 @@ function chiado(c, t0, { dur=0.06, v=0.1, corte=7000, tipo='highpass', destino=n
   s.start(t0);
 }
 function caixa(c, t0, v = 0.22){
-  chiado(c, t0, { dur:0.16, v, corte:1400, tipo:'highpass', destino:reverb });
+  /* a cópia molhada é TEMPERO: no volume cheio ela vira uma nuvem de chiado
+     que não deixa a batida seguinte aparecer, e a levada perde o pulso */
+  chiado(c, t0, { dur:0.16, v:v*0.35, corte:1400, tipo:'highpass', destino:reverb });
   chiado(c, t0, { dur:0.12, v:v*0.8, corte:1400, tipo:'highpass' });
   const o = c.createOscillator(), g = c.createGain();
   o.__papel = 'perc'; o.type = 'triangle'; o.frequency.setValueAtTime(190, t0);
@@ -366,7 +441,16 @@ function caixa(c, t0, v = 0.22){
   o.start(t0); o.stop(t0 + 0.14);
 }
 const chimbal = (c, t0, v=0.055) => chiado(c, t0, { dur:0.035, v, corte:9000 });
-const prato   = (c, t0, v=0.1)  => chiado(c, t0, { dur:0.9, v, corte:5200, destino:reverb });
+/* O PRATO DA VIRADA ERA 100% MOLHADO — nove décimos de segundo de ruído indo
+   SÓ para o reverb, sem uma gota de som seco. É o mesmo que bater o prato na
+   sala ao lado: chega só a nuvem, nunca a batida. E como ele marca cada
+   entrada de seção, a nuvem chegava bem na hora em que a música muda, que é
+   a hora em que ela mais precisa estar clara. Agora bate seco e o reverb
+   apenas acompanha. */
+const prato = (c, t0, v=0.1) => {
+  chiado(c, t0, { dur:0.55, v, corte:5200 });
+  chiado(c, t0, { dur:0.9, v:v*0.4, corte:5200, destino:reverb });
+};
 
 /* AS LEVADAS. Cada uma é uma função de (passo dentro do compasso) — é o que
    dá identidade à faixa antes de a melodia dizer qualquer coisa, e é por
@@ -510,6 +594,37 @@ function girar(){
   }
 }
 
+/* MEDIR O TAMANHO DA SALA — um estalo, e cronometrar o que volta.
+   ────────────────────────────────────────────────────────────────────────
+   "Tem reverb demais" precisa virar número, senão o conserto é chute. Mas
+   medir o rabo dentro da música não funciona: depois da última nota o que
+   ainda soa é o pad soltando, o eco e o reverb ao mesmo tempo, e os três se
+   confundem — a primeira medição acusou 8 s de sala quando boa parte era o
+   pad terminando de tocar, o que é a música e não o espaço.
+
+   Aqui entra UM estalo de uma amostra pela mesma porta que todas as vozes
+   usam (`filtro`). O que sai do barramento é, por definição, a resposta ao
+   impulso do espaço inteiro — reverb, eco, filtros e compressor juntos.
+   Cronometrar quanto ela leva para cair 60 dB é a medida de sala que existe
+   em acústica, e agora ela mede a sala e nada mais.
+
+   Não depende de faixa nenhuma: o espaço é o mesmo para as treze, e amarrar
+   a medição a uma delas só traria as notas dela junto. */
+export function estalo(){
+  const c = montar(); if(!c) return null;
+  const t0 = c.currentTime + 0.02;
+  const buf = c.createBuffer(1, 2, c.sampleRate);
+  buf.getChannelData(0)[0] = 1;
+  const s = c.createBufferSource(); s.buffer = buf;
+  const g = c.createGain(); g.gain.value = 1;
+  s.connect(g).connect(filtro);
+  if(eco) g.connect(eco);          // o eco também faz parte do espaço
+  s.start(t0);
+  bus.gain.cancelScheduledValues(0);
+  bus.gain.setValueAtTime(NIVEL, 0);
+  return t0;
+}
+
 /* O AGENDADOR NA MÃO. Ele roda sozinho a cada 40ms, e é assim que o jogo o
    usa; mas quem for medir a faixa inteira não pode esperar dois minutos de
    relógio de verdade. Chamando este daqui com o relógio adiantado na mão, os
@@ -551,9 +666,6 @@ export function parar(){
     bus.gain.cancelScheduledValues(c.currentTime);
     bus.gain.setTargetAtTime(0, c.currentTime, 0.2); }
 }
-/* ABAIXAR NA JOGADA. Enquanto as duas cartas estão abertas e o par resolve, a
-   trilha recua: é o meio segundo em que o som que importa é o do acerto. */
-export function abaixar(v){ abaixado = v ? 1 : 0; volume(); }
 export function querMusica(v){
   quer = !!v;
   try { localStorage.setItem('mnemonic.musica', v ? '1' : '0'); } catch(e){}
@@ -563,12 +675,9 @@ export const temMusica = () => quer;
 function volume(){
   if(!bus) return;
   const c = contexto(); if(!c) return;
-  /* O NÍVEL, MEDIDO E NÃO CHUTADO. A primeira versão saía a −40 dBFS: no
-     celular, com o jogo aberto na rua, era silêncio. O barramento vai a 0,85
-     e quem segura o pico é o compressor logo depois — as camadas somam entre
-     seis e nove vozes nos trechos cheios. `tools/gravar-musica.mjs` renderiza
-     e mede; o alvo é pico perto de 0,7 e nada de ceifar. */
-  const alvo = (!quer || estaMudo() || !clima) ? 0 : (abaixado ? 0.24 : 0.85);
+  /* DUAS ALTURAS SÓ: tocando ou calada. Não há meio-termo, e é de propósito
+     (veja NIVEL). */
+  const alvo = (!quer || estaMudo() || !clima) ? 0 : NIVEL;
   bus.gain.cancelScheduledValues(c.currentTime);
   bus.gain.setTargetAtTime(alvo, c.currentTime, 0.25);
 }
