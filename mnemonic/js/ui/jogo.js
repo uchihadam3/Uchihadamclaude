@@ -486,7 +486,7 @@ function telaClasse(){
         <p>${esc(c.d)}</p>
         <div class="stats">
           <span>foco <b>${c.foco}</b></span>
-          <span>tentativas <b>${c.viradasBonus>=0?'+':''}${c.viradasBonus}</b></span>
+          <span>viradas <b>${c.viradasBonus>=0?'+':''}${c.viradasBonus}</b></span>
           <span>moedas <b>${c.moedas}</b></span>
         </div>
         <div class="ferc"><span class="ic">${ICO.reliquia}</span>
@@ -542,7 +542,7 @@ function telaMapa(){
           <div class="rot">pontos</div>
           <div class="stats" style="justify-content:center">
             <span>${plano.pares*2} cartas</span>
-            <span>${plano.viradas + run.bonusViradas} tentativas</span>
+            <span>${plano.viradas + run.bonusViradas} viradas</span>
             <span>foco ${run.foco}</span>
           </div>
           <p class="mini" style="text-align:center">Não precisa limpar o tabuleiro.</p>
@@ -675,7 +675,7 @@ function medidores(){
     ? `${s.essencia}/${fer.custoEssencia} essência` : `${s.usosFer}×`;
 
   /* com a meta feita, aparece a escolha: continuar somando pontos ou fechar
-     agora e levar as tentativas em moeda */
+     agora e levar as viradas em moeda */
   $('#baixo').classList.toggle('passou', !!s.passou && !s.fim);
   const bfim = $('#bfim');
   bfim.disabled = travado;
@@ -1204,15 +1204,15 @@ async function animar(rel){
     SFX.vitoria(); clarao('rgba(102,230,166,.5)');
     aviso('SALA VENCIDA', m==='tabuleiro' ? 'tabuleiro limpo'
         : m==='foco' ? 'acabou o foco, mas a meta estava feita'
-        : m==='escolha' ? 'você fechou com as tentativas na mão'
-        : 'acabaram as tentativas', '#4fe08a');
+        : m==='escolha' ? 'você fechou com as viradas na mão'
+        : 'acabaram as viradas', '#4fe08a');
     await espera(900);
   }
   if(rel.eventos.some(e=>e.e==='derrota')){
     const m = rel.eventos.find(e=>e.e==='derrota').motivo;
     SFX.derrota(); clarao('rgba(255,106,90,.55)');
     aviso('SALA PERDIDA', m==='foco' ? 'acabou o foco'
-        : m==='viradas' ? 'acabaram as tentativas' : 'acabaram as cartas', '#ff4f52');
+        : m==='viradas' ? 'acabaram as viradas' : 'acabaram as cartas', '#ff4f52');
     await espera(1000);
   }
 }
@@ -1243,7 +1243,7 @@ $('#bfim').onclick = async ()=>{
   travado = false;
   if(rel.erro) return;
   SFX.vitoria(); clarao('rgba(102,230,166,.5)');
-  aviso('SALA FECHADA', `+${nf(rel.eventos[0]?.sobra ?? 0)} moedas pelas tentativas`, '#4fe08a');
+  aviso('SALA FECHADA', `+${nf(rel.eventos[0]?.sobra ?? 0)} moedas pelas viradas`, '#4fe08a');
   medidores();
   await espera(950);
   seguir();
@@ -1327,7 +1327,7 @@ $('#bregras').onclick = ()=>{
     <div class="meds" style="margin-top:13px">
       ${medalha(ICO.meta, nf(s.meta), 'meta', 'var(--ouro)', true)}
       ${medalha(ICO.normal, s.pares, 'pares', '#4fb8ff')}
-      ${medalha(ICO.virada, s.viradasMax, 'tentativas', '#4fe08a')}
+      ${medalha(ICO.virada, s.viradasMax, 'viradas', '#4fe08a')}
       ${medalha(ICO.foco, s.focoMax, 'foco', 'var(--vermelho)')}
     </div>
     <div class="rot" style="margin:15px 0 6px">famílias no tabuleiro</div>
@@ -1354,9 +1354,9 @@ const PASSOS_GUIA = [
   { alvo:'#combo', t:'Emende os acertos',
     p:'Cada par fechado sem errar no meio multiplica tudo. É aqui que o placar '
      +'cresce de verdade — dois pares emendados valem muito mais que dois separados.' },
-  { alvo:'#mvir', t:'As tentativas são o relógio',
-    p:'Uma tentativa é tocar duas cartas — acertando ou errando, ela foi '
-     +'gasta. Se acabarem antes da meta, a run acaba.' },
+  { alvo:'#mvir', t:'As viradas são o relógio',
+    p:'Cada tentativa de duas cartas gasta uma virada. Se acabarem antes da meta, '
+     +'a run acaba.' },
   { alvo:'#mfoc', t:'O foco é o quanto você pode esquecer',
     p:'Errar duas cartas que você NUNCA viu é de graça — explorar faz parte. '
      +'Errar duas que você JÁ viu custa um foco. Zerou, perdeu a sala.' },
@@ -1407,7 +1407,7 @@ function telaPremio(){
     ${u && !tesouro ? `<div class="op c-ouro" style="--fc:#ffc23c;cursor:default;margin-bottom:10px">
       <div class="stats">
         <span>pontos <b style="color:var(--ouro)">${nf(u.pontos)}</b></span>
-        ${u.sobra>0 ? `<span>tentativas de sobra <b>${u.sobra}</b></span>` : ''}
+        ${u.sobra>0 ? `<span>viradas de sobra <b>${u.sobra}</b></span>` : ''}
         ${u.extra ? `<span>bônus <b>+${u.extra} moedas</b></span>` : ''}
       </div></div>` : ''}
     <div class="rol"><div class="grade">
@@ -1514,7 +1514,7 @@ function troca(p, o){
   if(p.viradas) vem.push(fichaNum(ICO.virada, '+'+p.viradas+' viradas', '#4fb8ff'));
   if(p.extra)  vem.push(fichaNum(ICO.combo, p.extra, '#ffa24d'));
   /* opção que não mexe em relíquia continua dizendo o que faz, como sempre —
-     não vale transformar "+2 tentativas" numa balança de uma perna só */
+     não vale transformar "+2 viradas" numa balança de uma perna só */
   if(!sai.length && !vem.length) return `<p>${esc(o.d)}</p>`;
   return `<span class="balanca">
       <span class="lado sai">${sai.join('') || '<i class="nada">nada</i>'}</span>
@@ -1592,7 +1592,7 @@ function telaFim(){
   const porque = venceu ? `Seis mundos, ${p.est.salas} salas vencidas.`
     : `Caiu no mundo ${run.mundo+1}, sala ${run.indice+1}`
       + (u?.motivo==='foco'      ? ' — o foco acabou.'
-       : u?.motivo==='viradas'   ? ' — as tentativas acabaram.'
+       : u?.motivo==='viradas'   ? ' — as viradas acabaram.'
        : u?.motivo==='tabuleiro' ? ' — o tabuleiro acabou antes da meta.' : '.');
 
   $('#t-fim').innerHTML = `

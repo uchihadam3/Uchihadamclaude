@@ -39,7 +39,7 @@ export const corDoCombo = n =>
   COR_COMBO[Math.max(0, COMBOS.findIndex(c => c === degrauCombo(n)))] || COR_COMBO[0];
 
 /* ---------- as PALAVRAS do jogo ----------
-   O vocabulário é conteúdo como qualquer outro: se FOCO e TENTATIVA não são
+   O vocabulário é conteúdo como qualquer outro: se FOCO e VIRADA não são
    peças da coleção, elas viram um parágrafo que ninguém lê — e são
    justamente as duas coisas que decidem toda partida. */
 export const PALAVRAS = [
@@ -48,19 +48,15 @@ export const PALAVRAS = [
         + 'tabuleiro. Limpar tudo é só o jeito mais comum de chegar lá, e nas '
         + 'salas grandes nem sempre dá tempo.',
     nota:'É o que faz cada par valer um TANTO, em vez de valer só "menos uma carta".' },
-  /* O `id` continua 'virada' de propósito: ele é a chave da arte pintada
-     (`arte/virada.png`) e do link entre telas, não um texto de jogador. Quem
-     o jogador lê é o `nome`. */
-  { id:'virada', nome:'Tentativa', cor:'#4fb8ff', ico:ICO.virada, tag:'o relógio',
-    texto:'Uma tentativa é você tocar DUAS cartas. Acertando ou errando, ela '
-        + 'foi gasta. Quando as tentativas acabam e a meta não foi batida, a '
-        + 'run acaba ali.',
-    nota:'Tentativa que sobra no fim da sala vira moeda — é isso que o botão FECHAR paga.' },
+  { id:'virada', nome:'Virada', cor:'#4fb8ff', ico:ICO.virada, tag:'o relógio',
+    texto:'Cada tentativa — duas cartas — gasta uma virada. Quando as viradas '
+        + 'acabam e a meta não foi batida, a run acaba ali.',
+    nota:'Virada que sobra no fim da sala vira moeda.' },
   { id:'foco', nome:'Foco', cor:'#ff4f52', ico:ICO.foco, tag:'o limite de falhas',
     texto:'Errar duas cartas que você NUNCA tinha visto não custa nada: é '
         + 'exploração, e exploração é obrigatória. Errar duas cartas que você '
         + 'já conhecia custa 1 de Foco. Zerou o Foco, perdeu a sala.',
-    nota:'Sem essa separação o jogo puniria as primeiras tentativas, que são às cegas.' },
+    nota:'Sem essa separação o jogo puniria as primeiras viradas, que são às cegas.' },
   { id:'combo', nome:'Combo', cor:'#ffa24d', ico:ICO.combo, tag:'onde mora o placar',
     texto:'Acertos seguidos multiplicam tudo. Dois pares separados valem muito '
         + 'menos que dois pares emendados.',
@@ -120,7 +116,7 @@ export const FAMILIA_DE_PECA = {
                        ...(t.mult&&t.mult!==1 ? [['multiplicador','×'+t.mult]] : []),
                        ...(t.moedas ? [['moedas','+'+t.moedas]] : []),
                        ...(t.camadas>1 ? [['camadas', t.camadas]] : []),
-                       ...(t.pavio ? [['pavio', t.pavio+' tentativas']] : []) ] }; },
+                       ...(t.pavio ? [['pavio', t.pavio+' viradas']] : []) ] }; },
   },
   familia: {
     nome:'As famílias', ico:ICO_FAM.runas, cor:'#ffc23c',
@@ -138,7 +134,7 @@ export const FAMILIA_DE_PECA = {
     peca: id => { const c = CLASSES[id];
       return { cor:c.cor, ico:ICO_CLASSE[c.id], nome:c.nome, tag:c.lema, texto:c.d,
                nota: c.ferramenta.nome + ' — ' + c.ferramenta.d,
-               dados:[ ['foco', c.foco], ['tentativas', (c.viradasBonus>=0?'+':'')+c.viradasBonus],
+               dados:[ ['foco', c.foco], ['viradas', (c.viradasBonus>=0?'+':'')+c.viradasBonus],
                        ['moedas', c.moedas] ] }; },
   },
   chefe: {

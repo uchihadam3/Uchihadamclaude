@@ -4,11 +4,11 @@
 
    A DECISÃO CENTRAL DE DESIGN, e vale explicar porque tudo depende dela:
    a sala NÃO é vencida limpando o tabuleiro. Ela é vencida ATINGINDO UMA
-   META DE PONTOS com um número limitado de tentativas.
+   META DE PONTOS com um número limitado de viradas.
 
    Isso muda o jogo inteiro. Se bastasse limpar, a única habilidade seria
    lembrar, o tabuleiro grande seria sempre mais difícil que o pequeno, e
-   relíquia nenhuma teria o que multiplicar. Com meta e tentativas contadas,
+   relíquia nenhuma teria o que multiplicar. Com meta e viradas contadas,
    cada par vale um tanto, o COMBO multiplica esse tanto, e as relíquias
    mexem na conta — que é exatamente o eixo do Balatro. Memória vira o
    recurso que você gasta bem ou mal, não o único desafio.
@@ -46,7 +46,7 @@ export const TIPOS = {
   },
   camaleao: {
     id:'camaleao', nome:'Camaleão', cor:'#7ee3a8', peso:12,
-    d:'Troca de símbolo a cada 4 tentativas. O par muda de lugar sem sair do lugar.',
+    d:'Troca de símbolo a cada 4 viradas. O par muda de lugar sem sair do lugar.',
     base:16, trocaSimbolo:4,
   },
   espelho: {
@@ -56,7 +56,7 @@ export const TIPOS = {
   },
   bomba: {
     id:'bomba', nome:'Bomba', cor:'#ff6a5a', peso:10,
-    d:'Tem pavio de 8 tentativas. Se estourar, leva o par embora e custa 1 de Foco.',
+    d:'Tem pavio de 8 viradas. Se estourar, leva o par embora e custa 1 de Foco.',
     base:18, pavio:8,
   },
   gelo: {
@@ -94,7 +94,7 @@ export const TIPOS = {
   },
   tempo: {
     id:'tempo', nome:'Tempo', cor:'#4fb8ff', peso:5,
-    d:'Ao ser resolvida, devolve 2 tentativas. É a única carta que compra tempo '
+    d:'Ao ser resolvida, devolve 2 viradas. É a única carta que compra tempo '
      +'em vez de gastar.',
     base:10, devolve:2,
   },

@@ -153,12 +153,6 @@ export class Run {
     this.C = CLASSES[classe];
     if(!this.C) throw new Error('classe desconhecida: '+classe);
     this.rng = makeRNG(this.semente+'|'+classe);
-    /* CUIDADO COM ESTE NOME. `this.tentativa` é quantas vezes esta SALA foi
-       reaberta (o Relógio Parado dá uma segunda chance por mundo), e não tem
-       nada a ver com a TENTATIVA que o jogador lê na tela — essa é tocar duas
-       cartas, e no motor chama-se `viradas`. Os dois nomes convivem porque
-       este aqui entra no registro como `t:` e renomeá-lo invalidaria todo
-       placar já publicado no ranking. */
     this.mundo = 0; this.indice = 0; this.tentativa = 0;
     this.foco = this.C.foco;
     this.bonusViradas = this.C.viradasBonus || 0;

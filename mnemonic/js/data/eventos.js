@@ -33,14 +33,14 @@ export const EVENTOS = [
   { id:'fonte', nome:'A Fonte de Tinta',
     txt:'Água escura. Quem bebe lembra mais e vive menos.',
     ops:[
-      { txt:'Beber', d:'+4 tentativas em toda sala, -1 de Foco máximo',
+      { txt:'Beber', d:'+4 viradas em toda sala, -1 de Foco máximo',
         ef:r=>{ r.bonusViradas+=4; r.foco=Math.max(1,r.foco-1);
-          return 'A tinta desce fria. +4 tentativas por sala.'; } },
-      { txt:'Encher o cantil', d:'+2 tentativas em toda sala',
-        ef:r=>{ r.bonusViradas+=2; return 'Guardou um gole. +2 tentativas por sala.'; } },
+          return 'A tinta desce fria. +4 viradas por sala.'; } },
+      { txt:'Encher o cantil', d:'+2 viradas em toda sala',
+        ef:r=>{ r.bonusViradas+=2; return 'Guardou um gole. +2 viradas por sala.'; } },
     ] },
   { id:'espelho_partido', nome:'O Espelho Partido',
-    txt:'Seu reflexo está uma tentativa atrasado. Ele levanta a mão depois de você.',
+    txt:'Seu reflexo está uma virada atrasado. Ele levanta a mão depois de você.',
     ops:[
       { txt:'Tocar o vidro', d:'Troca uma relíquia sua por outra',
         leva:1, previa:()=>({ ganha:['?'] }),
@@ -87,9 +87,9 @@ export const EVENTOS = [
   { id:'crianca', nome:'A Criança que Conta',
     txt:'Ela conta em voz alta desde antes de você chegar. Não erra um número.',
     ops:[
-      { txt:'Contar junto', d:'+3 tentativas em toda sala',
+      { txt:'Contar junto', d:'+3 viradas em toda sala',
         ef:r=>{ r.bonusViradas+=3; return 'Você pegou o ritmo dela.'; } },
-      { txt:'Mandar calar', d:'+1 relíquia, -2 tentativas em toda sala',
+      { txt:'Mandar calar', d:'+1 relíquia, -2 viradas em toda sala',
         ef:r=>{ r.bonusViradas-=2; const g=r._darReliquia();
           return 'O silêncio tinha algo dentro: '+(g?g.nome:'nada')+'.'; } },
     ] },
@@ -101,9 +101,9 @@ export const EVENTOS = [
       { txt:'Jogar tudo o que tem', d:'Perde as moedas, +1 de Foco a cada 40',
         ef:r=>{ const g=Math.floor(r.moedas/40); r.moedas=0; r.foco+=g;
           return g ? 'O poço devolveu fôlego: +'+g+' de Foco.' : 'O poço engoliu e não devolveu nada.'; } },
-      { txt:'Jogar uma moeda só', d:'-1 moeda, +2 tentativas em toda sala',
+      { txt:'Jogar uma moeda só', d:'-1 moeda, +2 viradas em toda sala',
         ef:r=>{ r.moedas=Math.max(0,r.moedas-1); r.bonusViradas+=2;
-          return 'Um tilintar longe. +2 tentativas por sala.'; } },
+          return 'Um tilintar longe. +2 viradas por sala.'; } },
     ] },
   { id:'lamparina', nome:'A Lamparina do Vigia',
     txt:'Um vigia velho oferece a lamparina dele. "Ilumina o começo, mas queima rápido."',
@@ -131,8 +131,8 @@ export const EVENTOS = [
       { txt:'Atravessar', d:'-1 de Foco máximo, uma relíquia rara',
         ef:r=>{ r.foco=Math.max(1,r.foco-1); const g=r._darReliquia('rara');
           return g ? 'Você chega tremendo, com '+g.nome+'.' : 'O baú estava vazio.'; } },
-      { txt:'Dar a volta', d:'+3 tentativas em toda sala',
-        ef:r=>{ r.bonusViradas+=3; return 'O caminho longo ensinou o terreno. +3 tentativas.'; } },
+      { txt:'Dar a volta', d:'+3 viradas em toda sala',
+        ef:r=>{ r.bonusViradas+=3; return 'O caminho longo ensinou o terreno. +3 viradas.'; } },
     ] },
 
   /* ═══════════════ a memória ═══════════════ */
@@ -177,12 +177,12 @@ export const EVENTOS = [
   { id:'cambista', nome:'O Cambista',
     txt:'Uma balança de dois pratos. Num, moedas; no outro, tempo.',
     ops:[
-      { txt:'Vender tempo por moeda', d:'-2 tentativas por sala, +50 moedas',
-        ef:r=>{ r.bonusViradas-=2; r.moedas+=50; return 'O prato pende para o ouro. -2 tentativas.'; } },
-      { txt:'Comprar tempo com moeda', d:'-50 moedas, +4 tentativas por sala',
+      { txt:'Vender tempo por moeda', d:'-2 viradas por sala, +50 moedas',
+        ef:r=>{ r.bonusViradas-=2; r.moedas+=50; return 'O prato pende para o ouro. -2 viradas.'; } },
+      { txt:'Comprar tempo com moeda', d:'-50 moedas, +4 viradas por sala',
         previa:()=>({ custa:50, viradas:4 }),
         ef:r=>{ if(r.moedas<50) return 'A balança nem se mexe: falta peso.';
-          r.moedas-=50; r.bonusViradas+=4; return 'O prato sobe. +4 tentativas por sala.'; } },
+          r.moedas-=50; r.bonusViradas+=4; return 'O prato sobe. +4 viradas por sala.'; } },
     ] },
   { id:'mendigo', nome:'O Mendigo de Cartas',
     txt:'Pede uma moeda. Tem um baralho velho no colo, e conhece cada carta pelo cheiro.',
@@ -213,7 +213,7 @@ export const EVENTOS = [
         previa:()=>({ custa:35, foco:1 }),
         ef:r=>{ if(r.moedas<35) return 'Ele anota o seu nome e vai embora.';
           r.moedas-=35; r.foco++; return 'Quitado. Foco máximo: '+r.foco+'.'; } },
-      { txt:'Fugir', d:'+2 tentativas por sala, perde uma relíquia',
+      { txt:'Fugir', d:'+2 viradas por sala, perde uma relíquia',
         leva:1, previa:()=>({ viradas:2 }),
         ef:r=>{ r.bonusViradas+=2;
           if(r.reliquias.length){ const i=r.alvoReliquia();
@@ -236,8 +236,8 @@ export const EVENTOS = [
     ops:[
       { txt:'Deixar consertar', d:'Toda Bomba nasce com o dobro de pavio',
         ef:r=>{ r.pavioDobro=true; return 'O tique-taque fica mais lento.'; } },
-      { txt:'Levar a engrenagem solta', d:'+2 tentativas por sala',
-        ef:r=>{ r.bonusViradas+=2; return 'Uma peça a mais no bolso. +2 tentativas.'; } },
+      { txt:'Levar a engrenagem solta', d:'+2 viradas por sala',
+        ef:r=>{ r.bonusViradas+=2; return 'Uma peça a mais no bolso. +2 viradas.'; } },
     ] },
   { id:'pintor', nome:'O Pintor de Versos',
     txt:'Ele repinta o verso das cartas. "Assim ninguém reconhece o baralho — nem você."',

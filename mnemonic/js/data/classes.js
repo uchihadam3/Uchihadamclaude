@@ -3,7 +3,7 @@
 
    O teste que cada classe tem que passar: se eu trocar a classe e a run
    ficar igual, ela não devia existir. Por isso nenhuma delas dá só "+X de
-   alguma coisa" — cada uma acrescenta um VERBO que muda a decisão da tentativa.
+   alguma coisa" — cada uma acrescenta um VERBO que muda a decisão da virada.
    ===================================================================== */
 export const CLASSES = {
   detetive: {
@@ -18,10 +18,10 @@ export const CLASSES = {
   cronomante: {
     id:'cronomante', nome:'O Cronomante', glifo:'⧗', cor:'#9253ea',
     lema:'O erro é uma coisa que se desfaz.',
-    d:'Joga com mais tentativas e pode desfazer o último erro — inclusive o combo que ele quebrou.',
+    d:'Joga com mais viradas e pode desfazer o último erro — inclusive o combo que ele quebrou.',
     foco:3, viradasBonus:4, moedas:10,
     ferramenta:{ id:'voltar', nome:'Ampulheta', usos:1,
-      d:'Devolve a tentativa do último erro e o combo que você tinha.' },
+      d:'Devolve a virada do último erro e o combo que você tinha.' },
   },
   trapaceiro: {
     id:'trapaceiro', nome:'O Trapaceiro', glifo:'⇄', cor:'#53ea78',
@@ -68,12 +68,12 @@ export const CLASSES = {
     d:'Começa com uma relíquia a mais e acha relíquia onde os outros acham moeda.',
     foco:3, viradasBonus:0, moedas:8, reliquiaExtra:1,
     ferramenta:{ id:'escavar', nome:'Escavar', usos:1,
-      d:'Resolve na hora um par ainda fechado, sem gastar tentativa.' },
+      d:'Resolve na hora um par ainda fechado, sem gastar virada.' },
   },
   genio: {
     id:'genio', nome:'A Gênia', glifo:'∞', cor:'#ea53c4',
     lema:'Menos tentativas, mais certeza.',
-    d:'Tem menos tentativas que todo mundo, e todo par vale o dobro.',
+    d:'Tem menos viradas que todo mundo, e todo par vale o dobro.',
     foco:3, viradasBonus:-4, moedas:10, mods:{ }, dobraTudo:true,
     ferramenta:{ id:'foco', nome:'Concentração', usos:1,
       d:'Dobra o multiplicador de combo até o próximo erro.' },
