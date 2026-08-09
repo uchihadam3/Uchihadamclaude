@@ -18,7 +18,7 @@
 import { TIPOS, LISTA_TIPOS } from '../data/cartas.js';
 import { FAMILIAS, LISTA_FAMILIAS } from '../data/familias.js';
 import { CLASSES, LISTA_CLASSES } from '../data/classes.js';
-import { RELIQUIAS, POR_ID, RARIDADE } from '../data/reliquias.js';
+import { RELIQUIAS, POR_ID, RARIDADE, RARIDADES } from '../data/reliquias.js';
 import { BOSSES, LISTA_BOSSES } from '../data/bosses.js';
 import { COMBOS, degrauCombo } from '../engine/tabuleiro.js';
 import { CONQUISTAS, POR_ID_CONQ, DEGRAUS } from '../data/conquistas.js';
@@ -150,7 +150,8 @@ export const FAMILIA_DE_PECA = {
     resumo:'Nenhuma dá só "+N". Cada uma muda uma regra ou muda a conta.',
     lista: () => RELIQUIAS.map(r => r.id),
     peca: id => { const r = POR_ID[id];
-      return { cor:RARIDADE[r.r], ico:icoReliquia(r.id), nome:r.nome, tag:r.r, texto:r.d }; },
+      return { cor:RARIDADE[r.r], ico:icoReliquia(r.id), nome:r.nome,
+               tag:RARIDADES[r.r].nome, texto:r.d }; },
   },
   conquista: {
     nome:'As medalhas', ico:ICO_MEDALHA.ouro, cor:'#ffc23c',

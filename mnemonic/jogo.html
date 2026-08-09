@@ -1123,6 +1123,15 @@ img.gl{object-fit:contain;stroke:none;
 /* o tremor mora no ÁREA e não no #mesa: mexer no #mesa mexe na grade, e
    grade que treme reflui — as cartas mudariam de tamanho durante o golpe */
 #area.tremendo{animation:tremor .5s cubic-bezier(.36,.07,.19,.97) both}
+/* O ESPIAR GERAL. A palavra precisa dizer o que fazer com os segundos que
+   estão passando: quem vê o tabuleiro aberto sem aviso acha que é bug. */
+.espiada{position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:6;
+  pointer-events:none;font-size:11px;letter-spacing:.22em;font-weight:800;
+  padding:5px 14px;border-radius:99px;color:#0b0d12;background:var(--azul);
+  box-shadow:0 2px 14px rgba(79,184,255,.55);animation:espiando 1s ease-in-out infinite}
+/* nome próprio: já existe um `pulsa` neste arquivo, e keyframe repetido faz
+   a segunda apagar a primeira sem aviso nenhum */
+@keyframes espiando{0%,100%{opacity:.85}50%{opacity:1}}
 @keyframes tremor{
   10%,90%{transform:translate3d(-2px,0,0)}
   20%,80%{transform:translate3d(4px,0,0)}

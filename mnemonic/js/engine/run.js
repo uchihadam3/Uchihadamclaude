@@ -28,7 +28,7 @@ import { makeRNG } from '../rng.js';
 import { Sala, pontosPerfeitos, pontosEsperados } from './tabuleiro.js';
 import { CLASSES } from '../data/classes.js';
 import { BOSS_DO_MUNDO, BOSSES } from '../data/bosses.js';
-import { POR_ID, RELIQUIAS, sortearReliquias } from '../data/reliquias.js';
+import { POR_ID, RELIQUIAS, RARIDADES, sortearReliquias } from '../data/reliquias.js';
 import { EVENTOS, EVENTO_POR_ID } from '../data/eventos.js';
 
 /* O MUNDO tem 8 salas e a run tem 6 mundos: 48 salas, 30 delas de combate.
@@ -149,7 +149,7 @@ export function planoDaSala(mundo, indice, tipo){
   const dif   = total>1 ? Math.min(1, passo/(total-1)) : 0;
   const pares = Math.min(30, 6 + Math.round(dif*24));
   const peso  = tipo==='elite' ? 1.06 : tipo==='boss' ? 1.12 : 1;
-  const fator = 0.95 * Math.pow(2.2, Math.pow(dif, 1.5)) * peso;
+  const fator = 0.95 * Math.pow(1.9, Math.pow(dif, 1.5)) * peso;
   return {
     pares,
     dificuldade: dif * (tipo==='boss' ? 1 : 0.9),
@@ -449,7 +449,11 @@ export class Run {
   }
 
   /* ---------- loja ---------- */
-  PRECO = { comum:35, rara:60, lendaria:110 };
+  /* O PREÇO MORA COM A RARIDADE, em `RARIDADES`. Ficava aqui, e uma tabela
+     de preço longe da tabela de raridade é uma raridade nova entrando sem
+     preço — que foi exatamente o que aconteceu quando a épica nasceu. */
+  PRECO = Object.fromEntries(
+    Object.entries(RARIDADES).map(([id, r]) => [id, r.preco]));
   loja(){
     const chave = this.mundo+':'+this.indice;
     if(this._lojaChave !== chave){

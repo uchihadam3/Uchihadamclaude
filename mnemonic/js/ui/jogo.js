@@ -33,7 +33,7 @@ import { degrauCombo, COMBOS } from '../engine/tabuleiro.js';
 import { TIPOS, LISTA_TIPOS } from '../data/cartas.js';
 import { FAMILIAS, LISTA_FAMILIAS } from '../data/familias.js';
 import { CLASSES, LISTA_CLASSES } from '../data/classes.js';
-import { RELIQUIAS, POR_ID, RARIDADE } from '../data/reliquias.js';
+import { RELIQUIAS, POR_ID, RARIDADE, RARIDADES } from '../data/reliquias.js';
 import { LISTA_BOSSES } from '../data/bosses.js';
 import { svgGlifo } from '../arte/glifos.js';
 import { SFX, acordar, mudo, estaMudo } from './sfx.js';
@@ -600,7 +600,38 @@ function pintarSala(){
   mesa(true, true);
   medidores();
   if(b) entradaDoChefe(b);
+  espiadaGeral(s);
   talvezGuia();
+}
+
+/* O ESPIAR GERAL do Palácio da Memória e da Lente do Mundo.
+   ────────────────────────────────────────────────────────────────────────
+   Isto NÃO EXISTIA. `abrirPreview()` e `fecharPreview()` estavam escritos no
+   motor, prontos, e ninguém nunca os chamou: as duas relíquias diziam "toda
+   carta fica visível nos primeiros segundos" e não faziam absolutamente
+   nada. Duas LENDÁRIAS que eram texto. Só apareceu quando a régua de força
+   (`tools/medir-reliquias.mjs`) deu exatamente 0,00 para as duas — e zero
+   redondo, num jogo com tanta coisa acontecendo, não é fraqueza: é uma
+   promessa que ninguém lê.
+
+   É a terceira vez que este projeto tropeça no mesmo buraco (`veTipos`,
+   `centrar_massa`, e agora `preview`). Por isso o teste 8c cobra que todo
+   `mods` citado por uma relíquia seja lido por alguém.
+
+   Mostrar não mexe em `conhecida`: foi o ITEM que mostrou, não você que viu
+   e esqueceu. Por isso o custo do erro em Foco continua o mesmo, e o replay
+   do ranking não sente nada — o que muda é só o que aparece na tela. */
+async function espiadaGeral(s){
+  if(!s?.mods?.preview || !s.abrirPreview()) return;
+  mesa(true);
+  const aviso = document.createElement('div');
+  aviso.className = 'espiada';
+  aviso.textContent = 'DECORE';
+  $('#area').appendChild(aviso);
+  await espera(s.mods.preview * 1000);
+  s.fecharPreview();
+  aviso.remove();
+  mesa(true);
 }
 
 /* A ENTRADA DO CHEFE. A sala do chefe abria igual a qualquer outra: a mesma
@@ -1414,12 +1445,13 @@ function telaPremio(){
       ${ofertas.length ? ofertas.map((r,i)=>`
         <button class="op ${classePlaca(RARIDADE[r.r])} ${r.r!=='comum'?'brilha':''}"
                 data-pega="${r.id}" style="--fc:${RARIDADE[r.r]};animation-delay:${i*70}ms">
-          ${r.r==='lendaria' ? '<span class="fita">lendária</span>' : ''}
+          ${r.r==='lendaria' || r.r==='epica'
+            ? `<span class="fita">${RARIDADES[r.r].nome}</span>` : ''}
           <span class="agua">${icoReliquia(r.id)}</span>
           <span class="cab"><span class="gf">${icoReliquia(r.id)}</span>
             <h3>${esc(r.nome)}</h3></span>
           <p>${esc(r.d)}</p>
-          <div class="pr" style="color:${RARIDADE[r.r]}">${r.r}</div>
+          <div class="pr" style="color:${RARIDADE[r.r]}">${RARIDADES[r.r].nome}</div>
         </button>`).join('')
         : '<p class="mini">Não sobrou relíquia nenhuma para oferecer.</p>'}
     </div></div>
@@ -1446,7 +1478,7 @@ function telaLoja(){
           const cor = RARIDADE[i.r] || 'var(--ouro)';
           const caro = !i.vendido && run.moedas < i.preco;
           return `
-          <button class="op ${classePlaca(cor)} ${i.r==='lendaria'?'brilha':''}"
+          <button class="op ${classePlaca(cor)} ${i.r==='lendaria'||i.r==='epica'?'brilha':''}"
             data-compra="${i.id}" style="--fc:${cor}" ${i.vendido || caro ? 'disabled' : ''}>
             ${i.vendido ? '<span class="vendido">vendido</span>' : ''}
             <span class="agua">${i.id.startsWith('__') ? ICO.tesouro : icoReliquia(i.id)}</span>

@@ -25,6 +25,26 @@ import { makeRNG } from '../js/rng.js';
 const chaveVisivel = c => c.simbolo + '|' + c.fam + (c.revelado ? '|M' : '');
 const parDe = (a,b) => Math.min(a,b) + ':' + Math.max(a,b);
 
+/* ═══════════ O QUE O BOT ENXERGAVA E NÃO ENXERGAVA ═══════════
+   Duas informações que o jogo dá ao JOGADOR passavam direto pelo bot, e isso
+   não era um detalhe: era uma medição cega. Medido com a régua de
+   `tools/medir-reliquias.mjs`, Palácio da Memória, Lente do Mundo, Agulha de
+   Bússola e Olho do Abismo davam força EXATAMENTE zero — não por serem
+   fracas, mas porque o bot não usava o que elas dão. Rebalancear por cima
+   disso teria enfraquecido quatro relíquias que nunca foram medidas.
+
+   VER O TIPO (`veTipos`). O tipo é sorteado POR PAR: as duas cartas de um
+   par são sempre do mesmo tipo. Então saber o tipo de uma carta fechada
+   elimina de cara toda carta de tipo diferente — é informação de verdade, e
+   o jogador a usa. Aqui ela entra na chave de memória.
+
+   O ESPIAR GERAL (`preview`). O tabuleiro inteiro aparece por alguns
+   segundos no começo da sala. Ninguém decora trinta cartas em dois segundos:
+   o que se pega são umas poucas. Três cartas por segundo é generoso e é o
+   que se usa — e o sorteio de QUAIS sai do rng da própria sala, para o bot
+   continuar determinístico. */
+const veTipo = s => !!s.mods?.veTipos;
+
 function usarFerramenta(run, sala, mem, fase){
   const f = run.C.ferramenta; if(!f) return;
   const arg = (() => {
@@ -69,14 +89,40 @@ export function jogarSala(run, opt={}){
      mediria uma dificuldade que não existe. */
   const naoCasa = new Set();
   /* a carta aparece por um instante e some: quem guarda é ele, não a tela */
+  /* com `veTipos` a carta fechada ainda diz o tipo dela, e tipo é por par */
+  const comTipo = veTipo(s);
   const anotar = () => {
     for(const c of s.cartas){
       if(c.resolvida){ mem.delete(c.id); continue; }
       if(c.vista || c.virada){ mem.set(c.id, chaveVisivel(c)); continue; }
       if(p && mem.has(c.id) && dado() < p) mem.delete(c.id);
+      /* o tipo não se esquece: ele está desenhado na carta fechada */
+      if(comTipo && !mem.has(c.id) && c.tipo !== 'normal') mem.set(c.id, 'T:'+c.tipo);
     }
   };
   const abrir = c => { run.virar(c.id); if(!c.resolvida) mem.set(c.id, chaveVisivel(c)); };
+
+  /* O PREVIEW DO PALÁCIO/LENTE: o tabuleiro inteiro aparece por N segundos.
+     Ninguém decora trinta cartas em dois segundos — três por segundo já é
+     generoso, e é o que se usa aqui.
+
+     E o bot NÃO chama `abrirPreview()`. Duas razões, as duas aprendidas em
+     vermelho: o dado da sala é do JOGO (cada número tirado dele é um número
+     que a sala não vai mais tirar, e o replay do ranking passa a discordar
+     da partida), e `abrirPreview` MEXE no estado das cartas, que o replay
+     não vai refazer. O bot lê o tabuleiro e guarda na cabeça dele — que é o
+     que um jogador faz. */
+  if(s.mods.preview){
+    const livres = s.cartas.filter(x=>!x.resolvida);
+    const quantas = Math.min(livres.length, Math.round(s.mods.preview * 3));
+    const pegas = new Set();
+    let volta = 0;
+    while(pegas.size < quantas && volta++ < 400)
+      pegas.add(livres[Math.floor(dado() * livres.length)].id);
+    for(const id of pegas)
+      mem.set(id, chaveVisivel(s.cartas.find(c=>c.id===id)));
+  }
+
   const tentar = (a,b) => {
     naoCasa.add(parDe(a.id,b.id));
     abrir(a);

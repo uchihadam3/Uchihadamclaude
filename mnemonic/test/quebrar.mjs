@@ -26,8 +26,10 @@
    ═══════════════════════════════════════════════════════════════════════ */
 import { Run } from '../js/engine/run.js';
 import { CLASSES } from '../js/data/classes.js';
-import { RELIQUIAS, POR_ID } from '../js/data/reliquias.js';
+import { RELIQUIAS, POR_ID, RARIDADES,
+         ORDEM_RARIDADE } from '../js/data/reliquias.js';
 import { jogarRun } from './bot.mjs';
+import { forca } from './forca.mjs';
 
 const BUSCA = process.argv.includes('--busca');
 let n = 0; const falhas = [];
@@ -99,9 +101,65 @@ secao('2. Relíquia sozinha: nenhuma resolve o jogo por conta própria');
      + inuteis.slice(0, 6).map(s => s.nome).join(', ') + ')');
 }
 
+/* ════════════════════════════════════════════════════════ 2b */
+secao('2b. A raridade não pode mentir: mais rara TEM de ser mais forte');
+{
+  /* A QUEIXA QUE ORIGINOU ISTO: "tem relíquia comum melhor que lendária, não
+     faz sentido". Fazia sentido nenhum mesmo, e era verdade. Medido antes:
+     Luva de Feltro (comum) era a terceira peça mais forte do jogo e Núcleo
+     Instável (lendária) era a mais FRACA — deixava o jogador pior do que sem
+     relíquia nenhuma. Sete das quinze lendárias rendiam menos que a comum
+     mediana. Uma fita dourada em cima de um efeito pior que o cinza não é
+     uma surpresa: é a interface mentindo para quem escolhe.
+
+     A raridade promete DUAS coisas ao mesmo tempo — "aparece pouco" e "é
+     forte" — e só a primeira estava no código. Aqui a segunda vira teste.
+
+     Cobra-se a MEDIANA de cada degrau, e não a peça individual: dentro de um
+     degrau é bom que haja variação (senão a escolha não é escolha), e uma
+     comum situacional que brilha numa build específica é desenho, não
+     defeito. O que não pode é o degrau INTEIRO valer menos que o de baixo. */
+  /* a régua é a de `test/forca.mjs`, sala a sala — a mesma que a ferramenta
+     usa para montar a tabela. A régua de RUN, que este arquivo usa no resto,
+     tem desvio de ±1,3 sala e não serve para ordenar peças que valem menos
+     de uma. */
+  const porGrau = {};
+  for(const g of ORDEM_RARIDADE) porGrau[g] = [];
+  for(const r of RELIQUIAS) porGrau[r.r].push(forca(r.id, { sementes:8 }).forca);
+  const mediana = v => { const o = [...v].sort((a,b)=>a-b);
+    return o.length % 2 ? o[(o.length-1)/2] : (o[o.length/2-1]+o[o.length/2])/2; };
+  console.log('');
+  for(const g of ORDEM_RARIDADE)
+    console.log(`   ${RARIDADES[g].nome.padEnd(10)} ${String(porGrau[g].length).padStart(2)} peças`
+      + `   mediana ${mediana(porGrau[g]) >= 0 ? '+' : ''}${mediana(porGrau[g]).toFixed(2)}`
+      + `   peso ${String(RARIDADES[g].peso).padStart(3)}   ${RARIDADES[g].preco} moedas`);
+
+  for(let i = 1; i < ORDEM_RARIDADE.length; i++){
+    const cima = ORDEM_RARIDADE[i], baixo = ORDEM_RARIDADE[i-1];
+    ok(mediana(porGrau[cima]) > mediana(porGrau[baixo]),
+       `${RARIDADES[cima].nome} rende mais que ${RARIDADES[baixo].nome} `
+       + `(${mediana(porGrau[cima]).toFixed(2)} contra ${mediana(porGrau[baixo]).toFixed(2)})`);
+  }
+}
+
 /* ════════════════════════════════════════════════════════ 3 */
 secao('3. As combinações que a gente MESMO tentaria quebrar');
 {
+  /* A RÉGUA É O TETO, NÃO O CHÃO. Isto comparava o placar da combinação com
+     o de quem não tem relíquia nenhuma, e esse número é quase zero e balança
+     muito: a mesma build media 100×, 350× e 7.260× em dias diferentes sem
+     nada ter mudado nela. Razão contra um chão que afunda mede o chão.
+
+     As 75 relíquias juntas são uma referência estável e cheia de sentido:
+     é a marca de referência, e vale imprimir. Mas NÃO é um teto: algumas
+     peças se anulam entre si — Coração de Pedra faz o combo zerar de vez e
+     apaga a Pena do Escriba e o Fio de Prata, que existem justamente para
+     ele não zerar. Ter tudo pode render MENOS que ter as cinco certas, e
+     medido é isso mesmo que acontece. Por isso o limite abaixo é absoluto:
+     ele pega multiplicador disparando sozinho, que é o defeito real. */
+  const TETO = rodar({ reliquias: RELIQUIAS.map(r => r.id), sementes:3 });
+  console.log(`   (teto: as 75 juntas fazem `
+    + `${Math.round(TETO.pontos).toLocaleString('pt-BR')} pontos)\n`);
   /* Cada uma destas é uma hipótese de quebra escrita à mão. Busca aleatória
      acha o que já existe; hipótese acha o que o jogador esperto vai tentar
      no primeiro dia. */
@@ -143,9 +201,13 @@ secao('3. As combinações que a gente MESMO tentaria quebrar');
        e fazem 540×. */
     ok(x.taxa <= 0.60,
        `"${nome}" não transforma o bot cego em campeão (${pct(x.taxa)})`);
-    ok(x.pontos < NU.pontos * 250,
-       `"${nome}" não explode o placar (${Math.round(x.pontos).toLocaleString('pt-BR')}`
-       + ` = ${(x.pontos/NU.pontos).toFixed(0)}× o de quem não tem nada)`);
+    /* 50 milhões: a pior combinação escrita à mão faz 3,6 milhões hoje, e
+       um multiplicador sem freio não para em quatorze vezes isso — ele vai
+       para a casa dos bilhões numa run só. O limite é largo de propósito,
+       para pegar o defeito e não a maré. */
+    ok(x.pontos < 5e7,
+       `"${nome}" não explode o placar `
+       + `(${Math.round(x.pontos).toLocaleString('pt-BR')}, e o teto é 50 milhões)`);
   }
 }
 
@@ -167,12 +229,10 @@ secao('4. A build MÁXIMA: todas as 75 relíquias ao mesmo tempo');
      pessoa consegue ler, e a run tem de acabar */
   ok(x.maiorPontos < 1e12,
      `o placar máximo cabe num ranking (${x.maiorPontos.toExponential(1)})`);
-  /* e o teto teórico não pode ficar ordens de grandeza acima do alcançável:
-     se as 75 juntas rendessem um milhão de vezes o normal, alguma relíquia
-     estaria multiplicando sem freio e a próxima combinação acharia isso */
-  ok(x.pontos < NU.pontos * 2000,
-     `nem o teto teórico foge da escala (${(x.pontos/NU.pontos).toFixed(0)}× `
-     + `o de quem não tem relíquia)`);
+  /* e o teto tem de ser um número que uma pessoa lê. Razão contra o chão
+     não serve aqui pelo mesmo motivo de sempre: o chão é quase zero. */
+  ok(x.pontos < 5e8,
+     `o teto teórico cabe num placar legível (${Math.round(x.pontos).toLocaleString('pt-BR')})`);
 }
 
 /* ════════════════════════════════════════════════════════ 5 */

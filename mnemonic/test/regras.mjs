@@ -20,7 +20,8 @@ import { makeRNG } from '../js/rng.js';
 import { TIPOS, LISTA_TIPOS, sortearTipos } from '../js/data/cartas.js';
 import { FAMILIAS, LISTA_FAMILIAS, sortearFamilias } from '../js/data/familias.js';
 import { CLASSES, LISTA_CLASSES } from '../js/data/classes.js';
-import { RELIQUIAS, POR_ID, sortearReliquias } from '../js/data/reliquias.js';
+import { RELIQUIAS, POR_ID, RARIDADES, ORDEM_RARIDADE,
+         sortearReliquias } from '../js/data/reliquias.js';
 import { BOSSES, LISTA_BOSSES, BOSS_DO_MUNDO } from '../js/data/bosses.js';
 import { EVENTOS } from '../js/data/eventos.js';
 import { glifo, POR_FAMILIA, FAMILIA_PINTADA, svgGlifo } from '../js/arte/glifos.js';
@@ -556,8 +557,25 @@ secao('8c. Relíquia que promete tem de fazer');
   ok(RELIQUIAS.length >= 60, `o catálogo tem ${RELIQUIAS.length} relíquias`);
   const porR = {};
   for(const r of RELIQUIAS) porR[r.r] = (porR[r.r]||0)+1;
-  for(const grau of ['comum','rara','lendaria'])
-    ok(porR[grau] >= 10, `há ${porR[grau]} relíquias ${grau} — variedade em cada degrau`);
+  /* a lista de degraus sai de `ORDEM_RARIDADE`, e não de uma cópia aqui:
+     quando a épica nasceu, esta linha era o único lugar que não sabia. */
+  for(const grau of ORDEM_RARIDADE)
+    ok(porR[grau] >= 5, `há ${porR[grau]} relíquias ${grau} — variedade em cada degrau`);
+  /* E A PIRÂMIDE TEM DE SER UMA PIRÂMIDE: quanto mais rara, menos peças.
+     Um degrau de cima mais populoso que o de baixo faz "raro" perder o
+     sentido antes mesmo de o sorteio entrar na conta. */
+  for(let i = 1; i < ORDEM_RARIDADE.length; i++)
+    ok(porR[ORDEM_RARIDADE[i]] < porR[ORDEM_RARIDADE[i-1]],
+       `há menos ${ORDEM_RARIDADE[i]} que ${ORDEM_RARIDADE[i-1]} `
+       + `(${porR[ORDEM_RARIDADE[i]]} contra ${porR[ORDEM_RARIDADE[i-1]]})`);
+  /* e o sorteio tem de concordar com o nome: mais raro, menos provável */
+  for(let i = 1; i < ORDEM_RARIDADE.length; i++)
+    ok(RARIDADES[ORDEM_RARIDADE[i]].peso < RARIDADES[ORDEM_RARIDADE[i-1]].peso,
+       `${ORDEM_RARIDADE[i]} aparece menos que ${ORDEM_RARIDADE[i-1]}`);
+  /* e a loja tem de cobrar mais caro por raridade maior */
+  for(let i = 1; i < ORDEM_RARIDADE.length; i++)
+    ok(RARIDADES[ORDEM_RARIDADE[i]].preco > RARIDADES[ORDEM_RARIDADE[i-1]].preco,
+       `${ORDEM_RARIDADE[i]} custa mais que ${ORDEM_RARIDADE[i-1]}`);
 }
 
 /* ════════════════════════════════════════════════════════ 8d */
@@ -1085,7 +1103,7 @@ secao('16. Os dados: nada meio escrito');
 
   for(const r of RELIQUIAS){
     ok(r.id && r.nome && r.d, `relíquia ${r.id} tem nome e descrição`);
-    ok(['comum','rara','lendaria'].includes(r.r), `relíquia ${r.id} tem raridade válida`);
+    ok(ORDEM_RARIDADE.includes(r.r), `relíquia ${r.id} tem raridade válida`);
     ok(r.mods || r.ao || r.aoIniciar, `relíquia ${r.id} realmente faz alguma coisa`);
   }
   eq(new Set(RELIQUIAS.map(r=>r.id)).size, RELIQUIAS.length, 'ids de relíquia únicos');
