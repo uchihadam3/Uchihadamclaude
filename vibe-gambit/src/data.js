@@ -723,7 +723,7 @@ export function skillBoard(def){
     def: { amts:[2,3,4,5,6],      label:'DEF' },
     spd: { amts:[2,2,3,3,4],      label:'SPD' },
   };
-  // Cada classe recebe: HP (5 tiers), MP (3), stat principal (5), + 2 secundários (3 cada).
+  // NOTÁVEIS: HP (5 tiers), MP (3), stat principal (5), + 2 secundários (3 cada).
   const secondaries = main==='mag'
     ? ['def','spd'] : main==='atk' ? ['def','hp'] : ['atk','mag'];
   const plan = [ ['hp',5], ['mp',3], [main, 5], [secondaries[0],3], [secondaries[1],3] ];
@@ -734,6 +734,19 @@ export function skillBoard(def){
       nodes.push({ type:'stat', id:`aug_${stat}_${i}`, stat, amt:t.amts[i],
         cost:1+Math.floor(i/2), reqLevel:Math.min(MAX_LEVEL, lvl) });
       lvl += 1;
+    }
+  }
+  // MINORES: muitos nós pequenos (densidade estilo PoE) — bônus modestos, custo 1 LP,
+  // reqLevel espalhado por todos os anéis. O jogador escolhe o caminho (LP não cobre tudo).
+  const MINOR_AMT = { hp:8, mp:3, atk:2, mag:2, def:1, spd:1 };
+  const minorPlan = [ ['hp',8], ['mp',4], ['atk',4], ['mag',4], ['def',4], ['spd',4], [main,6] ];
+  const totalMinor = minorPlan.reduce((a,[,n])=>a+n,0);
+  let mi = 0;
+  for(const [stat, count] of minorPlan){
+    for(let i=0;i<count;i++){
+      const req = Math.min(MAX_LEVEL, 2 + Math.round(mi*(MAX_LEVEL-2)/totalMinor));
+      nodes.push({ type:'stat', id:`min_${stat}_${mi}`, stat, amt:MINOR_AMT[stat], cost:1, reqLevel:req, minor:true });
+      mi++;
     }
   }
   return nodes;
