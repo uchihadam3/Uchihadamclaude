@@ -79,19 +79,63 @@ export const COMBATE = new Set(['combate','elite','boss']);
    cair uma que carrega a sala. Conteúdo novo mexe no balanço mesmo quando
    cada peça nova é neutra, e é por isso que a régua se remede a cada lote.
 
-   Com 0,97 a curva fica assim: memória perfeita vence 67% das runs, quem
-   esquece 6% das cartas vence 47%, quem esquece 15% vence 15%, e quem
-   esquece um terço vence 3%. O meio ficou mais íngreme que na medição
-   anterior — com treze famílias, esquecer custa mais caro, porque a sala nem
-   sempre traz a família que perdoa. É a forma que se quer: castiga esquecer,
-   e não castiga ser novato. */
+   ═══ O ERRO QUE ESTA FÓRMULA CARREGOU POR MUITO TEMPO ══════════════════
+   `fator` ia de 0,97 a 1,18 — vinte e um por cento de aperto do começo ao
+   fim da run. Mas o JOGADOR não cresce vinte e um por cento nesse caminho:
+   ele cresce dez vezes, porque chega no mundo 5 com quinze relíquias que
+   multiplicam ponto umas em cima das outras. Medido sala por sala, com o
+   bot esquecendo 10%:
+
+       sala  0   meta     88   marcado    120    ×1,4    91% de vitória
+       sala 21   meta    334   marcado  1.328    ×4,0   100%
+       sala 44   meta    685   marcado  5.106    ×7,5   100%
+
+   Da sala 18 em diante NINGUÉM MAIS PERDE. A meta virou formalidade: você
+   passava de fase de olhos fechados enquanto o placar subia sozinho. Um
+   roguelike em que a segunda metade não pode te matar não tem segunda
+   metade — tem um desfile.
+
+   A causa é de forma, não de número: o poder do jogador cresce
+   MULTIPLICATIVAMENTE (relíquia multiplica relíquia) e a meta crescia de
+   forma somada. Nenhum ajuste do 0,21 conserta isso; o que conserta é a
+   meta crescer no mesmo formato.
+
+   `Math.pow(3,5, dif^1,5)` faz isso. O expoente 1,5 é o que segura o começo:
+   na primeira metade da run ele quase não mexe, e o aperto se concentra
+   onde o problema estava. Medido depois da mudança, mesmo bot:
+
+       sala  0   meta     86   marcado    120    ×1,4    91%   (igual)
+       sala 15   meta    282   marcado    626    ×2,2    80%
+       sala 21   meta    457   marcado  1.324    ×2,9    95%
+       sala 44   meta  1.768   marcado  5.576    ×3,2
+       sala 51   meta  2.411   marcado 10.383    ×4,3
+
+   A folga do fim caiu de 12,4× para 4,3×, e a meta da última sala subiu de
+   912 para 2.411. Que a razão ainda cresça um pouco é certo e não defeito:
+   quem chega na sala 51 chegou porque a build ficou monstruosa, e a régua
+   não deve fingir que não. O que não pode é ela crescer TRÊS VEZES mais que
+   a régua, que era o caso.
+
+   Na run inteira, com 96 runs por linha (`test/curva.mjs 12`):
+
+                          antes    agora
+       memória perfeita     66%      56%
+       esquece  3%          56%      45%
+       esquece  6%          51%      36%
+       esquece 10%          33%      23%
+       esquece 15%          17%      11%
+
+   É o formato pedido: build boa leva longe, build ruim mata, e ninguém
+   passeia até o fim. Os números continuam MEDIDOS e não escolhidos —
+   `test/curva.mjs` para a run inteira, `test/quebrar.mjs` para o teto das
+   builds, e `test/regras.mjs` §5b para a forma desta curva. */
 export function planoDaSala(mundo, indice, tipo){
   const total = MUNDOS*SALAS.length;
   const passo = mundo*SALAS.length + indice;
   const dif   = total>1 ? Math.min(1, passo/(total-1)) : 0;
   const pares = Math.min(30, 6 + Math.round(dif*24));
   const peso  = tipo==='elite' ? 1.06 : tipo==='boss' ? 1.12 : 1;
-  const fator = (0.97 + dif*0.21) * peso;
+  const fator = 0.95 * Math.pow(3.5, Math.pow(dif, 1.5)) * peso;
   return {
     pares,
     dificuldade: dif * (tipo==='boss' ? 1 : 0.9),

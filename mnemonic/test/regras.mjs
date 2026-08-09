@@ -29,7 +29,8 @@ import { ICO, ICO_TRACO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, ICO_RELIQUIA,
   from '../js/ui/icones.js';
 import { CONQUISTAS, DEGRAUS } from '../js/data/conquistas.js';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { Sala, COMBOS, degrauCombo, pontosPerfeitos, colunasPara } from '../js/engine/tabuleiro.js';
+import { Sala, COMBOS, degrauCombo, pontosPerfeitos, pontosEsperados,
+         colunasPara } from '../js/engine/tabuleiro.js';
 import { Run, verificar, refazer, planoDaSala, SALAS, MUNDOS, COMBATE,
          MAX_JOGADAS } from '../js/engine/run.js';
 import { jogarRun } from './bot.mjs';
@@ -223,6 +224,66 @@ secao('5. Combo');
   const [q,w] = duasDiferentes(mi);
   mi.virar(q.id); mi.virar(w.id);
   eq(mi.combo, 2, 'Mitologia corta o combo pela metade em vez de zerar');
+}
+
+/* ════════════════════════════════════════════════════════ 5b */
+secao('5b. A meta acompanha o crescimento do jogador');
+{
+  /* O DEFEITO QUE ISTO IMPEDE DE VOLTAR: a meta crescia de forma SOMADA
+     (+21% do começo ao fim da run) enquanto o poder do jogador cresce de
+     forma MULTIPLICADA — relíquia multiplica relíquia, e no mundo 5 são
+     quinze delas. Medido sala por sala, o bot marcava 1,4× a meta na sala 0
+     e 12,4× na sala 51, vencendo 100% das salas a partir da 18. A segunda
+     metade do jogo não podia mais matar ninguém.
+
+     `aperto` é o que se cobra aqui: quanto a meta pede acima do que aquele
+     TABULEIRO renderia para quem não esquece nada (`pontosEsperados`). É o
+     único número da fórmula que aperta o jogo, e a forma dele é o desenho.
+     Os valores mudam quando o conteúdo muda; a forma, não. */
+  const combate = [];
+  for(let m=0;m<MUNDOS;m++) for(let i=0;i<SALAS.length;i++){
+    const t = SALAS[i];
+    if(!COMBATE.has(t)) continue;
+    const p = planoDaSala(m, i, t);
+    combate.push({ m, i, t, ...p, aperto: p.meta / pontosEsperados(p.pares) });
+  }
+  const so = combate.filter(c=>c.t==='combate');   // sem o peso de elite/chefe
+  const prim = so[0], meio = so[Math.floor(so.length/2)], ult = so[so.length-1];
+
+  ok(so.every((c,k)=> k===0 || c.aperto >= so[k-1].aperto - 1e-9),
+     'o aperto nunca afrouxa de uma sala para a seguinte');
+  ok(ult.aperto / prim.aperto > 2.5,
+     `a run inteira aperta de verdade (×${(ult.aperto/prim.aperto).toFixed(1)} `
+     + `do começo ao fim, era ×1,2)`);
+  /* e o aperto tem de estar NO FIM: dobrar a meta da sala 3 castigaria quem
+     está aprendendo, que nunca foi o problema */
+  const primeiraMetade = meio.aperto / prim.aperto;
+  const segundaMetade  = ult.aperto / meio.aperto;
+  ok(segundaMetade > primeiraMetade,
+     `e ele se concentra na segunda metade (×${primeiraMetade.toFixed(2)} até o `
+     + `meio, ×${segundaMetade.toFixed(2)} do meio ao fim)`);
+
+  /* O TETO. A meta PODE passar do que um tabuleiro nu renderia — é isso que
+     obriga a ter build no mundo 5, e é o ponto do jogo. Medido com jogo
+     ótimo (explorar tudo e emendar o tabuleiro numa corrente só, que é onde
+     mora o God Memory ×8), a última sala pede 1,9× o que o tabuleiro nu dá:
+     a build tem de dobrar os seus pontos, e com quinze relíquias isso é
+     folgado.
+
+     O que ela NÃO pode é virar parede. `pontosPerfeitos` — acerto atrás de
+     acerto sem um erro sequer — fica cerca de 30% acima do jogo ótimo real,
+     então 1,8 dele é mais ou menos 2,3× o jogo ótimo: o dobro do que a build
+     precisa entregar hoje. Passar disso não é dificuldade, é fim de jogo
+     escrito na fórmula. */
+  for(const c of combate)
+    ok(c.meta < pontosPerfeitos(c.pares) * 1.8,
+       `sala ${c.m}-${c.i}: a meta não vira parede `
+       + `(${c.meta} contra ${pontosPerfeitos(c.pares)} de teto seco)`);
+
+  ok(planoDaSala(3, 8, 'boss').meta > planoDaSala(3, 8, 'combate').meta,
+     'o chefe cobra mais que a sala comum do mesmo ponto da run');
+  ok(planoDaSala(3, 3, 'elite').meta > planoDaSala(3, 3, 'combate').meta,
+     'e a elite também');
 }
 
 /* ════════════════════════════════════════════════════════ 6 */
@@ -742,9 +803,19 @@ secao('11. A curva das salas');
     const p = planoDaSala(m,i,t);
     ok(p.pares>=6 && p.pares<=30, `pares dentro do limite (${m}.${i}: ${p.pares})`);
     ok(p.viradas > p.pares, `sempre mais viradas que pares (${m}.${i})`);
-    /* a meta jamais pode passar do teto: sala impossível é bug */
-    const teto = pontosPerfeitos(p.pares);
-    ok(p.meta < teto*0.85, `a meta cabe abaixo do teto (${m}.${i}: ${p.meta}/${teto})`);
+    /* A REGRA ANTIGA ERA `meta < teto*0.85`, com o comentário "sala
+       impossível é bug". Ela caiu de propósito, e vale dizer por quê: ela
+       obrigava toda sala a ser vencível com o TABULEIRO NU, sem relíquia
+       nenhuma. Enquanto isso valesse, a build era enfeite — e era essa a
+       causa de a segunda metade da run não poder matar ninguém, com o bot
+       marcando doze vezes a meta e vencendo 100% das salas da 18 em diante.
+
+       Agora a meta da última sala pede 1,9× o que o tabuleiro nu rende com
+       jogo ótimo: no mundo 5 é obrigatório ter build. Quem define o teto
+       novo — e o limite para ele não virar parede — é a §5b, sozinha. Duas
+       implementações da mesma regra sempre acabam discordando; esta linha
+       fica com o que é dela. */
+    ok(p.meta > 0 && Number.isFinite(p.meta), `a meta é um número (${m}.${i})`);
     if(p.pares < paresAnterior) problemas++;
     paresAnterior = p.pares;
   }
