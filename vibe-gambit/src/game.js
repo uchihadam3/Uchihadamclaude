@@ -10,7 +10,7 @@ import {
   CONSUMABLES, consumableCharges,
 } from './data.js';
 import { loadOrNew, save, newGame } from './state.js';
-import { Combat, buildParty, buildWave, forgeAtkBonus } from './engine.js';
+import { Combat, buildParty, buildWave, forgeAtkBonus, ATB_MAX } from './engine.js';
 import { spriteFor } from './sprites.js';
 
 const S = loadOrNew();
@@ -161,6 +161,7 @@ function heroEquip(hs){
   return hs.equip;
 }
 let selHero = null;   // herói selecionado no painel de detalhes/inventário
+let invOnlyEquip = false;  // filtro do inventário: mostrar só o que o herói equipa
 
 function renderBase(){
   if(!selHero || !S.heroes.find(h=>h.id===selHero)) selHero = S.heroes[0].id;
@@ -251,7 +252,6 @@ function openPartyPicker(){
           return `<button class="pick-hero ${on?'on':''}" data-id="${def.id}" style="--acc:${accentOf(def.id)}">
             <div class="ph-face">${faceMedia(def.id)}</div>
             <div class="ph-nm">${def.name}</div>
-            <div class="ph-cl">${def.klass}</div>
             <div class="ph-st">⚔️${rs.atk} ❤️${rs.hp}</div>
             <div class="ph-tags">${w.icon}${st.icon}</div>
             ${on?'<span class="ph-ck">✓</span>':''}
@@ -384,7 +384,6 @@ function openSkillBoard(heroId){
           <div class="wow-side">
             <div class="wow-port">${faceMedia(def.id)}<span class="wp-lvl">Nível ${hs.level}</span></div>
             <div class="wow-nm">${def.name}</div>
-            <div class="wow-role">${def.klass||''}</div>
             <div class="wow-pts">${hs.lp} LP livre · ${ownedCount}/${total}</div>
             <div class="wow-stats">${statsRows}</div>
           </div>
@@ -441,8 +440,15 @@ function renderDetail(){
       ${slotImg('assets/slot_'+s.key+'.png','ghost')}</button>`;
   }).join('');
   const inv = S.inventory || [];
-  const invHTML = inv.length ? inv.map((iid,idx)=>{
-    const it = ITEMS[iid]; if(!it) return '';
+  // Junta {item, índice original} e separa em equipáveis / não-equipáveis;
+  // equipáveis vêm primeiro para o herói ver logo o que serve nele.
+  const invEntries = inv.map((iid,idx)=>({ it: ITEMS[iid], idx })).filter(e=>e.it);
+  const wear = invEntries.filter(e=>canWear(def, e.it));
+  const other = invEntries.filter(e=>!canWear(def, e.it));
+  const rank = it => ({legendary:4,epic:3,rare:2,uncommon:1,common:0}[it.rarity]||0);
+  wear.sort((a,b)=>rank(b.it)-rank(a.it));
+  const shown = invOnlyEquip ? wear : wear.concat(other);
+  const itemBtn = ({it,idx})=>{
     const bon = Object.entries(it.bonus).map(([k,v])=>`+${v}${k.toUpperCase()}`).join(' ');
     const wearable = canWear(def, it);
     const lock = wearable ? '' : `<span class="ii-lock" title="Só ${ARMOR_WEIGHTS[it.weight]?.label||'—'} — ${def.name} usa ${wgt.label}">🔒</span>`;
@@ -450,7 +456,10 @@ function renderDetail(){
                         : `${it.name} — armadura ${ARMOR_WEIGHTS[it.weight]?.label}; ${def.name} só veste ${wgt.label}`;
     return `<button class="inv-item r-${it.rarity} ${wearable?'':'locked'}" data-idx="${idx}" title="${tt}">
       <img class="ii-img" src="${it.img}" alt="" onerror="this.style.display='none'"><span class="ii-bo">${bon}</span>${lock}</button>`;
-  }).join('') : `<div class="inv-empty">Inventário vazio — itens caem nas expedições.</div>`;
+  };
+  const invHTML = shown.length ? shown.map(itemBtn).join('')
+    : (inv.length ? `<div class="inv-empty">Nenhum item que ${def.name} possa equipar.</div>`
+                  : `<div class="inv-empty">Inventário vazio — itens caem nas expedições.</div>`);
 
   frame.innerHTML = `
     <div class="detail-title"><span>Herói & Inventário</span></div>
@@ -458,18 +467,22 @@ function renderDetail(){
       <div class="d-hero" style="--acc:${accentOf(hs.id)}">
         <div class="d-face">${faceMedia(def.id)}</div>
         <div class="d-meta">
-          <div class="d-nm">${def.name} <small>${def.klass}</small> <span class="d-lv">Nv.${hs.level}</span></div>
+          <div class="d-nm">${def.name} <span class="d-lv">Nv.${hs.level}</span></div>
           <div class="d-prof"><span class="prof-chip w-${def.armorWeight}" title="Armadura: ${wgt.focus}">${wgt.icon} ${wgt.label}</span><span class="prof-chip sty" title="${sty.desc}">${sty.icon} ${sty.label}</span></div>
           <div class="d-stats">${statChip('⚔️',rs.atk)}${statChip('❤️',rs.hp)}${statChip('🔮',rs.mag)}${statChip('🛡️',rs.defense)}${statChip('👟',rs.spd)}${statChip('💧',rs.mp)}</div>
         </div>
       </div>
       <div class="d-slots">${slotsHTML}</div>
       <button class="lic-btn" id="d-lic">🎓 Licenças${hs.lp>0?` <b>· ${hs.lp} LP</b>`:''}</button>
-      <div class="inv-cap">🎒 Inventário <small>(toque num item p/ equipar em ${def.name})</small></div>
-      <div class="inv-grid">${invHTML}</div>
+      <div class="inv-cap">
+        <span>🎒 Inventário <small>${wear.length} p/ ${def.name}${other.length?` · ${other.length} outros`:''}</small></span>
+        <button class="inv-filter ${invOnlyEquip?'on':''}" id="inv-filter">${invOnlyEquip?'✓ Só equipáveis':'Só equipáveis'}</button>
+      </div>
+      <div class="inv-scroll"><div class="inv-grid">${invHTML}</div></div>
     </div>`;
 
   frame.querySelector('#d-lic').onclick = () => openSkillBoard(hs.id);
+  frame.querySelector('#inv-filter').onclick = () => { invOnlyEquip = !invOnlyEquip; renderDetail(); };
   frame.querySelectorAll('.d-slot').forEach(b => b.onclick = (e) => {
     const slot = b.dataset.slot;
     if(slot==='weapon'){ openPanelModal('🔨 Forja', body=>renderForge(body, hs.id)); return; }
@@ -835,7 +848,7 @@ function gambitLineHTML(g, i, def, condOpts){
 }
 
 // ================================================================ EXPEDIÇÃO
-const TICK_MS = 850;
+const TICK_MS = 110;   // micro-tick do ATB (a barra enche entre chamadas)
 function startExpedition(stageId){
   const stage = STAGES.find(s=>s.id===stageId);
   const party = buildParty(S);                 // referencia S.heroes[].gambits (edição ao vivo!)
@@ -886,9 +899,10 @@ function startWave(i){
 function expoTick(){
   const c = expo.combat;
   const before = c.log.length;
-  c.step();
+  c.atbTick();
   for(const ev of c.log.slice(before)) presentEvent(ev);
   refreshBattlerBars();
+  refreshAtbBars();
   if(c.isOver()){
     stopExpo();
     if(c.outcome()==='victory'){
@@ -1150,6 +1164,7 @@ function battlerHTML(u, foe){
     <div class="nmtag">${u.name}</div>
     <div class="b-status"></div>
     <div class="ohp"><i></i></div>
+    <div class="atb ${foe?'foe':''}"><i></i></div>
     <div class="spr">${spriteFor(u.id)}</div>
     <div class="shadow"></div></div>`;
 }
@@ -1170,6 +1185,16 @@ function refreshBattlerBars(){
     be.classList.toggle('dead', u.hp<=0);
     be.querySelector('.ohp>i').style.width = Math.max(0, 100*u.hp/u.maxHp) + '%';
     refreshBattlerStatus(u);
+  }
+}
+// barra ATB: enche pela destreza; "cheia" pisca ao agir
+function refreshAtbBars(){
+  for(const u of [...(expo.party||[]), ...(expo.enemies||[])]){
+    const be = battlerEl(u); if(!be) continue;
+    const bar = be.querySelector('.atb>i'); if(!bar) continue;
+    const pct = u.hp<=0 ? 0 : Math.min(100, 100*(u.atb||0)/ATB_MAX);
+    bar.style.width = pct + '%';
+    be.querySelector('.atb').classList.toggle('full', u.hp>0 && pct>=100);
   }
 }
 

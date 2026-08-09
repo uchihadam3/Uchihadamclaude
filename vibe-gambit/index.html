@@ -28,9 +28,12 @@
   #app{width:min(var(--appw),100%);display:flex;flex-direction:column;gap:10px}
 
   /* ---------- HUD ---------- */
-  #hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
-    background:linear-gradient(180deg,#f5e9cd,#e9d7ac);border:1px solid var(--line);
-    border-radius:14px;padding:9px 12px;box-shadow:0 4px 12px rgba(10,14,20,.35)}
+  #hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;
+    border:22px solid transparent;border-image:url(art/window_frame.png) 120 stretch;
+    background:linear-gradient(180deg,#f5e9cd,#e9d7ac);background-clip:padding-box;
+    border-radius:10px;padding:2px 8px 4px;image-rendering:pixelated;
+    box-shadow:0 6px 16px rgba(10,14,20,.4)}
+  #hud > *{image-rendering:auto}
   .brand{font-size:16px;font-weight:900;letter-spacing:.3px;display:flex;align-items:center;gap:8px;flex:1 1 auto;color:var(--ink)}
   .brand small{display:block;font-size:8px;color:var(--dim);letter-spacing:1.4px;text-transform:uppercase;font-weight:700}
   .logo-emblem{height:36px;width:auto;image-rendering:pixelated;filter:drop-shadow(0 2px 2px #0009);flex:none}
@@ -341,8 +344,12 @@
   .ds-badge{position:absolute;bottom:1px;right:3px;font-size:9px;font-weight:800;color:#fff;background:var(--acc);border-radius:6px;padding:0 3px;line-height:1.35}
   .ds-x{position:absolute;top:-4px;right:-4px;width:16px;height:16px;display:grid;place-items:center;font-size:9px;color:#fff;background:var(--enemy);border-radius:50%;font-weight:900;border:1.5px solid #fff}
   @media(max-width:360px){ .d-slots{grid-template-columns:repeat(6,1fr);gap:4px} .ds-ic{font-size:20px} }
-  .inv-cap{font-size:13px;font-weight:900;color:var(--ink2);margin-top:2px} .inv-cap small{font-weight:700;font-size:10px;color:var(--dim)}
-  /* inventário: grade COMPACTA de ícones — tudo visível, sem rolagem */
+  .inv-cap{font-size:13px;font-weight:900;color:var(--ink2);margin-top:2px;display:flex;align-items:center;justify-content:space-between;gap:8px} .inv-cap small{font-weight:700;font-size:10px;color:var(--dim)}
+  .inv-filter{flex:none;font:800 10px/1 inherit;color:var(--ink2);background:#00000010;border:1px solid #0002;border-radius:999px;padding:5px 10px;cursor:pointer;white-space:nowrap}
+  .inv-filter.on{background:var(--acc,#7a5c37);color:#fff;border-color:transparent}
+  /* inventário: grade COMPACTA de ícones — equipáveis primeiro; rolagem só aqui dentro */
+  .inv-scroll{max-height:220px;overflow-y:auto;margin-top:6px;padding-right:2px;-webkit-overflow-scrolling:touch}
+  .inv-scroll::-webkit-scrollbar{width:6px} .inv-scroll::-webkit-scrollbar-thumb{background:#0003;border-radius:3px}
   .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:7px}
   .inv-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
     background:#fff8e8;border:1px solid var(--line);border-radius:10px;padding:7px 3px 6px;box-shadow:none;min-width:0;aspect-ratio:1/.86}
@@ -569,7 +576,12 @@
   .battler .ohp{width:44px;height:5px;background:#0b0912;border:1px solid #000;border-radius:3px;overflow:hidden;margin-bottom:1px}
   .battler .ohp>i{display:block;height:100%;background:linear-gradient(90deg,var(--hp),var(--hp2));transition:width .25s}
   .battler.foe .ohp>i{background:linear-gradient(90deg,#ff6a5a,#c0342a)}
-  .battler .spr{width:44px;height:60px;filter:drop-shadow(0 5px 3px #0009);animation:bob 2.4s ease-in-out infinite}
+  /* barra ATB (destreza) — enche até agir; pisca quando cheia */
+  .battler .atb{width:44px;height:3px;background:#0b0912;border:1px solid #000;border-radius:2px;overflow:hidden;margin-bottom:2px}
+  .battler .atb>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#8fd3ff,#3aa0ff);transition:width .11s linear}
+  .battler .atb.foe>i{background:linear-gradient(90deg,#ffd27a,#ff9a3a)}
+  .battler .atb.full>i{background:linear-gradient(90deg,#fff6c8,#ffe266);box-shadow:0 0 5px #ffe266}
+  .battler .spr{width:44px;height:60px;filter:drop-shadow(0 5px 3px #0009)}
   .lane.enemies .battler .spr{transform:scaleX(-1)}
   .battler .shadow{width:34px;height:6px;border-radius:50%;background:#0008;filter:blur(2px);margin-top:-5px}
   /* artes 2D (PNG) */

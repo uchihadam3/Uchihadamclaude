@@ -44,8 +44,16 @@ export function unitFrom(def, side, opts = {}){
     isBoss: !!opts.isBoss,
     taunt: 0,                               // ticks restantes de provocação (aggro)
     statuses: [],                           // efeitos ativos (dot/stun/buff)
+    atb: 0,                                 // medidor ATB (0..ATB_MAX) — enche pela destreza (spd)
   };
 }
+
+// --- ATB (Active Time Battle) -------------------------------------------------
+// O medidor de cada unidade enche a cada micro-tick conforme sua DESTREZA (spd).
+// Quando enche, a unidade AGE (uma ação) e o medidor zera. Unidades rápidas agem
+// com mais frequência → cada uma joga em tempos diferentes, não todas de uma vez.
+export const ATB_MAX = 100;
+export function atbRate(spd){ return 1.6 + Math.max(1, spd) * 1.35; }  // por micro-tick
 
 // Soma do bônus de ATK da forja até um nível.
 export function forgeAtkBonus(level){
@@ -132,6 +140,31 @@ export class Combat {
       }
     }
     return this.log;
+  }
+
+  // --- ATB: um MICRO-TICK. Enche os medidores; quando alguém enche, ELE age.
+  // Retorna { acted: unidade|null, ready: [unidades cheias na fila] }.
+  // A View chama isto num intervalo curto; a barra ATB anima entre chamadas.
+  atbTick(){
+    if(this.isOver()) return { acted:null };
+    this.tick++;
+    for(const u of this.units){
+      if(u.hp <= 0){ u.atb = 0; continue; }
+      u.atb = Math.min(ATB_MAX * 2, (u.atb || 0) + atbRate(u.stats.spd));
+    }
+    // pega o mais "pronto" (maior medidor) — só UM age por micro-tick.
+    const ready = this.units.filter(u => u.hp > 0 && (u.atb || 0) >= ATB_MAX)
+                            .sort((a, b) => (b.atb || 0) - (a.atb || 0));
+    const u = ready[0];
+    if(!u) return { acted:null };
+    u.atb = 0;                              // gastou o turno
+    const ev = this.act(u);
+    // upkeep por-turno da unidade que agiu (aggro decai, MP regenera devagar)
+    if(u.taunt > 0) u.taunt--;
+    if(u.hp > 0 && u.maxMp > 0 && u.mp < u.maxMp){
+      u.mp = Math.min(u.maxMp, u.mp + Math.max(1, Math.round(u.maxMp * 0.05)));
+    }
+    return { acted:u, ev };
   }
 
   // Aggro: se algum alvo-herói está provocando, o inimigo é forçado a mirá-lo.
