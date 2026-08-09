@@ -509,7 +509,7 @@ export const CONDITIONS = {
 // slots: linhas de gambit ativas hoje. maxSlots: teto comprável na Academia.
 export const HERO_DEFS = [
   {
-    id:'warrior', name:'Guerreiro', klass:'Cavaleiro', sprite:'🛡️',
+    id:'warrior', name:'Cavaleiro', klass:'Cavaleiro', sprite:'🛡️',
     armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield','twohand'],
     base:{ hp:120, atk:14, def:8, mag:2, mp:10, spd:6 },
     weaponLevel:0, slots:3, maxSlots:5,

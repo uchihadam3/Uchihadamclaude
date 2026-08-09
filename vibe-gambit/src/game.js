@@ -168,7 +168,7 @@ function renderBase(){
   $('screen-base').innerHTML = `
     <div class="hub-fit">
       <div class="hub-stage">
-        <div class="base-frame base-hub">
+        <div class="base-shell">
           <div class="base-title"><span>Acampamento Base</span></div>
           <button class="hub-x" title="Ir ao Mapa">✕</button>
           <div class="hub-grid">
@@ -176,10 +176,10 @@ function renderBase(){
             <div class="hub-center" id="hub-center"></div>
             <div class="hub-panel hub-right" id="hub-right"></div>
           </div>
+          <div class="detail-frame" id="detail-frame"></div>
         </div>
       </div>
     </div>
-    <div class="base-frame detail-frame" id="detail-frame"></div>
     <div class="base-actions">
       <button class="hub-gear" title="Opções">⚙️</button>
       <button class="gold-cta" id="hub-cta">⚔️ Partir em Expedição</button>
@@ -440,22 +440,29 @@ function renderDetail(){
       ${slotImg('assets/slot_'+s.key+'.png','ghost')}</button>`;
   }).join('');
   const inv = S.inventory || [];
-  // Junta {item, índice original} e separa em equipáveis / não-equipáveis;
-  // equipáveis vêm primeiro para o herói ver logo o que serve nele.
-  const invEntries = inv.map((iid,idx)=>({ it: ITEMS[iid], idx })).filter(e=>e.it);
-  const wear = invEntries.filter(e=>canWear(def, e.it));
-  const other = invEntries.filter(e=>!canWear(def, e.it));
+  // EMPILHAMENTO: itens idênticos viram UM tile com contagem ×N — assim, por mais
+  // loot que o jogador acumule, a lista não estica (poucos tiles, não centenas).
+  // Guardamos 1 índice do estoque por pilha para equipar. Equipáveis vêm primeiro.
+  const stacks = []; const byId = new Map();
+  inv.forEach((iid,idx)=>{
+    const it = ITEMS[iid]; if(!it) return;
+    const s = byId.get(iid);
+    if(s){ s.count++; } else { const ns={ iid, it, idx, count:1 }; byId.set(iid, ns); stacks.push(ns); }
+  });
   const rank = it => ({legendary:4,epic:3,rare:2,uncommon:1,common:0}[it.rarity]||0);
-  wear.sort((a,b)=>rank(b.it)-rank(a.it));
+  const wear = stacks.filter(s=>canWear(def, s.it)).sort((a,b)=>rank(b.it)-rank(a.it));
+  const other = stacks.filter(s=>!canWear(def, s.it));
+  const wearN = wear.reduce((n,s)=>n+s.count,0), otherN = other.reduce((n,s)=>n+s.count,0);
   const shown = invOnlyEquip ? wear : wear.concat(other);
-  const itemBtn = ({it,idx})=>{
+  const itemBtn = ({it,idx,count})=>{
     const bon = Object.entries(it.bonus).map(([k,v])=>`+${v}${k.toUpperCase()}`).join(' ');
     const wearable = canWear(def, it);
     const lock = wearable ? '' : `<span class="ii-lock" title="Só ${ARMOR_WEIGHTS[it.weight]?.label||'—'} — ${def.name} usa ${wgt.label}">🔒</span>`;
-    const tt = wearable ? `${it.name} (${bon}) — tocar p/ equipar em ${def.name}`
+    const ct = count>1 ? `<span class="ii-ct">×${count}</span>` : '';
+    const tt = wearable ? `${it.name} (${bon})${count>1?` ×${count}`:''} — tocar p/ equipar em ${def.name}`
                         : `${it.name} — armadura ${ARMOR_WEIGHTS[it.weight]?.label}; ${def.name} só veste ${wgt.label}`;
     return `<button class="inv-item r-${it.rarity} ${wearable?'':'locked'}" data-idx="${idx}" title="${tt}">
-      <img class="ii-img" src="${it.img}" alt="" onerror="this.style.display='none'"><span class="ii-bo">${bon}</span>${lock}</button>`;
+      <img class="ii-img" src="${it.img}" alt="" onerror="this.style.display='none'"><span class="ii-bo">${bon}</span>${lock}${ct}</button>`;
   };
   const invHTML = shown.length ? shown.map(itemBtn).join('')
     : (inv.length ? `<div class="inv-empty">Nenhum item que ${def.name} possa equipar.</div>`
@@ -475,7 +482,7 @@ function renderDetail(){
       <div class="d-slots">${slotsHTML}</div>
       <button class="lic-btn" id="d-lic">🎓 Licenças${hs.lp>0?` <b>· ${hs.lp} LP</b>`:''}</button>
       <div class="inv-cap">
-        <span>🎒 Inventário <small>${wear.length} p/ ${def.name}${other.length?` · ${other.length} outros`:''}</small></span>
+        <span>🎒 Inventário <small>${wearN} p/ ${def.name}${otherN?` · ${otherN} outros`:''}</small></span>
         <button class="inv-filter ${invOnlyEquip?'on':''}" id="inv-filter">${invOnlyEquip?'✓ Só equipáveis':'Só equipáveis'}</button>
       </div>
       <div class="inv-scroll"><div class="inv-grid">${invHTML}</div></div>
