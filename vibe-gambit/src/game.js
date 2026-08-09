@@ -357,6 +357,7 @@ function openSkillBoard(heroId){
   openPanelModal(`🎓 Licenças`, body=>{
     const isOwned = it => hs.boughtNodes.includes(it.node.id) || (it.node.type==='skill' && hs.unlockedSkills.includes(it.node.skill));
     const view = { z:0.5, sl:null, st:null };   // zoom/scroll persistentes entre redesenhos
+    body.closest('.box')?.classList.add('atlas-modal');  // modal ocupa a tela toda (sem scroll de página)
     const draw = ()=>{
       // estados (adjacência: raiz sempre alcançável; senão vizinho adquirido)
       const owned = L.items.map(isOwned);
