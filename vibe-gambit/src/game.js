@@ -161,7 +161,6 @@ function heroEquip(hs){
   return hs.equip;
 }
 let selHero = null;   // herói selecionado no painel de detalhes/inventário
-let invOnlyEquip = false;  // filtro do inventário: mostrar só o que o herói equipa
 
 function renderBase(){
   if(!selHero || !S.heroes.find(h=>h.id===selHero)) selHero = S.heroes[0].id;
@@ -169,7 +168,6 @@ function renderBase(){
     <div class="hub-fit">
       <div class="hub-stage">
         <div class="base-shell">
-          <div class="base-title"><span>Acampamento Base</span></div>
           <button class="hub-x" title="Ir ao Mapa">✕</button>
           <div class="hub-grid">
             <div class="hub-panel hub-left" id="hub-left"></div>
@@ -433,43 +431,13 @@ function renderDetail(){
     }
     const it = ITEMS[eq[s.key]];
     if(it){
-      return `<button class="d-slot on" data-slot="${s.key}" title="${s.label} · ${it.name}" style="--acc:${accentOf(hs.id)}">
-        ${slotImg(it.img)}<span class="ds-x" title="Desequipar">✕</span></button>`;
+      return `<button class="d-slot on" data-slot="${s.key}" title="${s.label} · ${it.name} — tocar p/ trocar" style="--acc:${accentOf(hs.id)}">
+        ${slotImg(it.img)}</button>`;
     }
-    return `<button class="d-slot" data-slot="${s.key}" title="${s.label} (vazio)" style="--acc:${accentOf(hs.id)}">
-      ${slotImg('assets/slot_'+s.key+'.png','ghost')}</button>`;
+    return `<button class="d-slot" data-slot="${s.key}" title="${s.label} (vazio) — tocar p/ equipar" style="--acc:${accentOf(hs.id)}">
+      ${slotImg('assets/slot_'+s.key+'.png','ghost')}<span class="ds-add">+</span></button>`;
   }).join('');
-  const inv = S.inventory || [];
-  // EMPILHAMENTO: itens idênticos viram UM tile com contagem ×N — assim, por mais
-  // loot que o jogador acumule, a lista não estica (poucos tiles, não centenas).
-  // Guardamos 1 índice do estoque por pilha para equipar. Equipáveis vêm primeiro.
-  const stacks = []; const byId = new Map();
-  inv.forEach((iid,idx)=>{
-    const it = ITEMS[iid]; if(!it) return;
-    const s = byId.get(iid);
-    if(s){ s.count++; } else { const ns={ iid, it, idx, count:1 }; byId.set(iid, ns); stacks.push(ns); }
-  });
-  const rank = it => ({legendary:4,epic:3,rare:2,uncommon:1,common:0}[it.rarity]||0);
-  const wear = stacks.filter(s=>canWear(def, s.it)).sort((a,b)=>rank(b.it)-rank(a.it));
-  const other = stacks.filter(s=>!canWear(def, s.it));
-  const wearN = wear.reduce((n,s)=>n+s.count,0), otherN = other.reduce((n,s)=>n+s.count,0);
-  const shown = invOnlyEquip ? wear : wear.concat(other);
-  const itemBtn = ({it,idx,count})=>{
-    const bon = Object.entries(it.bonus).map(([k,v])=>`+${v}${k.toUpperCase()}`).join(' ');
-    const wearable = canWear(def, it);
-    const lock = wearable ? '' : `<span class="ii-lock" title="Só ${ARMOR_WEIGHTS[it.weight]?.label||'—'} — ${def.name} usa ${wgt.label}">🔒</span>`;
-    const ct = count>1 ? `<span class="ii-ct">×${count}</span>` : '';
-    const tt = wearable ? `${it.name} (${bon})${count>1?` ×${count}`:''} — tocar p/ equipar em ${def.name}`
-                        : `${it.name} — armadura ${ARMOR_WEIGHTS[it.weight]?.label}; ${def.name} só veste ${wgt.label}`;
-    return `<button class="inv-item r-${it.rarity} ${wearable?'':'locked'}" data-idx="${idx}" title="${tt}">
-      <img class="ii-img" src="${it.img}" alt="" onerror="this.style.display='none'"><span class="ii-bo">${bon}</span>${lock}${ct}</button>`;
-  };
-  const invHTML = shown.length ? shown.map(itemBtn).join('')
-    : (inv.length ? `<div class="inv-empty">Nenhum item que ${def.name} possa equipar.</div>`
-                  : `<div class="inv-empty">Inventário vazio — itens caem nas expedições.</div>`);
-
   frame.innerHTML = `
-    <div class="detail-title"><span>Herói & Inventário</span></div>
     <div class="detail-body">
       <div class="d-hero" style="--acc:${accentOf(hs.id)}">
         <div class="d-face">${faceMedia(def.id)}</div>
@@ -481,21 +449,51 @@ function renderDetail(){
       </div>
       <div class="d-slots">${slotsHTML}</div>
       <button class="lic-btn" id="d-lic">🎓 Licenças${hs.lp>0?` <b>· ${hs.lp} LP</b>`:''}</button>
-      <div class="inv-cap">
-        <span>🎒 Inventário <small>${wearN} p/ ${def.name}${otherN?` · ${otherN} outros`:''}</small></span>
-        <button class="inv-filter ${invOnlyEquip?'on':''}" id="inv-filter">${invOnlyEquip?'✓ Só equipáveis':'Só equipáveis'}</button>
-      </div>
-      <div class="inv-scroll"><div class="inv-grid">${invHTML}</div></div>
     </div>`;
 
   frame.querySelector('#d-lic').onclick = () => openSkillBoard(hs.id);
-  frame.querySelector('#inv-filter').onclick = () => { invOnlyEquip = !invOnlyEquip; renderDetail(); };
-  frame.querySelectorAll('.d-slot').forEach(b => b.onclick = (e) => {
+  // Cada slot abre uma JANELA com as peças daquele encaixe (arma → Forja).
+  frame.querySelectorAll('.d-slot').forEach(b => b.onclick = () => {
     const slot = b.dataset.slot;
     if(slot==='weapon'){ openPanelModal('🔨 Forja', body=>renderForge(body, hs.id)); return; }
-    if(e.target.classList.contains('ds-x') || eq[slot]){ unequipItem(hs.id, slot); }
+    openSlotPicker(hs.id, slot);
   });
-  frame.querySelectorAll('.inv-item').forEach(b => b.onclick = () => equipItem(hs.id, +b.dataset.idx));
+}
+
+// Janela de EQUIPAMENTO por encaixe: mostra só as peças daquele slot que a classe
+// pode usar (empilhadas ×N), o que está equipado e o botão de desequipar.
+function openSlotPicker(heroId, slotKey){
+  const s = EQUIP_SLOTS.find(x=>x.key===slotKey);
+  openPanelModal(`${s.icon} ${s.label}`, body=>renderSlotPicker(body, heroId, slotKey));
+}
+function renderSlotPicker(body, heroId, slotKey){
+  const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
+  const eq = heroEquip(hs); const slotDef = EQUIP_SLOTS.find(x=>x.key===slotKey);
+  const rank = it => ({lendário:4,épico:3,raro:2,incomum:1,comum:0,legendary:4,epic:3,rare:2,uncommon:1,common:0}[it.rarity]||0);
+  const stacks=[]; const byId=new Map();
+  (S.inventory||[]).forEach((iid,idx)=>{
+    const it=ITEMS[iid]; if(!it || it.slot!==slotKey || !canWear(def,it)) return;
+    const st=byId.get(iid); if(st) st.count++; else { const ns={iid,it,idx,count:1}; byId.set(iid,ns); stacks.push(ns); }
+  });
+  stacks.sort((a,b)=>rank(b.it)-rank(a.it));
+  const bonStr = it => Object.entries(it.bonus||{}).map(([k,v])=>`+${v} ${k.toUpperCase()}`).join('  ') || '—';
+  const row = ({it,idx,count},equipped)=>`
+    <button class="sp-row r-${it.rarity} ${equipped?'equipped':''}" ${equipped?'data-uneq="1"':`data-idx="${idx}"`}>
+      <img class="sp-img" src="${it.img}" alt="" onerror="this.style.display='none'">
+      <span class="sp-info"><b>${it.name}${count>1?` <span class="sp-ct">×${count}</span>`:''}</b><small>${bonStr(it)}</small></span>
+      <span class="sp-act">${equipped?'Desequipar':'Equipar'}</span>
+    </button>`;
+  const eqIt = ITEMS[eq[slotKey]];
+  const head = eqIt ? `<div class="sp-cap">Equipado</div>${row({it:eqIt,idx:-1,count:1},true)}` : '';
+  const total = stacks.reduce((n,s)=>n+s.count,0);
+  const list = stacks.length ? stacks.map(s=>row(s,false)).join('')
+    : `<div class="sp-empty">Nenhum item de <b>${slotDef.label.toLowerCase()}</b> que ${def.name} possa usar.<br><small>Peças caem nas expedições ou na Loja de Itens.</small></div>`;
+  body.innerHTML = `<div class="sp-list">${head}<div class="sp-cap">No inventário${total?` · ${total}`:''}</div>${list}</div>`;
+  body.querySelectorAll('.sp-row').forEach(b => b.onclick = () => {
+    if(b.dataset.uneq) unequipItem(heroId, slotKey);
+    else equipItem(heroId, +b.dataset.idx);
+    renderSlotPicker(body, heroId, slotKey);   // reabre a janela já atualizada
+  });
 }
 
 // Regra de trava: acessório é livre; armadura (head/chest/hands/feet) precisa
