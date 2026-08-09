@@ -389,16 +389,22 @@ function openSkillBoard(heroId){
             <div class="wow-stats">${statsRows}</div>
           </div>
           <button class="wow-toggle" id="wowToggle" title="Esconder/mostrar painel">${collapsed?'›':'‹'}</button>
-          <div class="wow-tree-wrap" id="wowWrap"><div class="wow-tree" style="width:${L.W}px;height:${L.H}px">
+          <div class="wow-tree-wrap" id="wowWrap"><div class="wow-scale" id="wowScale"><div class="wow-tree" id="wowTree" style="width:${L.W}px;height:${L.H}px">
             <svg class="wow-links" viewBox="0 0 ${L.W} ${L.H}" style="width:${L.W}px;height:${L.H}px">${rootLines}${lines}</svg>
             <div class="wn root learned" style="left:${L.rootX}px;top:${L.rootY}px"><span class="wn-g" style="--g:url('art/icons/star.png')"></span></div>
             ${nodesHTML}
-          </div></div>
+          </div></div></div>
         </div>
         <div class="wow-legend"><span><i class="wl-l"></i>Aprendido</span><span><i class="wl-a"></i>Disponível</span><span><i class="wl-k"></i>Bloqueado</span><span>? = travada</span></div>`;
+      const fitTree=()=>{ const wrap=$('wowWrap'), sc=$('wowScale'), tr=$('wowTree'); if(!wrap||!sc||!tr) return;
+        const k=Math.max(0.5, Math.min(1.35, (wrap.clientWidth-6)/L.W));
+        tr.style.transformOrigin='0 0'; tr.style.transform='scale('+k+')';
+        sc.style.width=(L.W*k)+'px'; sc.style.height=(L.H*k)+'px'; };
       const wrap=$('wowWrap'); if(wrap) wrap.scrollTop=savedScroll;
       wrap?.addEventListener('scroll',()=>{ savedScroll=wrap.scrollTop; });
-      $('wowToggle').onclick=()=>{ collapsed=!collapsed; const inner=$('wowInner'); inner.classList.toggle('collapsed',collapsed); $('wowToggle').textContent=collapsed?'›':'‹'; };
+      requestAnimationFrame(fitTree);
+      $('wowToggle').onclick=()=>{ collapsed=!collapsed; const inner=$('wowInner'); inner.classList.toggle('collapsed',collapsed); $('wowToggle').textContent=collapsed?'›':'‹'; requestAnimationFrame(fitTree); };
+      window.__wowFit=fitTree;
       body.querySelectorAll('.wn.buyable').forEach(bt=> bt.onclick = ()=>{
         const it = L.items[+bt.dataset.i]; const n=it.node; if(!n || hs.lp<n.cost) return;
         hs.lp -= n.cost; hs.boughtNodes.push(n.id);
