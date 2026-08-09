@@ -402,6 +402,11 @@ function openSkillBoard(heroId){
       }).join('');
       const rs = heroRuntimeStats(hs);
       body.innerHTML = `
+        <div class="atlas-framed"><div class="atlas-vp" id="atvp"><div class="atlas-outer" id="atou"><div class="atlas-tree" id="attr" style="width:${L.W}px;height:${L.H}px">
+          <svg class="atlas-links" viewBox="0 0 ${L.W} ${L.H}" style="width:${L.W}px;height:${L.H}px">${guide}${rootLines}${lines}</svg>
+          <div class="atn core owned" style="left:${L.cx+L.ox}px;top:${L.cy+L.oy}px;width:76px;height:76px;margin:-38px 0 0 -38px"><span class="glyph" style="--g:url('art/icons/sun.png')"></span></div>
+          ${nodesHTML}
+        </div></div></div></div>
         <div class="atlas-hdr">
           <div class="ah-port">${faceMedia(def.id)}</div>
           <div class="ah-info">
@@ -410,14 +415,8 @@ function openSkillBoard(heroId){
             <div class="ah-st"><span>❤️${rs.hp}</span><span>⚔️${rs.atk}</span><span>🛡️${rs.defense}</span><span>🔮${rs.mag}</span><span>💧${rs.mp}</span></div>
           </div>
         </div>
-        <div class="atlas-hint"><span>👆 arraste · compre nós ligados aos adquiridos</span>
-          <span class="atlas-z"><button id="atz-">−</button><button id="atz+">+</button></span></div>
-        <div class="atlas-framed"><div class="atlas-vp" id="atvp"><div class="atlas-outer" id="atou"><div class="atlas-tree" id="attr" style="width:${L.W}px;height:${L.H}px">
-          <svg class="atlas-links" viewBox="0 0 ${L.W} ${L.H}" style="width:${L.W}px;height:${L.H}px">${guide}${rootLines}${lines}</svg>
-          <div class="atn core owned" style="left:${L.cx+L.ox}px;top:${L.cy+L.oy}px;width:76px;height:76px;margin:-38px 0 0 -38px"><span class="glyph" style="--g:url('art/icons/sun.png')"></span></div>
-          ${nodesHTML}
-        </div></div></div></div>
-        <div class="atlas-legend"><span><i class="lo"></i>Adquirido</span><span><i class="la"></i>Disponível</span><span><i class="ll"></i>Bloqueado</span><span>? = skill travada</span></div>`;
+        <div class="atlas-zoom"><button id="atz-">−</button><button id="atz+">+</button></div>
+        <div class="atlas-legend"><span><i class="lo"></i>Adquirido</span><span><i class="la"></i>Disponível</span><span><i class="ll"></i>Bloqueado</span><span>? travada</span></div>`;
       // pan/zoom (z/scroll persistem entre redesenhos)
       const tr=$('attr'), ou=$('atou'), vp=$('atvp');
       const applyZ=()=>{ tr.style.transform='scale('+view.z+')'; ou.style.width=(L.W*view.z)+'px'; ou.style.height=(L.H*view.z)+'px'; };
