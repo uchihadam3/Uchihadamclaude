@@ -273,6 +273,37 @@ function openPartyPicker(){
 // ---- PRANCHA DE LICENÇA (FFXII-like): XP/Level + destravar skills/aumentos ----
 // ---- PRANCHA DE TALENTOS estilo ATLAS/PoE (árvore circular + moldura por arte) ----
 const STAT_IC = { hp:'❤️', mp:'💧', atk:'⚔️', mag:'🔮', def:'🛡️', spd:'💨' };
+// glifos brancos (art/icons) por status/elemento
+const STATUS_GLYPH = { burn:'fire', poison:'poison', bleed:'dagger', stun:'hammer', sono:'sleep',
+  silencio:'silence', cegueira:'blind', confusao:'confusion', imobilizar:'hourglass', regen:'heal', slow:'hourglass' };
+// mapeia uma SKILL para um glifo (família), inspecionando kind/elemento/status
+function glyphForSkill(sk){
+  if(!sk) return null;
+  const st = sk.applies && sk.applies.status;
+  switch(sk.kind){
+    case 'heal': case 'cleanse': return 'heal';
+    case 'revive': return 'phoenix';
+    case 'shield': case 'guard': case 'invuln': case 'reflect': return 'barrier';
+    case 'dispel': case 'vuln': return 'debuff';
+    case 'taunt': return 'fist';
+    case 'summon': return 'skull';
+    case 'critup': case 'evasion': return 'buff';
+    case 'mana': return null;
+    case 'buff': return (sk.targetType==='enemy' || (sk.buff && (sk.buff.amt||0)<0)) ? 'debuff' : 'buff';
+    case 'ailment': return STATUS_GLYPH[st] || 'debuff';
+  }
+  // dano: status de controle > elemento > status dot > físico
+  if(st && ['sono','silencio','cegueira','confusao','imobilizar'].includes(st)) return STATUS_GLYPH[st];
+  const el = sk.element;
+  const elMap = { fire:'fire', gelo:'ice', raio:'lightning', holy:'holy', dark:'dark', poison:'poison', time:'hourglass' };
+  if(el && elMap[el]) return elMap[el];
+  if(st && STATUS_GLYPH[st]) return STATUS_GLYPH[st];
+  if((sk.hits||1)>=3) return 'shuriken';
+  if((sk.critBonus||0)>=0.3 || sk.alwaysCrit) return 'dagger';
+  if(sk.aoe) return 'explosion';
+  if((sk.power||0)>=2.0) return 'skull';
+  return 'swords';
+}
 function seededRng(seed){ let s=seed>>>0||1; return ()=>{ s=(s*1103515245+12345)&0x7fffffff; return s/0x7fffffff; }; }
 function hashStr(str){ let h=2166136261; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
 function tierBadge(name){ const m=(''+name).match(/\b(III|II|I)\b/); if(m) return m[1]; const d=(''+name).match(/([1-4])\s*$/); return d?['','I','II','III','IV'][+d[1]]:''; }
@@ -353,10 +384,16 @@ function openSkillBoard(heroId){
         const label = n.type==='skill' ? (SKILLS[n.skill]?.name||n.skill) : `+${n.amt} ${n.stat.toUpperCase()}`;
         const buyable = st==='avail' && hs.lp>=n.cost;
         let icHTML;
-        if(it.kind==='milestone') icHTML = `<span class="ic" style="font-size:${it.r*0.9}px">${st==='owned'?'✓':'★'}</span>`;
-        else if(st==='owned') icHTML = `<span class="ic" style="font-size:${it.r}px">✓</span>`;
-        else if(st==='locked' && n.type==='skill') icHTML = `<span class="ic q" style="font-size:${it.r}px">?</span>`;
-        else icHTML = `<span class="ic" style="font-size:${it.r}px">${it.ic}</span>`;
+        const isSkillNode = n.type==='skill';
+        if(isSkillNode && st==='locked'){
+          icHTML = `<span class="ic q" style="font-size:${it.r}px">?</span>`;
+        } else if(isSkillNode){
+          const g = glyphForSkill(SKILLS[n.skill]);
+          icHTML = g ? `<span class="glyph" style="--g:url('art/icons/${g}.png')"></span>`
+                     : `<span class="ic" style="font-size:${it.r}px">✨</span>`;
+        } else {
+          icHTML = `<span class="ic" style="font-size:${it.r}px">${it.ic}</span>`;   // atributo (emoji até chegar a folha de atributos)
+        }
         const tierHTML = (it.tier && st!=='owned') ? `<span class="tier">${it.tier}</span>` : '';
         return `<button class="atn ${st} ${it.kind} ${ghost[i]?'ghost':''} ${buyable?'buyable':''}" data-i="${i}"
           style="left:${lx}px;top:${ly}px;width:${d}px;height:${d}px;margin:${-it.r}px 0 0 ${-it.r}px"

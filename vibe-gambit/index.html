@@ -204,6 +204,13 @@
   svg.atlas-links .on{stroke:#e7b73c;stroke-width:5;filter:drop-shadow(0 0 5px rgba(231,183,60,.9))}
   .atn{position:absolute;border-radius:50%;display:grid;place-items:center;text-align:center;padding:0;cursor:default;border:none;background:none}
   .atn .ic{line-height:1}
+  /* glifo branco de arte usado como MÁSCARA (tinge conforme o estado do nó) */
+  .atn .glyph{width:60%;height:60%;-webkit-mask:var(--g) center/contain no-repeat;mask:var(--g) center/contain no-repeat;background:#cfcfd4}
+  .atn.owned .glyph{background:#4a3608}
+  .atn.avail .glyph{background:#2a2a2e}
+  .atn.locked .glyph{background:#cfcfd4}
+  .atn.milestone .glyph{background:#3a2c08}
+  .atn.milestone.locked .glyph{background:#d8c79a}
   .atn .tier{position:absolute;bottom:4%;left:50%;transform:translateX(-50%);font-size:38%;font-weight:900}
   .atn.owned{background:radial-gradient(circle at 50% 35%,#f3d873,#c79a2b);border:3px solid #ffe9a6;box-shadow:0 0 12px rgba(231,183,60,.7),inset 0 2px 4px rgba(255,255,255,.4)}
   .atn.owned .ic{color:#4a3608;filter:none} .atn.owned .tier{color:#4a3608}
