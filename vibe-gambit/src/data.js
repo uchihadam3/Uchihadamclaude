@@ -924,12 +924,20 @@ export const CONSUMABLES = {
 export const consumableCharges = (key, level) => level > 0 ? ((CONSUMABLES[key]?.baseCharges || 2) + (level - 1)) : 0;
 
 // Soma dos bônus dos itens equipados de um herói (pura).
+// Aceita INSTÂNCIAS novas ({baseStat, mods}) e ids-string legados (ITEMS[id].bonus).
 export function itemBonuses(equip){
   const out = { atk:0, def:0, mag:0, spd:0, hp:0, mp:0 };
   if(!equip) return out;
   for(const slot of EQUIP_SLOT_KEYS){
-    const it = ITEMS[equip[slot]];
-    if(it && it.bonus) for(const k in it.bonus) out[k] = (out[k]||0) + it.bonus[k];
+    const e = equip[slot];
+    if(!e) continue;
+    if(typeof e === 'string'){                       // legado
+      const it = ITEMS[e];
+      if(it && it.bonus) for(const k in it.bonus) out[k] = (out[k]||0) + it.bonus[k];
+      continue;
+    }
+    if(e.baseStat) for(const k in e.baseStat) out[k] = (out[k]||0) + e.baseStat[k];
+    if(e.mods) for(const m of e.mods) out[m.stat] = (out[m.stat]||0) + m.val;
   }
   return out;
 }

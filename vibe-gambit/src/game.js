@@ -12,6 +12,10 @@ import {
 import { loadOrNew, save, newGame } from './state.js';
 import { Combat, buildParty, buildWave, forgeAtkBonus, ATB_MAX } from './engine.js';
 import { spriteFor } from './sprites.js';
+import {
+  STAT_META, STAT_KEYS, RARITY_META, RARITY_ORDER, SLOT_EMOJI, SLOT_LABEL,
+  itemTotals, itemPower, sellPrice, itemIcon, rarityColor, canEquip, rollDrop,
+} from './items.js';
 
 const S = loadOrNew();
 const $  = id => document.getElementById(id);
@@ -222,7 +226,7 @@ function renderHubParty(mount){
     <div class="party-cards">${list.map(hs=>{
       const def = HERO_DEFS.find(h=>h.id===hs.id);
       const {atk, hp} = heroRuntimeStats(hs);
-      const nEquip = EQUIP_SLOTS.filter(s=>s.key!=='weapon' && ITEMS[heroEquip(hs)[s.key]]).length;
+      const nEquip = EQUIP_SLOTS.filter(s=>heroEquip(hs)[s.key]).length;
       return `<div class="party-card ${hs.id===selHero?'sel':''}" data-id="${hs.id}" style="--acc:${accentOf(def.id)}">
         <div class="pc-face">${faceMedia(def.id)}</div>
         <div class="pc-info">
@@ -425,16 +429,13 @@ function renderDetail(){
   const wgt = ARMOR_WEIGHTS[def.armorWeight]; const sty = WEAPON_STYLES[def.weaponStyle];
   const slotImg = (src,cls='')=>`<img class="ds-img ${cls}" src="${src}" alt="" onerror="this.style.display='none'">`;
   const slotsHTML = EQUIP_SLOTS.map(s=>{
-    if(s.key==='weapon'){
-      return `<button class="d-slot on wpn" data-slot="weapon" title="Arma (${sty.label}) · Forja" style="--acc:${accentOf(hs.id)}">
-        ${slotImg('assets/slot_weapon.png')}<span class="ds-badge">+${hs.weaponLevel}</span></button>`;
+    const inst = eq[s.key];
+    if(inst){
+      return `<button class="d-slot on" data-slot="${s.key}" title="${s.label} · ${inst.name} (${RARITY_META[inst.rarity].label}) — tocar p/ trocar"
+        style="--acc:${accentOf(hs.id)};--rar:${rarityColor(inst)}">
+        <span class="ds-emoji">${itemIcon(inst)}</span><span class="ds-rar"></span></button>`;
     }
-    const it = ITEMS[eq[s.key]];
-    if(it){
-      return `<button class="d-slot on" data-slot="${s.key}" title="${s.label} · ${it.name} — tocar p/ trocar" style="--acc:${accentOf(hs.id)}">
-        ${slotImg(it.img)}</button>`;
-    }
-    return `<button class="d-slot" data-slot="${s.key}" title="${s.label} (vazio) — tocar p/ equipar" style="--acc:${accentOf(hs.id)}">
+    return `<button class="d-slot" data-slot="${s.key}" title="${s.label} (vazio) — tocar p/ abrir o inventário" style="--acc:${accentOf(hs.id)}">
       ${slotImg('assets/slot_'+s.key+'.png','ghost')}<span class="ds-add">+</span></button>`;
   }).join('');
   frame.innerHTML = `
@@ -452,75 +453,118 @@ function renderDetail(){
     </div>`;
 
   frame.querySelector('#d-lic').onclick = () => openSkillBoard(hs.id);
-  // Cada slot abre uma JANELA com as peças daquele encaixe (arma → Forja).
+  // Tocar num slot abre o INVENTÁRIO já filtrado por aquele encaixe + a classe do herói.
   frame.querySelectorAll('.d-slot').forEach(b => b.onclick = () => {
-    const slot = b.dataset.slot;
-    if(slot==='weapon'){ openPanelModal('🔨 Forja', body=>renderForge(body, hs.id)); return; }
-    openSlotPicker(hs.id, slot);
+    openInventory(hs.id, { slot: b.dataset.slot, onlyClass:true });
   });
 }
 
-// Janela de EQUIPAMENTO por encaixe: mostra só as peças daquele slot que a classe
-// pode usar (empilhadas ×N), o que está equipado e o botão de desequipar.
-function openSlotPicker(heroId, slotKey){
-  const s = EQUIP_SLOTS.find(x=>x.key===slotKey);
-  openPanelModal(`${s.icon} ${s.label}`, body=>renderSlotPicker(body, heroId, slotKey));
+const INV_CAP = 300;               // teto de itens no inventário
+let invFilter = { slot:'all', onlyClass:true, sort:'power' };  // estado dos filtros
+
+// INVENTÁRIO — janela alta e rolável com filtros (encaixe · classe · ordenação),
+// venda e equipar com COMPARATIVO (verde melhora / vermelho piora vs. o equipado).
+function openInventory(heroId, opts={}){
+  if(opts.slot) invFilter.slot = opts.slot;
+  if(opts.onlyClass != null) invFilter.onlyClass = opts.onlyClass;
+  $('modal-root').innerHTML = `<div class="modal"><div class="box box-wide inv-modal">
+    <button class="modal-x" title="Fechar">✕</button>
+    <h2>🎒 Inventário</h2>
+    <div id="inv-mount"></div>
+  </div></div>`;
+  bindModalDismiss();
+  renderInventory($('inv-mount'), heroId);
 }
-function renderSlotPicker(body, heroId, slotKey){
+function renderInventory(mount, heroId){
   const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
-  const eq = heroEquip(hs); const slotDef = EQUIP_SLOTS.find(x=>x.key===slotKey);
-  const rank = it => ({lendário:4,épico:3,raro:2,incomum:1,comum:0,legendary:4,epic:3,rare:2,uncommon:1,common:0}[it.rarity]||0);
-  const stacks=[]; const byId=new Map();
-  (S.inventory||[]).forEach((iid,idx)=>{
-    const it=ITEMS[iid]; if(!it || it.slot!==slotKey || !canWear(def,it)) return;
-    const st=byId.get(iid); if(st) st.count++; else { const ns={iid,it,idx,count:1}; byId.set(iid,ns); stacks.push(ns); }
-  });
-  stacks.sort((a,b)=>rank(b.it)-rank(a.it));
-  const bonStr = it => Object.entries(it.bonus||{}).map(([k,v])=>`+${v} ${k.toUpperCase()}`).join('  ') || '—';
-  const row = ({it,idx,count},equipped)=>`
-    <button class="sp-row r-${it.rarity} ${equipped?'equipped':''}" ${equipped?'data-uneq="1"':`data-idx="${idx}"`}>
-      <img class="sp-img" src="${it.img}" alt="" onerror="this.style.display='none'">
-      <span class="sp-info"><b>${it.name}${count>1?` <span class="sp-ct">×${count}</span>`:''}</b><small>${bonStr(it)}</small></span>
-      <span class="sp-act">${equipped?'Desequipar':'Equipar'}</span>
-    </button>`;
-  const eqIt = ITEMS[eq[slotKey]];
-  const head = eqIt ? `<div class="sp-cap">Equipado</div>${row({it:eqIt,idx:-1,count:1},true)}` : '';
-  const total = stacks.reduce((n,s)=>n+s.count,0);
-  const list = stacks.length ? stacks.map(s=>row(s,false)).join('')
-    : `<div class="sp-empty">Nenhum item de <b>${slotDef.label.toLowerCase()}</b> que ${def.name} possa usar.<br><small>Peças caem nas expedições ou na Loja de Itens.</small></div>`;
-  body.innerHTML = `<div class="sp-list">${head}<div class="sp-cap">No inventário${total?` · ${total}`:''}</div>${list}</div>`;
-  body.querySelectorAll('.sp-row').forEach(b => b.onclick = () => {
-    if(b.dataset.uneq) unequipItem(heroId, slotKey);
-    else equipItem(heroId, +b.dataset.idx);
-    renderSlotPicker(body, heroId, slotKey);   // reabre a janela já atualizada
-  });
+  const eq = heroEquip(hs);
+  const inv = S.inventory || [];
+  const SLOTS = ['all','weapon','head','chest','hands','feet','trinket'];
+  const slotChip = k => `<button class="ivf ${invFilter.slot===k?'on':''}" data-slot="${k}">${k==='all'?'Tudo':SLOT_EMOJI[k]}</button>`;
+  const sortChip = (k,l) => `<button class="ivs ${invFilter.sort===k?'on':''}" data-sort="${k}">${l}</button>`;
+
+  // filtra + ordena, guardando o índice ORIGINAL (p/ equipar/vender)
+  let rows = inv.map((it,idx)=>({ it, idx }));
+  if(invFilter.slot!=='all') rows = rows.filter(r=>r.it.slot===invFilter.slot);
+  if(invFilter.onlyClass)    rows = rows.filter(r=>canEquip(def, r.it));
+  const rarRank = it => RARITY_META[it.rarity]?.rank || 0;
+  const sorters = {
+    power:  (a,b)=> itemPower(b.it)-itemPower(a.it),
+    rarity: (a,b)=> rarRank(b.it)-rarRank(a.it) || itemPower(b.it)-itemPower(a.it),
+    recent: (a,b)=> b.idx-a.idx,
+  };
+  rows.sort(sorters[invFilter.sort]||sorters.power);
+
+  const rowHTML = ({it,idx})=>{
+    const equippable = canEquip(def, it);
+    const totals = itemTotals(it);
+    const cur = eq[it.slot] ? itemTotals(eq[it.slot]) : {};   // item equipado no MESMO slot
+    const stat = k => {
+      const v = totals[k]||0; if(!v) return '';
+      const d = v - (cur[k]||0);
+      const dl = equippable && (cur[k]!=null || eq[it.slot]) ? `<i class="${d>0?'up':d<0?'dn':'eq'}">${d>0?'▲':d<0?'▼':''}${d?Math.abs(d):''}</i>` : '';
+      return `<span class="iv-st">${STAT_META[k].icon}${v}${dl}</span>`;
+    };
+    const line = STAT_KEYS.map(stat).join('');
+    const isEq = eq[it.slot] === it;
+    return `<div class="iv-row" style="--rar:${rarityColor(it)}">
+      <span class="iv-ic">${itemIcon(it)}</span>
+      <span class="iv-main">
+        <b class="iv-nm">${it.name} <em class="iv-rar">${RARITY_META[it.rarity].label}</em>${isEq?'<em class="iv-on">equipado</em>':''}</b>
+        <span class="iv-line">${line||'—'}</span>
+      </span>
+      <span class="iv-acts">
+        ${equippable && !isEq ? `<button class="iv-eq" data-eq="${idx}">Equipar</button>` : ''}
+        ${equippable &&  isEq ? `<button class="iv-uneq" data-uneq="${it.slot}">Tirar</button>` : ''}
+        <button class="iv-sell" data-sell="${idx}" title="Vender">💰${sellPrice(it)}</button>
+      </span>
+    </div>`;
+  };
+  const listHTML = rows.length ? rows.map(rowHTML).join('')
+    : `<div class="iv-empty">Nada aqui com esse filtro.${invFilter.onlyClass?`<br><small>Toque em “Todas as classes” p/ ver o resto.</small>`:''}</div>`;
+
+  mount.innerHTML = `
+    <div class="iv-head">
+      <span class="iv-hero">${def.name}</span>
+      <span class="iv-count ${inv.length>=INV_CAP?'full':''}">${inv.length}/${INV_CAP}</span>
+    </div>
+    <div class="iv-filters">${SLOTS.map(slotChip).join('')}</div>
+    <div class="iv-filters iv-second">
+      <button class="ivf cls ${invFilter.onlyClass?'on':''}" id="iv-cls">${invFilter.onlyClass?`✓ Só ${def.name}`:'Todas as classes'}</button>
+      <span class="iv-sortlbl">Ordenar:</span>${sortChip('power','Mais forte')}${sortChip('rarity','Raridade')}${sortChip('recent','Recente')}
+    </div>
+    <div class="iv-list">${listHTML}</div>`;
+
+  mount.querySelectorAll('.ivf[data-slot]').forEach(b=>b.onclick=()=>{ invFilter.slot=b.dataset.slot; renderInventory(mount,heroId); });
+  mount.querySelectorAll('.ivs[data-sort]').forEach(b=>b.onclick=()=>{ invFilter.sort=b.dataset.sort; renderInventory(mount,heroId); });
+  mount.querySelector('#iv-cls').onclick=()=>{ invFilter.onlyClass=!invFilter.onlyClass; renderInventory(mount,heroId); };
+  mount.querySelectorAll('.iv-eq').forEach(b=>b.onclick=()=>{ equipItem(heroId,+b.dataset.eq); renderInventory(mount,heroId); });
+  mount.querySelectorAll('.iv-uneq').forEach(b=>b.onclick=()=>{ unequipItem(heroId,b.dataset.uneq); renderInventory(mount,heroId); });
+  mount.querySelectorAll('.iv-sell').forEach(b=>b.onclick=()=>{ sellItem(+b.dataset.sell); renderInventory(mount,heroId); });
 }
 
-// Regra de trava: acessório é livre; armadura (head/chest/hands/feet) precisa
-// bater com o PESO da classe. (arma é tratada na Forja.)
-function canWear(def, it){
-  if(!it) return false;
-  if(!it.weight) return true;               // acessório / sem peso = livre
-  return it.weight === def.armorWeight;
-}
 function equipItem(heroId, invIdx){
   const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
   const eq = heroEquip(hs);
-  const iid = S.inventory[invIdx]; const it = ITEMS[iid]; if(!it) return;
-  if(!canWear(def, it)){
-    toast(`${def.name} usa armadura ${ARMOR_WEIGHTS[def.armorWeight].label} — ${it.name} é ${ARMOR_WEIGHTS[it.weight]?.label||'—'}.`);
-    return;
-  }
-  S.inventory.splice(invIdx,1);            // tira do inventário
-  if(eq[it.slot]) S.inventory.push(eq[it.slot]);  // devolve o que estava equipado
-  eq[it.slot] = iid;
+  const inst = S.inventory[invIdx]; if(!inst) return;
+  if(!canEquip(def, inst)){ toast(`${def.name} não pode equipar ${inst.name}.`); return; }
+  S.inventory.splice(invIdx,1);                    // tira do inventário
+  if(eq[inst.slot]) S.inventory.push(eq[inst.slot]);  // devolve o que estava equipado
+  eq[inst.slot] = inst;
   save(S); refreshBase();
 }
 function unequipItem(heroId, slot){
   const hs = S.heroes.find(h=>h.id===heroId); const eq = heroEquip(hs);
   if(!eq[slot]) return;
-  S.inventory.push(eq[slot]); eq[slot] = null;
+  if((S.inventory||[]).length < INV_CAP) S.inventory.push(eq[slot]);
+  eq[slot] = null;
   save(S); refreshBase();
+}
+function sellItem(invIdx){
+  const inst = S.inventory[invIdx]; if(!inst) return;
+  const g = sellPrice(inst);
+  S.inventory.splice(invIdx,1);
+  grant(S.resources,'gold',g); save(S); bumpRes(); toast(`Vendido: +${g} ouro.`);
 }
 function refreshBase(){
   if($('hub-left')) renderHubParty($('hub-left'));
@@ -1105,9 +1149,16 @@ function expeditionCleared(){
   let unlockedMsg = '';
   if(next && !S.stagesUnlocked[next.id]){ S.stagesUnlocked[next.id]=true; unlockedMsg = `🔓 ${next.name} desbloqueada!`; }
   S.progress.clears = (S.progress.clears||0)+1;
-  // drop de itens de equipamento
+  // drop de itens de equipamento — instâncias GERADAS (base+raridade+mods), ilvl pela fase
   expo.runLoot.items = expo.runLoot.items || [];
-  for(const d of ITEM_DROPS){ if(Math.random() < d.chance){ (S.inventory=S.inventory||[]).push(d.item); expo.runLoot.items.push(d.item); } }
+  S.inventory = S.inventory || [];
+  const ilvl = idx + 1;
+  const nDrops = 1 + (Math.random()<0.55?1:0) + (Math.random()<0.25?1:0);   // 1–3 por corrida
+  for(let i=0;i<nDrops;i++){
+    if(S.inventory.length >= INV_CAP){ toast('Inventário cheio — venda itens.'); break; }
+    const it = rollDrop(ilvl); if(!it) continue;
+    S.inventory.push(it); expo.runLoot.items.push(it);
+  }
   // XP p/ a party (escala com a fase)
   const xpGain = 30 + idx*25 + (expo.stage.waves.length*8);
   expo.runLoot.xp = xpGain;
@@ -1130,7 +1181,7 @@ function lootModal(unlockedMsg){
   const SKIP = new Set(['items','levels','xp']);
   const items = Object.entries(L).filter(([k,v])=>!SKIP.has(k)&&v>0)
     .map(([k,v])=>`<span>${RES_ICON[k]||''} ${v}</span>`).join('') || '<span class="muted">—</span>';
-  const drops = (L.items||[]).map(iid=>{ const it=ITEMS[iid]; return it?`<span class="drop">${it.icon} ${it.name}</span>`:''; }).join('');
+  const drops = (L.items||[]).map(it=> it ? `<span class="drop" style="border-color:${rarityColor(it)}">${itemIcon(it)} ${it.name} <em style="color:${rarityColor(it)};font-style:normal;font-weight:800">${RARITY_META[it.rarity].label}</em></span>` : '').join('');
   const ups = (L.levels||[]).filter(r=>r.up).map(r=>`<span class="drop">⭐ ${r.name} Nv.${r.up} (+${r.lp} LP)</span>`).join('');
   const root = $('modal-root');
   root.innerHTML = `<div class="modal"><div class="box">
