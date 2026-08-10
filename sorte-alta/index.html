@@ -29,6 +29,30 @@
   .rw:active{transform:scale(.98)} .rw:hover{border-color:var(--gold)}
   .rw-ic{font-size:32px;flex:none;width:46px;height:46px;display:grid;place-items:center;background:#0d0a06;border-radius:10px;border:1px solid #3a2a17}
   .rw-t{display:flex;flex-direction:column;gap:2px} .rw-t b{font-size:15px;color:var(--ink)} .rw-t small{font-size:12px;color:var(--dim);line-height:1.35}
+  .rw-t em{font-style:normal;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:1px 5px;border-radius:5px;margin-left:4px}
+  .rw.r-comum{border-left:4px solid #8a8f96} .rw.r-raro{border-left:4px solid #3a86e0} .rw.r-lendario{border-left:4px solid #e0662a}
+  .r-comum em{background:#8a8f9633;color:#c7ccd2} .r-raro em{background:#3a86e033;color:#7fb4ff} .r-lendario em{background:#e0662a33;color:#ffb37a}
+  .rw-cost{margin-left:auto;font-weight:900;color:var(--gold);font-size:15px;white-space:nowrap}
+  .rw.leave{opacity:.9} .rw.nope{animation:nope .3s} @keyframes nope{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .rw.ev{justify-content:center} .ev-text{color:var(--dim);text-align:center;font-size:13.5px;line-height:1.5;margin-bottom:4px;max-width:340px}
+  #relics .rl.r-raro{box-shadow:0 0 0 1px #3a86e0aa} #relics .rl.r-lendario{box-shadow:0 0 0 1px #e0662aaa}
+  #candles .gold{margin-left:8px;font-size:13px;font-weight:900;color:var(--gold)}
+  /* ---- MAPA do ato ---- */
+  #map{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;background:radial-gradient(120% 90% at 50% 10%,#132a20,#070f0b);padding:14px 10px}
+  #mapHead{text-align:center;font-weight:900;color:var(--gold);letter-spacing:1px;font-size:16px;margin:6px 0 4px}
+  #mapArea{position:relative;flex:1;min-height:0}
+  #mapLines{position:absolute;inset:0;width:100%;height:100%}
+  #mapNodes{position:absolute;inset:0}
+  .mnode{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;
+    background:linear-gradient(180deg,#20160c,#171009);border:2px solid #4a331c;border-radius:14px;padding:8px 6px 6px;width:78px;cursor:pointer;
+    box-shadow:0 4px 10px #0007;transition:transform .1s}
+  .mnode .mn-ic{font-size:26px;line-height:1} .mnode .mn-nm{font-size:10px;font-weight:800;color:var(--dim)}
+  .mnode.lock{opacity:.4;filter:grayscale(.6);cursor:default}
+  .mnode.done{opacity:.5;border-color:#2c6b5b} .mnode.done::after{content:"✓";position:absolute;top:-6px;right:-6px;background:#2f9e5c;color:#fff;font-size:11px;font-weight:900;border-radius:50%;width:18px;height:18px;display:grid;place-items:center}
+  .mnode.avail{border-color:var(--gold);box-shadow:0 0 0 2px #f2c14e55,0 6px 14px #0008;animation:mpulse 1.4s infinite}
+  .mnode.avail:active{transform:translate(-50%,-50%) scale(.94)}
+  .mnode.t-chefe{width:96px;border-color:#c0392b} .mnode.t-chefe .mn-ic{font-size:34px} .mnode.t-elite{border-color:#9b59b6}
+  @keyframes mpulse{50%{box-shadow:0 0 0 5px #f2c14e22,0 6px 14px #0008}}
   .metaline{display:flex;justify-content:space-between;font-size:12px;font-weight:800;margin:6px 4px 4px}
   .metaline .l{color:var(--dim)} #scoreLbl{color:var(--chip)} #metaLbl{color:var(--gold)}
   #metaBar{height:12px;border-radius:8px;background:#00000055;border:1px solid #0007;overflow:hidden}
@@ -116,6 +140,14 @@
 <div id="dlg" hidden>
   <div id="dlgPortrait"></div>
   <div id="dlgMain"><div id="dlgName"></div><div id="dlgText"></div><div id="dlgHint">toque ▸</div></div>
+</div>
+
+<div id="map" hidden>
+  <div id="mapHead">🏚️ A Casa · escolha seu caminho</div>
+  <div id="mapArea">
+    <svg id="mapLines" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+    <div id="mapNodes"></div>
+  </div>
 </div>
 
 <div id="reward" hidden>

@@ -1,24 +1,30 @@
 // =============================================================================
-// story.js — ROTEIRO e FASES do Modo História. Edite à vontade!
-//   Falas: { who, text }.  who = chave em SPEAKERS.
-//   Fases: type 'meta' (bata a pontuação) ou 'boss' (com falas no meio).
+// story.js — Conteúdo editável: roteiro, chefe, relíquias, constantes.
 // =============================================================================
 
-// hasArt:false → usa só o emoji (sem 404). Ao gerar a arte, ponha o PNG em
-// assets/ e troque p/ hasArt:true.
-export const CANDLES = 3;   // velas = vidas por run (falhar uma mesa apaga uma)
+export const CANDLES = 3;   // velas = vidas por run
 
-// RELÍQUIAS / RUNAS — modificadores passivos (efeitos aplicados em game.js).
-// Você escolhe 1 a cada mesa vencida. Edite/adicione à vontade.
+// RELÍQUIAS / RUNAS — modificadores passivos. rarity: comum | raro | lendario.
+// Efeitos de PONTUAÇÃO são aplicados em game.js (scoreOf); 'sorte'/'avareza'
+// mexem em recurso (rerroll/ouro) e são tratados no fluxo.
 export const RELICS = [
-  { id:'ganancia',   emoji:'💰', name:'Ganância',        desc:'+12 fichas em toda jogada.' },
-  { id:'brasa',      emoji:'🔥', name:'Brasa',           desc:'+4 fichas por dado PAR.' },
-  { id:'osso',       emoji:'🦴', name:'Peso do Osso',    desc:'+3 fichas por dado 5 ou 6.' },
-  { id:'pressagio',  emoji:'🍀', name:'Presságio',       desc:'Trinca ou melhor: +3 mult.' },
-  { id:'parsombrio', emoji:'🌑', name:'Par Sombrio',     desc:'Par / Dois Pares: +2 mult.' },
-  { id:'serpente',   emoji:'🐍', name:'Fio da Serpente', desc:'Sequência: +45 fichas.' },
-  { id:'olho',       emoji:'👁️', name:'Olho do Crupiê',  desc:'+1 mult em toda jogada.' },
-  { id:'chamadupla', emoji:'✨', name:'Chama Dupla',     desc:'Full House ou melhor: DOBRA o mult.' },
+  // comuns
+  { id:'ganancia',   emoji:'💰', name:'Ganância',        rarity:'comum', desc:'+12 fichas em toda jogada.' },
+  { id:'brasa',      emoji:'🔥', name:'Brasa',           rarity:'comum', desc:'+4 fichas por dado PAR.' },
+  { id:'fome',       emoji:'🩸', name:'Fome',            rarity:'comum', desc:'+5 fichas por dado ÍMPAR.' },
+  { id:'osso',       emoji:'🦴', name:'Peso do Osso',    rarity:'comum', desc:'+3 fichas por dado 5 ou 6.' },
+  { id:'olho',       emoji:'👁️', name:'Olho do Crupiê',  rarity:'comum', desc:'+1 mult em toda jogada.' },
+  { id:'espinhos',   emoji:'🌵', name:'Espinhos',        rarity:'comum', desc:'+8 fichas base.' },
+  { id:'sorte',      emoji:'🎲', name:'Mão de Sorte',    rarity:'comum', desc:'+1 rerrolagem por fase.' },
+  { id:'avareza',    emoji:'🪙', name:'Avareza',         rarity:'comum', desc:'+3 ouro ao vencer uma mesa.' },
+  // raros
+  { id:'pressagio',  emoji:'🍀', name:'Presságio',       rarity:'raro',  desc:'Trinca ou melhor: +3 mult.' },
+  { id:'parsombrio', emoji:'🌑', name:'Par Sombrio',     rarity:'raro',  desc:'Par / Dois Pares: +2 mult.' },
+  { id:'serpente',   emoji:'🐍', name:'Fio da Serpente', rarity:'raro',  desc:'Sequência: +45 fichas.' },
+  { id:'usura',      emoji:'📜', name:'Usura',           rarity:'raro',  desc:'Soma dos dados ≥ 22: +35 fichas.' },
+  // lendários
+  { id:'chamadupla', emoji:'✨', name:'Chama Dupla',     rarity:'lendario', desc:'Full House ou melhor: DOBRA o mult.' },
+  { id:'cranio',     emoji:'💀', name:'Crânio Rúnico',   rarity:'lendario', desc:'+2 mult por dado 6.' },
 ];
 
 export const SPEAKERS = {
@@ -27,44 +33,29 @@ export const SPEAKERS = {
   voce:      { name:'Você',        emoji:'🫥', color:'#5cc6ff', img:'assets/voce.png',      hasArt:false },
 };
 
-// Abertura (antes da 1ª fase)
 export const INTRO = [
   { who:'crupie', text:'Ah… mais um que acorda à minha mesa. Bem-vindo à Casa.' },
-  { who:'crupie', text:'A saída fica lá em cima. Mas só sobe quem prova que a sorte lhe obedece.' },
-  { who:'crupie', text:'As regras são simples: role os dados, some pontos, alcance a meta.' },
-  { who:'voce',   text:'…e se eu não alcançar?' },
-  { who:'crupie', text:'Então a Casa fica com você. Como ficou com todos os outros. Role.' },
+  { who:'crupie', text:'A saída fica lá em cima. Escolha seu caminho — cada porta cobra um preço.' },
+  { who:'crupie', text:'Role os dados, some pontos, alcance a meta. E reze pra sua sorte durar.' },
 ];
 
-// Falas ao vencer TODAS as fases (fim do trecho jogável por enquanto)
 export const OUTRO = [
-  { who:'apostador', text:'Impossível… ninguém passa do primeiro andar.' },
+  { who:'apostador', text:'Impossível… ninguém sobe o primeiro andar.' },
   { who:'crupie',    text:'Curioso. A Casa não gostou disso. Nem um pouco.' },
-  { who:'crupie',    text:'Suba, então. Mas saiba: cada andar tem um dono pior que o anterior…' },
-  { who:'crupie',    text:'(continua…)' },
+  { who:'crupie',    text:'Suba, então. O próximo dono é bem pior que eu… (continua)' },
 ];
 
-export const STAGES = [
-  {
-    type:'meta', name:'A Taverna — Mesa I', meta:150, hands:4, rerolls:1,
-    win:[{ who:'crupie', text:'Sorte de principiante. A próxima mesa não perdoa.' }],
-  },
-  {
-    type:'meta', name:'A Taverna — Mesa II', meta:240, hands:4, rerolls:1,
-    intro:[{ who:'crupie', text:'A aposta subiu. Os dados sentem o cheiro do medo, sabia?' }],
-    win:[{ who:'crupie', text:'Hah! Talvez você não seja só mais um nome na parede.' }],
-  },
-  {
-    type:'boss', who:'apostador', name:'O Apostador', meta:420, hands:5, rerolls:1,
-    intro:[
-      { who:'apostador', text:'Então é você que anda incomodando o velho Crupiê. Senta.' },
-      { who:'apostador', text:'Eu SOU a sorte desta casa. Bata minha marca… se conseguir.' },
-    ],
-    mid:[{ who:'apostador', text:'Não… você está chegando perto. Isso não acontece.' }],
-    win:[
-      { who:'apostador', text:'Não pode ser! Os dados… os dados me traíram!' },
-      { who:'apostador', text:'Fui preso aqui por ganância. Talvez… você seja diferente.' },
-    ],
-    lose:[{ who:'apostador', text:'Hah! A Casa agradece a visita. Sempre agradece.' }],
-  },
-];
+// O CHEFE do ato (nó final do mapa).
+export const BOSS = {
+  who:'apostador', name:'O Apostador', meta:560, hands:5, rerolls:1,
+  intro:[
+    { who:'apostador', text:'Então é você que anda subindo minha casa. Senta.' },
+    { who:'apostador', text:'Eu SOU a sorte deste andar. Bata minha marca… se conseguir.' },
+  ],
+  mid:[{ who:'apostador', text:'Não… você está chegando perto. Isso NÃO acontece.' }],
+  win:[
+    { who:'apostador', text:'Não pode ser! Os dados… me traíram!' },
+    { who:'apostador', text:'Fui preso aqui por ganância. Talvez você seja diferente…' },
+  ],
+  lose:[{ who:'apostador', text:'Hah! A Casa agradece a visita. Sempre agradece.' }],
+};
