@@ -14,6 +14,8 @@
   #hud{position:fixed;top:0;left:0;right:0;padding:10px 14px 8px;z-index:4;
     background:linear-gradient(#0009,#0000);pointer-events:none}
   #stageName{text-align:center;font-weight:900;letter-spacing:1px;font-size:15px;text-shadow:0 2px 4px #000}
+  #candles{text-align:center;font-size:16px;letter-spacing:2px;margin-top:2px;line-height:1}
+  #candles .cd{transition:.3s} #candles .out{filter:grayscale(1) brightness(.4);opacity:.6}
   .metaline{display:flex;justify-content:space-between;font-size:12px;font-weight:800;margin:6px 4px 4px}
   .metaline .l{color:var(--dim)} #scoreLbl{color:var(--chip)} #metaLbl{color:var(--gold)}
   #metaBar{height:12px;border-radius:8px;background:#00000055;border:1px solid #0007;overflow:hidden}
@@ -80,6 +82,7 @@
 
 <div id="hud">
   <div id="stageName"></div>
+  <div id="candles"></div>
   <div class="metaline"><span class="l">Pontos <span id="scoreLbl">0</span></span><span class="l">Meta <span id="metaLbl">0</span></span></div>
   <div id="metaBar"><div id="metaFill"></div></div>
   <div id="rollsLbl"></div>

@@ -2,7 +2,7 @@
 // game.js — Modo História: pontuação + segurar/rerrolar + fases + chefe + diálogo.
 // =============================================================================
 import { createDiceTable } from './engine3d.js';
-import { SPEAKERS, INTRO, OUTRO, STAGES } from './story.js';
+import { SPEAKERS, INTRO, OUTRO, STAGES, CANDLES } from './story.js';
 
 const $ = id => document.getElementById(id);
 
@@ -35,7 +35,7 @@ function scoreOf(values){
   return { key, name:cat.name, chips, mult, total:chips*mult };
 }
 
-const G = { stageIdx:0, score:0, handsLeft:0, rerollsLeft:0, meta:0, phase:'boot', bossMidShown:false, vals:null };
+const G = { stageIdx:0, score:0, handsLeft:0, rerollsLeft:0, meta:0, candles:CANDLES, phase:'boot', bossMidShown:false, vals:null };
 let table;
 const stage = () => STAGES[G.stageIdx] || {};
 
@@ -70,8 +70,8 @@ function setButtons(mode){
   else if(mode==='rolling'){ show(roll,false); show(rr,true); show(sc,true); rr.disabled=true; sc.disabled=true; hint.hidden=true; }
   else if(mode==='choose'){
     show(roll,false); show(rr,true); show(sc,true);
-    rr.disabled = G.rerollsLeft<=0; rr.innerHTML=`🔁 De novo<span class="sub">${G.rerollsLeft} restantes</span>`;
-    sc.disabled=false; hint.hidden=false;
+    rr.disabled = G.rerollsLeft<=0; rr.innerHTML=`🔁 Rerrolar tudo<span class="sub">${G.rerollsLeft} restantes</span>`;
+    sc.disabled=false; hint.hidden=true;
   }
 }
 
@@ -91,7 +91,7 @@ function startHand(){
 }
 function doReroll(){
   if(G.phase!=='choose' || G.rerollsLeft<=0 || table.isRolling()) return;
-  G.rerollsLeft--; G.phase='rolling'; setButtons('rolling'); table.roll(true);
+  G.rerollsLeft--; G.phase='rolling'; setButtons('rolling'); table.roll(false);   // rerrola TODOS
 }
 function onResult(vals){
   if(G.phase!=='rolling') return;         // ignora a rolagem inicial de posicionamento
@@ -116,9 +116,21 @@ function resolveHand(){
     G.phase='dialogue'; banner('FASE VENCIDA', st.type==='boss'?'boss':'ok');
     runDialogue(st.win, ()=>beginStage(G.stageIdx+1));
   } else if(G.handsLeft<=0){
-    G.phase='dialogue'; banner('SEM MÃOS', 'bad');
-    runDialogue(st.lose||[{who:'crupie',text:'A Casa fica com você… por ora.'}], gameOver);
+    G.candles--; updateHUD();
+    G.phase='dialogue';
+    if(G.candles>0){
+      banner('VELA APAGADA', 'bad');
+      runDialogue([{who:'crupie',text:'Uma vela se apaga… mas você ainda respira. Encare esta mesa de novo.'}], retryStage);
+    } else {
+      banner('SEM VELAS', 'bad');
+      runDialogue(st.lose||[{who:'crupie',text:'A última chama morre. A Casa fica com você.'}], gameOver);
+    }
   } else { G.phase='idle'; setButtons('idle'); }
+}
+function retryStage(){                          // repete a MESMA fase (sem repetir a intro)
+  const st=stage();
+  Object.assign(G, { score:0, handsLeft:st.hands, bossMidShown:false, phase:'idle' });
+  table.clearHeld(); showCombo(null); updateHUD(); setButtons('idle');
 }
 function gameOver(){ showEnd('Fim de Jogo','A Casa venceu. Mas ela sempre dá outra rodada…','Tentar de novo'); }
 function gameComplete(){ showEnd('Andar Vencido','Você subiu o primeiro andar. O próximo é pior.','Jogar de novo'); }
@@ -128,6 +140,7 @@ function showEnd(t,s,b){ $('bar').hidden=true; $('holdHint').hidden=true; $('end
 function updateHUD(){
   const st=stage();
   $('stageName').textContent=st.name||'';
+  $('candles').innerHTML = Array.from({length:CANDLES},(_,k)=>`<span class="cd ${k<G.candles?'lit':'out'}">🕯️</span>`).join('');
   $('scoreLbl').textContent=G.score; $('metaLbl').textContent=G.meta;
   const pct=G.meta?Math.min(100,100*G.score/G.meta):0;
   $('metaFill').style.width=pct+'%'; $('metaBar').classList.toggle('done',G.score>=G.meta);
@@ -142,20 +155,13 @@ function showCombo(s, preview){
 function floatPoints(n){ const f=$('float'); f.textContent='+'+n; f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
 function banner(txt,kind){ const b=$('banner'); b.textContent=txt; b.className='banner '+kind; b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); }
 
-// ---- entrada: tocar num dado p/ segurar (só na fase de escolha) ----
-function onPointerDown(e){
-  if(G.phase!=='choose') return;
-  const p = e.touches ? e.touches[0] : e;
-  const i = table.pick(p.clientX, p.clientY);
-  if(i>=0){ table.toggleHeld(i); showCombo(scoreOf(G.vals), true); }
-}
+function beginRun(){ G.candles=CANDLES; beginStage(0); }
 
 // ---- boot ----
 table = createDiceTable($('c'), onResult);
 $('btnRoll').addEventListener('click', startHand);
 $('btnReroll').addEventListener('click', doReroll);
 $('btnScore').addEventListener('click', doScore);
-$('c').addEventListener('pointerdown', onPointerDown);
 $('dlg').addEventListener('click', advanceDialogue);
-$('endBtn').addEventListener('click', ()=>{ $('end').hidden=true; beginStage(0); });
-runDialogue(INTRO, ()=>beginStage(0));
+$('endBtn').addEventListener('click', ()=>{ $('end').hidden=true; beginRun(); });
+runDialogue(INTRO, beginRun);

@@ -6,6 +6,8 @@
 
 // hasArt:false → usa só o emoji (sem 404). Ao gerar a arte, ponha o PNG em
 // assets/ e troque p/ hasArt:true.
+export const CANDLES = 3;   // velas = vidas por run (falhar uma mesa apaga uma)
+
 export const SPEAKERS = {
   crupie:    { name:'O Crupiê',    emoji:'🎭', color:'#a071d6', img:'assets/crupie.png',    hasArt:false },
   apostador: { name:'O Apostador', emoji:'🃏', color:'#e0662a', img:'assets/apostador.png', hasArt:false },
