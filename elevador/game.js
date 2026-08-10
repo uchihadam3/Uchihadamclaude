@@ -82,7 +82,7 @@ function aoMask(border=0.28){ const s=256, cv=document.createElement('canvas'); 
   return cv; }
 
 const wallColor=metalTex('#241f1a',6), floorColor=metalTex('#15120e',10);
-const wallWear=wearMask(60,26), floorWear=wearMask(90,34);
+const wallWear=wearMask(0,24), floorWear=wearMask(0,34);   // sem arranhões (só variação de sujeira/manchas)
 const aoWall=dataTex(aoMask(0.30)), aoFloor=dataTex(aoMask(0.22));
 const wallMat=new THREE.MeshStandardMaterial({ map:wallColor, bumpMap:wallColor, bumpScale:0.006,
   roughnessMap:dataTex(wallWear), roughness:1.0, metalnessMap:dataTex(invertCanvas(wallWear)), metalness:0.7,
@@ -108,7 +108,7 @@ function brushedTex(base='#2b2822'){ const s=256, cv=document.createElement('can
   for(let i=0;i<s;i+=1){ const a=Math.random()*0.09; g.strokeStyle=`rgba(255,255,255,${a*0.5})`; g.beginPath(); g.moveTo(0,i); g.lineTo(s,i); g.stroke();
     g.strokeStyle=`rgba(0,0,0,${a})`; g.beginPath(); g.moveTo(0,i+0.5); g.lineTo(s,i+0.5); g.stroke(); }
   const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t; }
-const doorBrush=brushedTex('#2b2822'); const doorWear=wearMask(45,10);
+const doorBrush=brushedTex('#2b2822'); const doorWear=wearMask(14,10);
 const doorMat=new THREE.MeshStandardMaterial({ map:doorBrush, bumpMap:doorBrush, bumpScale:0.002,
   roughnessMap:dataTex(doorWear), roughness:0.55, metalnessMap:dataTex(invertCanvas(doorWear)), metalness:1.0, envMapIntensity:1.1 });
 const doorW=W*0.30, doorH=H*0.84, doorY=doorH/2+0.02;
@@ -155,15 +155,16 @@ function btnTex(n){ const s=128, cv=document.createElement('canvas'); cv.width=c
   const rg=g.createRadialGradient(48,48,6,64,64,58); rg.addColorStop(0,'#42424c'); rg.addColorStop(1,'#0f0f14');
   g.fillStyle=rg; g.beginPath(); g.arc(64,64,54,0,7); g.fill();                          // corpo do botão
   g.fillStyle='#0a0a0d'; g.beginPath(); g.arc(64,64,40,0,7); g.fill();                   // recesso do número
-  g.fillStyle='#dcdce4'; g.font='900 54px "Trebuchet MS",sans-serif'; g.textAlign='center'; g.textBaseline='middle';
-  g.fillText(String(n),64,70);
+  const lbl=String(n); g.fillStyle='#dcdce4'; g.font=`900 ${lbl.length>1?42:54}px "Trebuchet MS",sans-serif`; g.textAlign='center'; g.textBaseline='middle';
+  g.fillText(lbl,64,70);
   const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t; }
-for(let i=0;i<8;i++){
+const NBTN=12;                                     // painel cheio: 2 colunas × 6 andares
+for(let i=0;i<NBTN;i++){
   const tx=btnTex(i+1);
-  const b=new THREE.Mesh(new THREE.CircleGeometry(0.048,28),
+  const b=new THREE.Mesh(new THREE.CircleGeometry(0.043,28),
     new THREE.MeshStandardMaterial({map:tx,emissive:'#ffffff',emissiveMap:tx,transparent:true,roughness:0.45,metalness:0.2,emissiveIntensity:0}));
   const col=i%2, row=(i/2)|0;
-  b.position.set(PANEL_FACE-0.006, 1.62-row*0.17, -D/2+0.54+col*0.16); b.rotation.y=-Math.PI/2;   // salta à frente da placa
+  b.position.set(PANEL_FACE-0.006, 1.70-row*0.132, -D/2+0.54+col*0.16); b.rotation.y=-Math.PI/2;   // salta à frente da placa
   b.userData={act:'btn',i,num:i+1}; b.castShadow=true; scene.add(b); btns.push(b);
 }
 // botões retroiluminados quando há energia; brilho vermelho ao pressionar
@@ -266,54 +267,50 @@ const sticker=new THREE.Mesh(new THREE.PlaneGeometry(0.26,0.17),
   new THREE.MeshStandardMaterial({map:stickerTex(),roughness:0.9,metalness:0.0}));
 sticker.position.set(W/2-0.012,0.72,-D/2+0.62); sticker.rotation.y=-Math.PI/2; sticker.rotation.z=0.02; scene.add(sticker);
 
-// ---- telefone de parede (parede esquerda) — modelo antigo com teclado + fone no berço ----
-function phoneTex(){ const cv=document.createElement('canvas'); cv.width=128; cv.height=190; const g=cv.getContext('2d');
-  g.fillStyle='#141417'; g.fillRect(0,0,128,190);
-  g.fillStyle='#08080a'; g.fillRect(10,10,108,170);
-  // visor pequeno
-  g.fillStyle='#0d1a12'; g.fillRect(24,22,80,26); g.fillStyle='#2f7a4a'; g.font='700 16px monospace'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('— — —',64,36);
-  // teclado 3x4
+// ---- telefone de emergência (caixa metálica encaixada na parede esquerda) ----
+function phoneTex(){ const w=150,h=210, cv=document.createElement('canvas'); cv.width=w; cv.height=h; const g=cv.getContext('2d');
+  g.fillStyle='#17171b'; g.fillRect(0,0,w,h);
+  g.fillStyle='#0a0a0c'; g.fillRect(9,9,w-18,h-18);
+  // LCD verde
+  g.fillStyle='#0b1a12'; g.fillRect(20,20,w-40,34); g.strokeStyle='#1c3a28'; g.lineWidth=2; g.strokeRect(20,20,w-40,34);
+  g.fillStyle='#3fa165'; g.font='700 16px monospace'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('EMERGÊNCIA',w/2,37);
+  // teclado 3x4 com teclas em relevo
   const keys=['1','2','3','4','5','6','7','8','9','*','0','#'];
-  g.textBaseline='middle'; g.font='700 15px monospace';
-  keys.forEach((k,ix)=>{ const c=ix%3,r=(ix/3)|0, x=30+c*34, y=74+r*27;
-    g.fillStyle='#26262e'; g.fillRect(x-13,y-11,26,22); g.fillStyle='#9a9aa6'; g.fillText(k,x,y+1); });
-  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t; }
+  g.font='700 17px "Trebuchet MS",monospace';
+  keys.forEach((k,ix)=>{ const c=ix%3,r=(ix/3)|0, x=w/2+(c-1)*38, y=88+r*30;
+    g.fillStyle='#2b2b34'; g.fillRect(x-16,y-12,32,24); g.strokeStyle='#3e3e48'; g.lineWidth=1; g.strokeRect(x-16,y-12,32,24);
+    g.fillStyle='#c2c2cc'; g.fillText(k,x,y+1); });
+  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=maxAniso; return t; }
 const phoneGrp=new THREE.Group();
-const bodyMat=new THREE.MeshStandardMaterial({color:'#0c0c0f',roughness:0.5,metalness:0.3,emissive:'#000000',emissiveIntensity:0});
-const phoneBody=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.25,0.055),bodyMat);
-const phoneFace=new THREE.Mesh(new THREE.PlaneGeometry(0.135,0.22),new THREE.MeshStandardMaterial({map:phoneTex(),roughness:0.6}));
-phoneFace.position.set(0,-0.008,0.029);
-// berço no topo (onde o fone descansa)
-const cradle=new THREE.Mesh(new THREE.BoxGeometry(0.155,0.035,0.075),bodyMat); cradle.position.set(0,0.15,0.012);
-// fone: barra central + cápsulas nas pontas (formato reconhecível)
-const hMat=new THREE.MeshStandardMaterial({color:'#17171b',roughness:0.5,metalness:0.25});
+const boxMat=new THREE.MeshStandardMaterial({color:'#121216',roughness:0.5,metalness:0.55,envMapIntensity:0.7});
+const frameMat=new THREE.MeshStandardMaterial({color:'#07070a',roughness:0.7,metalness:0.4});
+const phoneFrame=new THREE.Mesh(new THREE.BoxGeometry(0.21,0.34,0.04),frameMat); phoneFrame.position.z=-0.012;   // moldura recuada
+const phoneBox=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.30,0.06),boxMat);
+const phoneFace=new THREE.Mesh(new THREE.PlaneGeometry(0.165,0.275),new THREE.MeshStandardMaterial({map:phoneTex(),roughness:0.55,metalness:0.2})); phoneFace.position.set(0,-0.012,0.031);
+// LED de status: pisca em vermelho ao tocar (brilha via bloom)
+const phoneLED=new THREE.Mesh(new THREE.CircleGeometry(0.009,18),new THREE.MeshStandardMaterial({color:'#1a0000',emissive:'#ff2020',emissiveIntensity:0.25}));
+phoneLED.position.set(0.062,0.115,0.033);
+// berço + ganchos onde o fone descansa
+const cradle=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.03,0.085),boxMat); cradle.position.set(0,0.165,0.02);
+const hookL=new THREE.Mesh(new THREE.CylinderGeometry(0.009,0.009,0.03,10),boxMat); hookL.position.set(-0.055,0.182,0.055);
+const hookR=hookL.clone(); hookR.position.x=0.055;
+// fone ergonômico (cápsulas): punho + cápsula de ouvido e de boca
+const hMat=new THREE.MeshStandardMaterial({color:'#121216',roughness:0.42,metalness:0.35,envMapIntensity:0.6});
 const handset=new THREE.Group();
-const hbar=new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.016,0.11,12),hMat); hbar.rotation.z=Math.PI/2;
-const ear=new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.026,0.032,16),hMat); ear.rotation.z=Math.PI/2; ear.position.x=-0.07;
-const mouth=new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.026,0.032,16),hMat); mouth.rotation.z=Math.PI/2; mouth.position.x=0.07;
-handset.add(hbar,ear,mouth); handset.position.set(0,0.172,0.045);
-// cordão espiralado descendo do fone
+const grip=new THREE.Mesh(new THREE.CapsuleGeometry(0.015,0.085,8,16),hMat); grip.rotation.z=Math.PI/2;
+const ear=new THREE.Mesh(new THREE.CapsuleGeometry(0.026,0.012,8,16),hMat); ear.rotation.z=Math.PI/2; ear.position.set(-0.075,-0.007,0);
+const mouth=new THREE.Mesh(new THREE.CapsuleGeometry(0.026,0.012,8,16),hMat); mouth.rotation.z=Math.PI/2; mouth.position.set(0.075,-0.007,0);
+handset.add(grip,ear,mouth); handset.position.set(0,0.183,0.066); handset.rotation.z=0.05;
+// cordão espiralado descendo do fone até a caixa
 const cordMat=new THREE.MeshStandardMaterial({color:'#0a0a0c',roughness:0.85});
-for(let k=0;k<7;k++){ const tr=new THREE.Mesh(new THREE.TorusGeometry(0.014,0.0045,6,12),cordMat);
-  tr.position.set(-0.055,0.13-k*0.026,0.03); tr.rotation.x=Math.PI/2; handset.add(tr); }
-phoneGrp.add(phoneBody,phoneFace,cradle,handset);
-phoneGrp.position.set(-W/2+0.045,1.42,D/2-0.55); phoneGrp.rotation.y=Math.PI/2;
+for(let k=0;k<9;k++){ const tr=new THREE.Mesh(new THREE.TorusGeometry(0.013,0.0042,6,14),cordMat);
+  tr.position.set(-0.062,0.155-k*0.02,0.04); tr.rotation.x=Math.PI/2; phoneGrp.add(tr); }
+phoneGrp.add(phoneFrame,phoneBox,phoneFace,phoneLED,cradle,hookL,hookR,handset);
+phoneGrp.position.set(-W/2+0.05,1.45,D/2-0.55); phoneGrp.rotation.y=Math.PI/2;
 const phoneMeshes=[]; phoneGrp.traverse(o=>{ if(o.isMesh){ o.userData={act:'phone'}; o.castShadow=true; phoneMeshes.push(o); } });
 scene.add(phoneGrp);
 
 // (o brilho agora vem do bloom real no pós-processamento — sem sprites falsos)
-
-// ---- poeira suspensa no ar (fica visível ao cruzar a luz) ----
-const dustN=300;
-const dustGeo=new THREE.BufferGeometry();
-const dpos=new Float32Array(dustN*3); const dvel=new Float32Array(dustN);
-for(let i=0;i<dustN;i++){ dpos[i*3]=(Math.random()-0.5)*W*0.94; dpos[i*3+1]=Math.random()*H; dpos[i*3+2]=(Math.random()-0.5)*D*0.94; dvel[i]=0.015+Math.random()*0.05; }
-dustGeo.setAttribute('position',new THREE.BufferAttribute(dpos,3));
-const dustTex=(()=>{ const cv=document.createElement('canvas'); cv.width=cv.height=32; const g=cv.getContext('2d');
-  const rg=g.createRadialGradient(16,16,0,16,16,16); rg.addColorStop(0,'rgba(255,255,255,1)'); rg.addColorStop(0.5,'rgba(255,255,255,0.35)'); rg.addColorStop(1,'rgba(255,255,255,0)');
-  g.fillStyle=rg; g.fillRect(0,0,32,32); return new THREE.CanvasTexture(cv); })();
-const dust=new THREE.Points(dustGeo,new THREE.PointsMaterial({map:dustTex,color:'#d8c6a4',size:0.022,transparent:true,opacity:0.5,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true,fog:true}));
-scene.add(dust);
 
 const HOT=[panel,...btns,disp.m,hatch,mirror,doorL,doorR,...phoneMeshes];
 
@@ -361,7 +358,7 @@ let shakeAmt=0; function shake(a){ shakeAmt=a; }
 // phase: 0=antes de descer · 1=descendo · 2=pós-susto (telefone tocando)
 //        3=telefone atendido (espelho legível, botões viram teclado) · 4=código aceito (alçapão liberado) · 5=alçapão aberto (gancho)
 const G={ powered:false, floor:13, busy:false, phase:0, entry:[], code:[] };
-G.code=(()=>{ const pool=[1,2,3,4,5,6,7,8], out=[]; for(let k=0;k<3;k++) out.push(pool.splice((Math.random()*pool.length)|0,1)[0]); return out; })();
+G.code=(()=>{ const pool=[1,2,3,4,5,6,7,8,9], out=[]; for(let k=0;k<3;k++) out.push(pool.splice((Math.random()*pool.length)|0,1)[0]); return out; })();
 let ringing=false;
 function interact(ud, obj){
   if(G.busy) return;
@@ -433,7 +430,7 @@ async function startRinging(){ if(ringing) return; ringing=true;
 
 // ---- atender o telefone (phase 2 -> 3): pista críptica + revela código no espelho ----
 async function answerPhone(){
-  ringing=false; phoneBody.material.emissive.set('#000000'); phoneBody.material.emissiveIntensity=0;
+  ringing=false; phoneLED.material.emissiveIntensity=0.25;
   G.busy=true;
   say('Você atende. Uma respiração longa. Depois estática.'); ding(300); await sleep(2000);
   whisper();
@@ -503,11 +500,7 @@ function tick(){
   // cintilar leve da luz quando ligada
   if(lightOn && !G.busy) light.intensity = baseLight*(0.94+Math.sin(t*13)*0.04+ (Math.random()<0.02?-0.35:0));
   // telefone pulsa enquanto toca (o brilho vem do bloom)
-  if(ringing){ phoneBody.material.emissive.set('#ffcf6a'); phoneBody.material.emissiveIntensity=0.3+Math.max(0,Math.sin(t*9))*0.7; }
-  // poeira à deriva (desce devagar e reaparece no teto)
-  const dp=dustGeo.attributes.position.array;
-  for(let i=0;i<dustN;i++){ dp[i*3]+=Math.sin(t*0.4+i)*0.00016; dp[i*3+1]-=dvel[i]*0.016; if(dp[i*3+1]<0.02) dp[i*3+1]=H-0.02; }
-  dustGeo.attributes.position.needsUpdate=true;
+  phoneLED.material.emissiveIntensity = ringing ? (0.5+Math.max(0,Math.sin(t*9))*2.2) : 0.25;
   composer.render();
 }
 function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); composer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); }
