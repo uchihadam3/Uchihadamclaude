@@ -2,6 +2,10 @@
 // O Elevador — terror/puzzle em 1ª pessoa. Arraste p/ olhar, toque p/ interagir.
 // =============================================================================
 import * as THREE from './vendor/three.module.js';
+import { EffectComposer } from './vendor/jsm/postprocessing/EffectComposer.js';
+import { RenderPass }     from './vendor/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass }from './vendor/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass }     from './vendor/jsm/postprocessing/OutputPass.js';
 
 const $ = id => document.getElementById(id);
 const W=2.6, H=2.7, D=2.2;                       // dimensões internas do elevador
@@ -17,6 +21,13 @@ const scene=new THREE.Scene(); scene.background=new THREE.Color('#05060a');
 scene.fog=new THREE.FogExp2('#05060a', 0.075);
 const camera=new THREE.PerspectiveCamera(74, 1, 0.03, 60);
 camera.position.set(0, 1.55, 0);
+
+// ---- pós-processamento: bloom real (glow do display, botões, lâmpada) ----
+const composer=new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(1,1), 0.62, 0.55, 0.55);  // força, raio, limiar
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
 
 // ---- ambiente (PMREM): dá reflexo de verdade aos metais ----
 function envSceneTex(){
@@ -290,19 +301,19 @@ phoneGrp.position.set(-W/2+0.045,1.42,D/2-0.55); phoneGrp.rotation.y=Math.PI/2;
 const phoneMeshes=[]; phoneGrp.traverse(o=>{ if(o.isMesh){ o.userData={act:'phone'}; o.castShadow=true; phoneMeshes.push(o); } });
 scene.add(phoneGrp);
 
-// ---- brilho aditivo (bloom falso) nos elementos luminosos ----
-const HALOTEX=(()=>{ const cv=document.createElement('canvas'); cv.width=cv.height=128; const g=cv.getContext('2d');
-  const rg=g.createRadialGradient(64,64,0,64,64,64); rg.addColorStop(0,'rgba(255,255,255,1)'); rg.addColorStop(0.38,'rgba(255,255,255,0.32)'); rg.addColorStop(1,'rgba(255,255,255,0)');
-  g.fillStyle=rg; g.fillRect(0,0,128,128); const t=new THREE.CanvasTexture(cv); return t; })();
-const halos=[];
-function halo(color,sx,sy,pos,srcFn){
-  const m=new THREE.SpriteMaterial({map:HALOTEX,color:new THREE.Color(color),blending:THREE.AdditiveBlending,transparent:true,depthWrite:false,opacity:0});
-  const s=new THREE.Sprite(m); s.scale.set(sx,sy,1); s.position.set(...pos); s.userData.src=srcFn; halos.push(s); scene.add(s); return s;
-}
-halo('#ff3a1e',1.05,0.55,[0,disp.m.position.y,-D/2+0.20], ()=>0.6*disp.mat.emissiveIntensity);          // display do andar
-halo('#ff3a1e',0.42,0.26,[PANEL_FACE-0.06,1.86,-D/2+0.62], ()=>0.5*pRead.mat.emissiveIntensity);        // mostrador do painel
-halo('#ffdca8',1.25,1.25,[0,H-0.18,0], ()=> lightOn ? 0.5*Math.min(1.3,light.intensity/baseLight) : 0.16); // lâmpada do teto
-const phoneHalo=halo('#4affa0',0.22,0.16,[-W/2+0.10,1.52,D/2-0.55], ()=>0.0);                            // visor do telefone (pulsa ao tocar)
+// (o brilho agora vem do bloom real no pós-processamento — sem sprites falsos)
+
+// ---- poeira suspensa no ar (fica visível ao cruzar a luz) ----
+const dustN=300;
+const dustGeo=new THREE.BufferGeometry();
+const dpos=new Float32Array(dustN*3); const dvel=new Float32Array(dustN);
+for(let i=0;i<dustN;i++){ dpos[i*3]=(Math.random()-0.5)*W*0.94; dpos[i*3+1]=Math.random()*H; dpos[i*3+2]=(Math.random()-0.5)*D*0.94; dvel[i]=0.015+Math.random()*0.05; }
+dustGeo.setAttribute('position',new THREE.BufferAttribute(dpos,3));
+const dustTex=(()=>{ const cv=document.createElement('canvas'); cv.width=cv.height=32; const g=cv.getContext('2d');
+  const rg=g.createRadialGradient(16,16,0,16,16,16); rg.addColorStop(0,'rgba(255,255,255,1)'); rg.addColorStop(0.5,'rgba(255,255,255,0.35)'); rg.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=rg; g.fillRect(0,0,32,32); return new THREE.CanvasTexture(cv); })();
+const dust=new THREE.Points(dustGeo,new THREE.PointsMaterial({map:dustTex,color:'#d8c6a4',size:0.022,transparent:true,opacity:0.5,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true,fog:true}));
+scene.add(dust);
 
 const HOT=[panel,...btns,disp.m,hatch,mirror,doorL,doorR,...phoneMeshes];
 
@@ -491,14 +502,15 @@ function tick(){
   shakeAmt*=0.9;
   // cintilar leve da luz quando ligada
   if(lightOn && !G.busy) light.intensity = baseLight*(0.94+Math.sin(t*13)*0.04+ (Math.random()<0.02?-0.35:0));
-  // telefone pulsa enquanto toca
-  if(ringing){ phoneBody.material.emissive.set('#ffcf6a'); phoneBody.material.emissiveIntensity=0.25+Math.max(0,Math.sin(t*9))*0.55; }
-  // brilho aditivo (bloom falso)
-  for(const s of halos) s.material.opacity=Math.min(1, s.userData.src());
-  phoneHalo.material.opacity = ringing ? 0.35+Math.max(0,Math.sin(t*9))*0.4 : 0.06;
-  renderer.render(scene,camera);
+  // telefone pulsa enquanto toca (o brilho vem do bloom)
+  if(ringing){ phoneBody.material.emissive.set('#ffcf6a'); phoneBody.material.emissiveIntensity=0.3+Math.max(0,Math.sin(t*9))*0.7; }
+  // poeira à deriva (desce devagar e reaparece no teto)
+  const dp=dustGeo.attributes.position.array;
+  for(let i=0;i<dustN;i++){ dp[i*3]+=Math.sin(t*0.4+i)*0.00016; dp[i*3+1]-=dvel[i]*0.016; if(dp[i*3+1]<0.02) dp[i*3+1]=H-0.02; }
+  dustGeo.attributes.position.needsUpdate=true;
+  composer.render();
 }
-function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); composer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix(); }
 addEventListener('resize',resize); resize(); applyCam(); tick();
 
 // ============================ START ============================
