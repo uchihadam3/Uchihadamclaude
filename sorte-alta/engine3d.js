@@ -51,9 +51,9 @@ export function createDiceTable(canvas, onResult){
   const bodyGeo = new RoundedBoxGeometry(S*2,S*2,S*2,5,S*0.34);
   const pipGeo  = new THREE.SphereGeometry(S*0.20,18,14);
   const SPREAD = S*0.52;
-  function makeDie(){
+  function makeDie(mat){
     const g = new THREE.Group();
-    const body = new THREE.Mesh(bodyGeo, bodyMat); body.castShadow=body.receiveShadow=true; g.add(body);
+    const body = new THREE.Mesh(bodyGeo, mat); body.castShadow=body.receiveShadow=true; g.add(body);
     for(const f of FACES) for(const [ou,ov] of PIP_OFF[f.val]){
       const p = new THREE.Mesh(pipGeo, pipMat);
       for(let k=0;k<3;k++) p.position.setComponent(k, f.dir[k]*(S*0.95)+f.u[k]*ou*SPREAD+f.v[k]*ov*SPREAD);
@@ -79,20 +79,48 @@ export function createDiceTable(canvas, onResult){
   wall(TX+WT,WH,WT/2,0,-(TZ+WT/2)); wall(TX+WT,WH,WT/2,0,(TZ+WT/2));
   wall(WT/2,WH,TZ+WT,-(TX+WT/2),0); wall(WT/2,WH,TZ+WT,(TX+WT/2),0);
 
+  // anel dourado que marca dado "seguro" (segurado p/ não rerrolar)
+  const ringGeo = new THREE.RingGeometry(S*1.15, S*1.55, 28);
+  const ringMat = new THREE.MeshBasicMaterial({ color:'#f2c14e', transparent:true, opacity:0.92, side:THREE.DoubleSide });
+
   const dice=[];
+  const held = new Array(N).fill(false);
   for(let i=0;i<N;i++){
     const body=new CANNON.Body({mass:1,material:mDie,shape:new CANNON.Box(new CANNON.Vec3(S,S,S))});
     body.allowSleep=true; body.sleepSpeedLimit=0.22; body.sleepTimeLimit=0.14; body.linearDamping=0.05; body.angularDamping=0.07;
     world.addBody(body);
-    const mesh=makeDie(); scene.add(mesh); dice.push({body,mesh});
+    const mat = bodyMat.clone();
+    const mesh=makeDie(mat); mesh.userData.dieIndex=i; scene.add(mesh);
+    const ring=new THREE.Mesh(ringGeo, ringMat); ring.rotation.x=-Math.PI/2; ring.position.y=0.04; ring.visible=false; scene.add(ring);
+    dice.push({body,mesh,mat,ring});
+  }
+  function updateHeldVisual(i){
+    const d=dice[i];
+    d.mat.emissive.set(held[i]?0x6a4a08:0x000000); d.mat.emissiveIntensity = held[i]?0.55:0;
+    d.ring.visible = held[i];
+    if(held[i]) d.ring.position.set(d.body.position.x, 0.04, d.body.position.z);
+  }
+  function clearHeld(){ for(let i=0;i<N;i++){ held[i]=false; updateHeldVisual(i); } }
+  function toggleHeld(i){ if(i<0||i>=N) return; held[i]=!held[i]; updateHeldVisual(i); }
+  // raycast: pega o índice do dado sob o ponto (clique/toque), ou -1
+  const raycaster=new THREE.Raycaster(), ndc=new THREE.Vector2();
+  function pick(clientX, clientY){
+    const r=canvas.getBoundingClientRect();
+    ndc.x=((clientX-r.left)/r.width)*2-1; ndc.y=-((clientY-r.top)/r.height)*2+1;
+    raycaster.setFromCamera(ndc, camera);
+    const hits=raycaster.intersectObjects(dice.map(d=>d.mesh), true);
+    if(!hits.length) return -1;
+    let o=hits[0].object; while(o && o.userData.dieIndex===undefined) o=o.parent;
+    return o ? o.userData.dieIndex : -1;
   }
 
   let rolling=false, settleFrames=0, rollTimer=0;
-  function roll(){
+  function roll(onlyUnheld=false){
     rolling=true; settleFrames=0;
     clearTimeout(rollTimer);
-    rollTimer=setTimeout(()=>{ if(rolling){ rolling=false; dice.forEach(d=>d.body.sleep()); report(); } }, 5000);
+    rollTimer=setTimeout(()=>{ if(rolling){ rolling=false; dice.forEach((d,i)=>{ if(!(onlyUnheld&&held[i])) d.body.sleep(); }); report(); } }, 5000);
     dice.forEach((d,i)=>{
+      if(onlyUnheld && held[i]) return;    // mantém os dados segurados no lugar
       const b=d.body; b.wakeUp();
       const a=(i/N)*Math.PI*2+0.4;
       b.position.set(Math.cos(a)*1.7+(Math.random()-0.5)*0.15, 2.3+i*0.28, Math.sin(a)*1.7+(Math.random()-0.5)*0.15);
@@ -123,6 +151,7 @@ export function createDiceTable(canvas, onResult){
         if(p.z>mz){p.z=mz;v.z=Math.min(0,v.z);} if(p.z<-mz){p.z=-mz;v.z=Math.max(0,v.z);}
       }
       d.mesh.position.copy(d.body.position); d.mesh.quaternion.copy(d.body.quaternion);
+      if(held[dice.indexOf(d)]) d.ring.position.set(p.x, 0.04, p.z);
     }
     if(rolling){
       const asleep=dice.every(d=>d.body.sleepState===CANNON.Body.SLEEPING || d.body.velocity.length()<0.12 && d.body.angularVelocity.length()<0.12);
@@ -138,5 +167,9 @@ export function createDiceTable(canvas, onResult){
   }
   addEventListener('resize',resize); resize(); tick();
   roll();   // posiciona os dados na mesa ao abrir (resultado ignorado pelo jogo)
-  return { roll, isRolling:()=>rolling };
+  return {
+    roll, isRolling:()=>rolling, pick, toggleHeld, clearHeld,
+    heldCount:()=>held.filter(Boolean).length,
+    values:()=>dice.map(d=>topValue(d.body)),
+  };
 }

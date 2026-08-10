@@ -31,16 +31,16 @@ export const OUTRO = [
 
 export const STAGES = [
   {
-    type:'meta', name:'A Taverna — Mesa I', meta:110, rolls:4,
+    type:'meta', name:'A Taverna — Mesa I', meta:150, hands:4, rerolls:2,
     win:[{ who:'crupie', text:'Sorte de principiante. A próxima mesa não perdoa.' }],
   },
   {
-    type:'meta', name:'A Taverna — Mesa II', meta:180, rolls:4,
+    type:'meta', name:'A Taverna — Mesa II', meta:240, hands:4, rerolls:2,
     intro:[{ who:'crupie', text:'A aposta subiu. Os dados sentem o cheiro do medo, sabia?' }],
     win:[{ who:'crupie', text:'Hah! Talvez você não seja só mais um nome na parede.' }],
   },
   {
-    type:'boss', who:'apostador', name:'O Apostador', meta:300, rolls:5,
+    type:'boss', who:'apostador', name:'O Apostador', meta:420, hands:5, rerolls:2,
     intro:[
       { who:'apostador', text:'Então é você que anda incomodando o velho Crupiê. Senta.' },
       { who:'apostador', text:'Eu SOU a sorte desta casa. Bata minha marca… se conseguir.' },
