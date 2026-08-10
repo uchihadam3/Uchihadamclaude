@@ -8,26 +8,51 @@ const W=2.6, H=2.7, D=2.2;                       // dimensões internas do eleva
 
 // ---- render ----
 const canvas=$('c');
-const renderer=new THREE.WebGLRenderer({canvas, antialias:true});
+const renderer=new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.18;   // resposta de luz cinematográfica
 const scene=new THREE.Scene(); scene.background=new THREE.Color('#05060a');
-scene.fog=new THREE.FogExp2('#05060a', 0.08);
+scene.fog=new THREE.FogExp2('#05060a', 0.075);
 const camera=new THREE.PerspectiveCamera(74, 1, 0.03, 60);
 camera.position.set(0, 1.55, 0);
 
-// ---- texturas simples (metal com juntas + sujeira) ----
-function metalTex(base='#26221d', seams=6){
-  const s=256, cv=document.createElement('canvas'); cv.width=cv.height=s; const g=cv.getContext('2d');
-  g.fillStyle=base; g.fillRect(0,0,s,s);
-  for(let i=0;i<2500;i++){ const a=Math.random()*0.06; g.fillStyle=`rgba(0,0,0,${a})`; g.fillRect(Math.random()*s,Math.random()*s,2,2); }
-  g.strokeStyle='#0007'; g.lineWidth=3;
-  for(let i=1;i<seams;i++){ const x=i*s/seams; g.beginPath(); g.moveTo(x,0); g.lineTo(x,s); g.stroke(); g.strokeStyle='#ffffff08'; g.beginPath(); g.moveTo(x+2,0); g.lineTo(x+2,s); g.stroke(); g.strokeStyle='#0007'; }
-  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;
+// ---- ambiente (PMREM): dá reflexo de verdade aos metais ----
+function envSceneTex(){
+  const cv=document.createElement('canvas'); cv.width=512; cv.height=256; const g=cv.getContext('2d');
+  const grad=g.createLinearGradient(0,0,0,256); grad.addColorStop(0,'#12151d'); grad.addColorStop(0.45,'#1b1712'); grad.addColorStop(1,'#050506');
+  g.fillStyle=grad; g.fillRect(0,0,512,256);
+  const spot=g.createRadialGradient(256,34,4,256,34,150); spot.addColorStop(0,'#ffe9bd'); spot.addColorStop(0.6,'#5a4a34'); spot.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=spot; g.fillRect(0,0,512,170);
+  const t=new THREE.CanvasTexture(cv); t.mapping=THREE.EquirectangularReflectionMapping; t.colorSpace=THREE.SRGBColorSpace; return t;
 }
-const wallMat=new THREE.MeshStandardMaterial({ map:metalTex('#241f1a'), roughness:0.9, metalness:0.25 });
-const floorMat=new THREE.MeshStandardMaterial({ map:metalTex('#15120e',10), roughness:0.7, metalness:0.35 });
-const ceilMat =new THREE.MeshStandardMaterial({ color:'#1a1712', roughness:0.95 });
+const pmrem=new THREE.PMREMGenerator(renderer); pmrem.compileEquirectangularShader();
+const envMap=pmrem.fromEquirectangular(envSceneTex()).texture; scene.environment=envMap;
+
+// ---- texturas de metal (cor + relevo), maior resolução ----
+function metalTex(base='#26221d', seams=6, streaks=true){
+  const s=512, cv=document.createElement('canvas'); cv.width=cv.height=s; const g=cv.getContext('2d');
+  g.fillStyle=base; g.fillRect(0,0,s,s);
+  // manchas grandes de sujeira
+  for(let i=0;i<26;i++){ const x=Math.random()*s,y=Math.random()*s,r=20+Math.random()*80;
+    const rg=g.createRadialGradient(x,y,0,x,y,r); rg.addColorStop(0,`rgba(0,0,0,${0.04+Math.random()*0.06})`); rg.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=rg; g.fillRect(x-r,y-r,r*2,r*2); }
+  // grão fino
+  for(let i=0;i<9000;i++){ const a=Math.random()*0.05; g.fillStyle=`rgba(${Math.random()<0.5?'0,0,0':'255,255,255'},${a})`; g.fillRect(Math.random()*s,Math.random()*s,1,1); }
+  // escorridos verticais (ferrugem/umidade)
+  if(streaks) for(let i=0;i<40;i++){ const x=Math.random()*s, len=40+Math.random()*180, y=Math.random()*s;
+    g.strokeStyle=`rgba(10,6,4,${0.05+Math.random()*0.12})`; g.lineWidth=0.6+Math.random()*1.4; g.beginPath(); g.moveTo(x,y); g.lineTo(x+ (Math.random()-0.5)*4, y+len); g.stroke(); }
+  // juntas de painel
+  g.lineWidth=3;
+  for(let i=1;i<seams;i++){ const x=i*s/seams; g.strokeStyle='#0008'; g.beginPath(); g.moveTo(x,0); g.lineTo(x,s); g.stroke();
+    g.strokeStyle='#ffffff10'; g.beginPath(); g.moveTo(x+2,0); g.lineTo(x+2,s); g.stroke(); }
+  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=renderer.capabilities.getMaxAnisotropy(); return t;
+}
+const wallColor=metalTex('#241f1a',6), floorColor=metalTex('#15120e',10);
+const wallMat=new THREE.MeshStandardMaterial({ map:wallColor, bumpMap:wallColor, bumpScale:0.006, roughness:0.82, metalness:0.35, envMapIntensity:0.5 });
+const floorMat=new THREE.MeshStandardMaterial({ map:floorColor, bumpMap:floorColor, bumpScale:0.004, roughness:0.5, metalness:0.55, envMapIntensity:0.8 });
+const ceilMat =new THREE.MeshStandardMaterial({ color:'#151310', roughness:0.95, metalness:0.1, envMapIntensity:0.3 });
 
 function plane(w,h,mat,pos,rot){ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat); m.position.set(...pos); if(rot)m.rotation.set(...rot); m.receiveShadow=true; scene.add(m); return m; }
 plane(W,D,floorMat,[0,0,0],[-Math.PI/2,0,0]);
@@ -43,7 +68,8 @@ function brushedTex(base='#2b2822'){ const s=256, cv=document.createElement('can
   for(let i=0;i<s;i+=1){ const a=Math.random()*0.09; g.strokeStyle=`rgba(255,255,255,${a*0.5})`; g.beginPath(); g.moveTo(0,i); g.lineTo(s,i); g.stroke();
     g.strokeStyle=`rgba(0,0,0,${a})`; g.beginPath(); g.moveTo(0,i+0.5); g.lineTo(s,i+0.5); g.stroke(); }
   const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t; }
-const doorMat=new THREE.MeshStandardMaterial({ map:brushedTex('#2b2822'), roughness:0.32, metalness:0.88 });
+const doorBrush=brushedTex('#2b2822');
+const doorMat=new THREE.MeshStandardMaterial({ map:doorBrush, bumpMap:doorBrush, bumpScale:0.002, roughness:0.28, metalness:0.92, envMapIntensity:1.0 });
 const doorW=W*0.30, doorH=H*0.84, doorY=doorH/2+0.02;
 const doorL=new THREE.Mesh(new THREE.BoxGeometry(doorW,doorH,0.07),doorMat);
 const doorR=doorL.clone();
@@ -65,7 +91,7 @@ const panelFrame=new THREE.Mesh(new THREE.BoxGeometry(0.03,1.08,0.42),
   new THREE.MeshStandardMaterial({color:'#050403',roughness:0.7,metalness:0.4}));
 panelFrame.position.set(W/2-0.008,1.38,-D/2+0.62); panelFrame.castShadow=true; scene.add(panelFrame);   // bezel recuado (não tapa os botões)
 const panel=new THREE.Mesh(new THREE.BoxGeometry(0.05,1.0,0.34),
-  new THREE.MeshStandardMaterial({color:'#0e0c09',roughness:0.5,metalness:0.6}));
+  new THREE.MeshStandardMaterial({color:'#0e0c09',roughness:0.42,metalness:0.7,envMapIntensity:0.8}));
 panel.position.set(W/2-0.026,1.38,-D/2+0.62); panel.castShadow=true; scene.add(panel);
 panel.userData={act:'panel'};
 const PANEL_FACE=W/2-0.05;                       // face da placa voltada pra sala
@@ -130,8 +156,11 @@ hatch.position.set(0,H-0.03,0.02); hatch.rotation.x=Math.PI/2; hatch.userData={a
 const hatchFrame=new THREE.Mesh(new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.66,0.66)),new THREE.LineBasicMaterial({color:'#000'})); hatchFrame.position.copy(hatch.position); hatchFrame.rotation.x=Math.PI/2; scene.add(hatchFrame);
 
 const amb=new THREE.AmbientLight(0xffffff,0.22); scene.add(amb);
-const light=new THREE.PointLight('#ffe0b0',0.0,14,1.5); light.position.set(0,H-0.15,0); light.castShadow=true;
-light.shadow.mapSize.set(1024,1024); light.shadow.bias=-0.002; scene.add(light);
+const hemi=new THREE.HemisphereLight('#42506e','#241606',0.30); scene.add(hemi);   // gradiente frio/quente p/ profundidade
+const light=new THREE.PointLight('#ffe0b0',0.0,14,1.6); light.position.set(0,H-0.15,0); light.castShadow=true;
+light.shadow.mapSize.set(2048,2048); light.shadow.bias=-0.0018; light.shadow.radius=6; light.shadow.blurSamples=18; scene.add(light);
+// leve luz de preenchimento fria vinda de baixo/trás, separa as silhuetas
+const rim=new THREE.PointLight('#3a5a8a',0.35,8,2.0); rim.position.set(0,0.4,D/2-0.2); scene.add(rim);
 // luz de emergência fraca (standby, antes de ligar o painel) — dá pra ver as formas
 light.intensity=1.1; lamp.material.emissiveIntensity=0.35; amb.intensity=0.26;
 
@@ -142,7 +171,7 @@ function mirrorTex(){ const cv=document.createElement('canvas'); cv.width=256; c
   for(let i=0;i<500;i++){ g.fillStyle=`rgba(255,255,255,${Math.random()*0.018})`; g.fillRect(Math.random()*256,Math.random()*512,2,2); }
   return { cv, g }; }
 const mirCv=mirrorTex(); const mirTex=new THREE.CanvasTexture(mirCv.cv); mirTex.colorSpace=THREE.SRGBColorSpace;
-const mirror=new THREE.Mesh(new THREE.PlaneGeometry(0.7,1.4),new THREE.MeshStandardMaterial({map:mirTex,roughness:0.15,metalness:0.9}));
+const mirror=new THREE.Mesh(new THREE.PlaneGeometry(0.7,1.4),new THREE.MeshStandardMaterial({map:mirTex,roughness:0.12,metalness:0.95,envMapIntensity:1.3}));
 mirror.position.set(0,1.5,D/2-0.02); mirror.rotation.y=Math.PI; mirror.userData={act:'mirror'}; scene.add(mirror);
 const figure=new THREE.Mesh(new THREE.PlaneGeometry(0.55,1.5),new THREE.MeshBasicMaterial({color:'#000',transparent:true,opacity:0})); figure.position.set(0,1.4,D/2-0.06); figure.rotation.y=Math.PI; scene.add(figure);
 // escreve o código no vidro "embaçado" (revelado após o telefone)
@@ -206,6 +235,20 @@ phoneGrp.add(phoneBody,phoneFace,cradle,handset);
 phoneGrp.position.set(-W/2+0.045,1.42,D/2-0.55); phoneGrp.rotation.y=Math.PI/2;
 const phoneMeshes=[]; phoneGrp.traverse(o=>{ if(o.isMesh){ o.userData={act:'phone'}; o.castShadow=true; phoneMeshes.push(o); } });
 scene.add(phoneGrp);
+
+// ---- brilho aditivo (bloom falso) nos elementos luminosos ----
+const HALOTEX=(()=>{ const cv=document.createElement('canvas'); cv.width=cv.height=128; const g=cv.getContext('2d');
+  const rg=g.createRadialGradient(64,64,0,64,64,64); rg.addColorStop(0,'rgba(255,255,255,1)'); rg.addColorStop(0.38,'rgba(255,255,255,0.32)'); rg.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=rg; g.fillRect(0,0,128,128); const t=new THREE.CanvasTexture(cv); return t; })();
+const halos=[];
+function halo(color,sx,sy,pos,srcFn){
+  const m=new THREE.SpriteMaterial({map:HALOTEX,color:new THREE.Color(color),blending:THREE.AdditiveBlending,transparent:true,depthWrite:false,opacity:0});
+  const s=new THREE.Sprite(m); s.scale.set(sx,sy,1); s.position.set(...pos); s.userData.src=srcFn; halos.push(s); scene.add(s); return s;
+}
+halo('#ff3a1e',1.05,0.55,[0,disp.m.position.y,-D/2+0.20], ()=>0.6*disp.mat.emissiveIntensity);          // display do andar
+halo('#ff3a1e',0.42,0.26,[PANEL_FACE-0.06,1.86,-D/2+0.62], ()=>0.5*pRead.mat.emissiveIntensity);        // mostrador do painel
+halo('#ffdca8',1.25,1.25,[0,H-0.18,0], ()=> lightOn ? 0.5*Math.min(1.3,light.intensity/baseLight) : 0.16); // lâmpada do teto
+const phoneHalo=halo('#4affa0',0.22,0.16,[-W/2+0.10,1.52,D/2-0.55], ()=>0.0);                            // visor do telefone (pulsa ao tocar)
 
 const HOT=[panel,...btns,disp.m,hatch,mirror,doorL,doorR,...phoneMeshes];
 
@@ -396,6 +439,9 @@ function tick(){
   if(lightOn && !G.busy) light.intensity = baseLight*(0.94+Math.sin(t*13)*0.04+ (Math.random()<0.02?-0.35:0));
   // telefone pulsa enquanto toca
   if(ringing){ phoneBody.material.emissive.set('#ffcf6a'); phoneBody.material.emissiveIntensity=0.25+Math.max(0,Math.sin(t*9))*0.55; }
+  // brilho aditivo (bloom falso)
+  for(const s of halos) s.material.opacity=Math.min(1, s.userData.src());
+  phoneHalo.material.opacity = ringing ? 0.35+Math.max(0,Math.sin(t*9))*0.4 : 0.06;
   renderer.render(scene,camera);
 }
 function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
