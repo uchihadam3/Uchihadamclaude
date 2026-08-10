@@ -16,6 +16,19 @@
   #stageName{text-align:center;font-weight:900;letter-spacing:1px;font-size:15px;text-shadow:0 2px 4px #000}
   #candles{text-align:center;font-size:16px;letter-spacing:2px;margin-top:2px;line-height:1}
   #candles .cd{transition:.3s} #candles .out{filter:grayscale(1) brightness(.4);opacity:.6}
+  #relics{text-align:center;margin-top:3px;min-height:20px;display:flex;gap:5px;justify-content:center;flex-wrap:wrap;pointer-events:auto}
+  #relics .rl{font-size:16px;background:#00000040;border:1px solid #0006;border-radius:8px;padding:1px 5px;line-height:1.3}
+  /* ---- recompensa (escolher relíquia) ---- */
+  #reward{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+    background:rgba(6,16,12,.93);backdrop-filter:blur(3px);padding:22px}
+  #rewardTitle{font-size:22px;font-weight:900;color:var(--gold);letter-spacing:1px;text-align:center}
+  #rewardCards{display:flex;flex-direction:column;gap:12px;width:100%;max-width:340px}
+  .rw{display:flex;align-items:center;gap:14px;text-align:left;cursor:pointer;
+    background:linear-gradient(180deg,#241a10,#191109);border:1px solid #4a331c;border-radius:14px;padding:13px 15px;
+    box-shadow:0 5px 14px #0007;transition:transform .08s,border-color .15s}
+  .rw:active{transform:scale(.98)} .rw:hover{border-color:var(--gold)}
+  .rw-ic{font-size:32px;flex:none;width:46px;height:46px;display:grid;place-items:center;background:#0d0a06;border-radius:10px;border:1px solid #3a2a17}
+  .rw-t{display:flex;flex-direction:column;gap:2px} .rw-t b{font-size:15px;color:var(--ink)} .rw-t small{font-size:12px;color:var(--dim);line-height:1.35}
   .metaline{display:flex;justify-content:space-between;font-size:12px;font-weight:800;margin:6px 4px 4px}
   .metaline .l{color:var(--dim)} #scoreLbl{color:var(--chip)} #metaLbl{color:var(--gold)}
   #metaBar{height:12px;border-radius:8px;background:#00000055;border:1px solid #0007;overflow:hidden}
@@ -83,6 +96,7 @@
 <div id="hud">
   <div id="stageName"></div>
   <div id="candles"></div>
+  <div id="relics"></div>
   <div class="metaline"><span class="l">Pontos <span id="scoreLbl">0</span></span><span class="l">Meta <span id="metaLbl">0</span></span></div>
   <div id="metaBar"><div id="metaFill"></div></div>
   <div id="rollsLbl"></div>
@@ -102,6 +116,11 @@
 <div id="dlg" hidden>
   <div id="dlgPortrait"></div>
   <div id="dlgMain"><div id="dlgName"></div><div id="dlgText"></div><div id="dlgHint">toque ▸</div></div>
+</div>
+
+<div id="reward" hidden>
+  <div id="rewardTitle">Escolha uma Relíquia</div>
+  <div id="rewardCards"></div>
 </div>
 
 <div id="end" hidden>

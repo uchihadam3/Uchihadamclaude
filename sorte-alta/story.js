@@ -8,6 +8,19 @@
 // assets/ e troque p/ hasArt:true.
 export const CANDLES = 3;   // velas = vidas por run (falhar uma mesa apaga uma)
 
+// RELÍQUIAS / RUNAS — modificadores passivos (efeitos aplicados em game.js).
+// Você escolhe 1 a cada mesa vencida. Edite/adicione à vontade.
+export const RELICS = [
+  { id:'ganancia',   emoji:'💰', name:'Ganância',        desc:'+12 fichas em toda jogada.' },
+  { id:'brasa',      emoji:'🔥', name:'Brasa',           desc:'+4 fichas por dado PAR.' },
+  { id:'osso',       emoji:'🦴', name:'Peso do Osso',    desc:'+3 fichas por dado 5 ou 6.' },
+  { id:'pressagio',  emoji:'🍀', name:'Presságio',       desc:'Trinca ou melhor: +3 mult.' },
+  { id:'parsombrio', emoji:'🌑', name:'Par Sombrio',     desc:'Par / Dois Pares: +2 mult.' },
+  { id:'serpente',   emoji:'🐍', name:'Fio da Serpente', desc:'Sequência: +45 fichas.' },
+  { id:'olho',       emoji:'👁️', name:'Olho do Crupiê',  desc:'+1 mult em toda jogada.' },
+  { id:'chamadupla', emoji:'✨', name:'Chama Dupla',     desc:'Full House ou melhor: DOBRA o mult.' },
+];
+
 export const SPEAKERS = {
   crupie:    { name:'O Crupiê',    emoji:'🎭', color:'#a071d6', img:'assets/crupie.png',    hasArt:false },
   apostador: { name:'O Apostador', emoji:'🃏', color:'#e0662a', img:'assets/apostador.png', hasArt:false },
@@ -33,16 +46,16 @@ export const OUTRO = [
 
 export const STAGES = [
   {
-    type:'meta', name:'A Taverna — Mesa I', meta:150, hands:4, rerolls:2,
+    type:'meta', name:'A Taverna — Mesa I', meta:150, hands:4, rerolls:1,
     win:[{ who:'crupie', text:'Sorte de principiante. A próxima mesa não perdoa.' }],
   },
   {
-    type:'meta', name:'A Taverna — Mesa II', meta:240, hands:4, rerolls:2,
+    type:'meta', name:'A Taverna — Mesa II', meta:240, hands:4, rerolls:1,
     intro:[{ who:'crupie', text:'A aposta subiu. Os dados sentem o cheiro do medo, sabia?' }],
     win:[{ who:'crupie', text:'Hah! Talvez você não seja só mais um nome na parede.' }],
   },
   {
-    type:'boss', who:'apostador', name:'O Apostador', meta:420, hands:5, rerolls:2,
+    type:'boss', who:'apostador', name:'O Apostador', meta:420, hands:5, rerolls:1,
     intro:[
       { who:'apostador', text:'Então é você que anda incomodando o velho Crupiê. Senta.' },
       { who:'apostador', text:'Eu SOU a sorte desta casa. Bata minha marca… se conseguir.' },
