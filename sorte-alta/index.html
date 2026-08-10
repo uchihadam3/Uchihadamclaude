@@ -111,7 +111,7 @@ function makeDie(){
 }
 
 // ===== CANNON (física) =======================================================
-const world = new CANNON.World({ gravity:new CANNON.Vec3(0,-34,0) });
+const world = new CANNON.World({ gravity:new CANNON.Vec3(0,-62,0) });   // gravidade forte = peso
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.allowSleep = true;
 world.defaultContactMaterial.restitution = 0.3;
@@ -119,9 +119,10 @@ world.defaultContactMaterial.restitution = 0.3;
 const mFloor = new CANNON.Material('floor');
 const mDie   = new CANNON.Material('die');
 const mWall  = new CANNON.Material('wall');
-world.addContactMaterial(new CANNON.ContactMaterial(mDie, mFloor, { friction:0.18, restitution:0.42 }));
-world.addContactMaterial(new CANNON.ContactMaterial(mDie, mDie,   { friction:0.05, restitution:0.45 }));
-world.addContactMaterial(new CANNON.ContactMaterial(mDie, mWall,  { friction:0.06, restitution:0.62 }));
+// pouco quique + atrito médio = peso (cai firme, rola um pouco e para)
+world.addContactMaterial(new CANNON.ContactMaterial(mDie, mFloor, { friction:0.45, restitution:0.1 }));
+world.addContactMaterial(new CANNON.ContactMaterial(mDie, mDie,   { friction:0.1, restitution:0.15 }));
+world.addContactMaterial(new CANNON.ContactMaterial(mDie, mWall,  { friction:0.2, restitution:0.2 }));
 
 // chão (caixa estática, topo em y=0)
 const floorBody = new CANNON.Body({ mass:0, material:mFloor, shape:new CANNON.Box(new CANNON.Vec3(TX+2,0.5,TZ+2)) });
@@ -135,7 +136,7 @@ wall(0.5,3,TZ+1,-(TX+0.6),0); wall(0.5,3,TZ+1,(TX+0.6),0);
 const dice = [];
 for(let i=0;i<N;i++){
   const body = new CANNON.Body({ mass:1, material:mDie, shape:new CANNON.Box(new CANNON.Vec3(S,S,S)) });
-  body.allowSleep=true; body.sleepSpeedLimit=0.14; body.sleepTimeLimit=0.35; body.linearDamping=0.04; body.angularDamping=0.035;
+  body.allowSleep=true; body.sleepSpeedLimit=0.24; body.sleepTimeLimit=0.14; body.linearDamping=0.06; body.angularDamping=0.09;
   world.addBody(body);
   const mesh = makeDie();
   scene.add(mesh);
@@ -154,11 +155,12 @@ function throwDice(){
   dice.forEach((d,i)=>{
     const b=d.body; b.wakeUp();
     // arremesso do FUNDO da mesa em direção à câmera (desce a mesa, tipo craps)
-    b.position.set((i-(N-1)/2)*1.5 + (Math.random()-0.5), 4.5+Math.random()*2, -TZ+1.3);
+    // lança baixo e rasante (pouca altura, pouco impulso p/ cima) → cai logo, sem flutuar
+    b.position.set((i-(N-1)/2)*1.5 + (Math.random()-0.5), 2.6+Math.random()*1.2, -TZ+1.3);
     b.quaternion.setFromEuler(Math.random()*6,Math.random()*6,Math.random()*6);
-    b.velocity.set((Math.random()-0.5)*5, 1+Math.random()*1.5, 7.5+Math.random()*3.5);
-    // muito mais giro → tomba/roda como dado de verdade
-    b.angularVelocity.set((Math.random()-0.5)*80,(Math.random()-0.5)*80,(Math.random()-0.5)*80);
+    b.velocity.set((Math.random()-0.5)*4, -0.3+Math.random()*0.8, 9.5+Math.random()*3);
+    // giro vivo; cai firme, rola pela mesa e o atrito o assenta
+    b.angularVelocity.set((Math.random()-0.5)*58,(Math.random()-0.5)*58,(Math.random()-0.5)*58);
     b.updateMassProperties();
   });
   btn.disabled=true;
@@ -185,7 +187,7 @@ const clock = new THREE.Clock();
 function tick(){
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 1/30);
-  world.step(1/60, dt, 4);
+  world.step(1/120, dt, 8);   // passo curto p/ estabilidade com gravidade forte
   for(const d of dice){ d.mesh.position.copy(d.body.position); d.mesh.quaternion.copy(d.body.quaternion); }
   // detecção de repouso
   if(rolling){
