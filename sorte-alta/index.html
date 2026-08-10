@@ -160,16 +160,17 @@ function throwDice(){
   rollTimer = setTimeout(()=>{ if(rolling){ rolling=false; dice.forEach(d=>d.body.sleep()); showResult(); } }, 5000);
   resultEl.classList.remove('show');
   // espaçamento que cabe dentro da bandeja (não nasce na parede)
-  const spread = Math.min(1.7, (2*(TX-S-0.4))/Math.max(1,N-1));
+  // SOLTA UM PUNHADO DO MEIO (agrupado, empilhado, longe das paredes)
   dice.forEach((d,i)=>{
     const b=d.body; b.wakeUp();
     // cai do alto da borda de cima, escalonado (alturas/fileiras) e se abre em leque
-    b.position.set((i-(N-1)/2)*spread + (Math.random()-0.5)*0.4,
-                   3 + (i%3)*0.5 + Math.random()*0.7,
-                   -TZ + 1.2 + (i%2)*0.8);
+    const a = (i/N)*Math.PI*2;
+    b.position.set(Math.cos(a)*0.5 + (Math.random()-0.5)*0.3,
+                   3.2 + i*0.85,
+                   Math.sin(a)*0.5 + (Math.random()-0.5)*0.3);
     b.quaternion.setFromEuler(Math.random()*6,Math.random()*6,Math.random()*6);
     // leque: velocidade x afasta do centro; z leva pra frente sem exagero
-    b.velocity.set((i-(N-1)/2)*1.6 + (Math.random()-0.5)*2, -0.3+Math.random()*0.5, 5.5+Math.random()*2);
+    b.velocity.set((Math.random()-0.5)*2.2, -0.5+Math.random()*0.4, (Math.random()-0.5)*2.2);
     // giro vivo; cai firme, rola pela mesa e o atrito o assenta
     b.angularVelocity.set((Math.random()-0.5)*56,(Math.random()-0.5)*56,(Math.random()-0.5)*56);
     b.updateMassProperties();
