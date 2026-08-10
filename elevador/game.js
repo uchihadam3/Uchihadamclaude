@@ -51,13 +51,18 @@ const panel=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.9,0.06),panelMat);
 panel.position.set(W/2-0.04,1.35,-D/2+0.55); panel.rotation.y=-Math.PI/2; panel.castShadow=true; scene.add(panel);
 panel.userData={act:'panel'};
 const btns=[];
-const btnOffMat=()=>new THREE.MeshStandardMaterial({color:'#2b2b30',roughness:0.5,emissive:'#000000'});
+function btnTex(n){ const cv=document.createElement('canvas'); cv.width=cv.height=64; const g=cv.getContext('2d');
+  g.fillStyle='#26262d'; g.fillRect(0,0,64,64); g.fillStyle='#0b0b10'; g.beginPath(); g.arc(32,32,25,0,7); g.fill();
+  g.fillStyle='#c9c9d2'; g.font='900 32px monospace'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(String(n),32,35);
+  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t; }
 for(let i=0;i<8;i++){
-  const b=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.02,16),btnOffMat());
+  const b=new THREE.Mesh(new THREE.PlaneGeometry(0.075,0.075),
+    new THREE.MeshStandardMaterial({map:btnTex(i+1),roughness:0.6,emissive:'#000000',emissiveIntensity:0}));
   const col=i%2, row=(i/2)|0;
-  b.rotation.z=Math.PI/2; b.position.set(W/2-0.075, 1.62-row*0.14, -D/2+0.47+col*0.14);
-  b.userData={act:'btn',i}; b.castShadow=false; scene.add(b); btns.push(b);
+  b.position.set(W/2-0.045, 1.66-row*0.15, -D/2+0.46+col*0.15); b.rotation.y=-Math.PI/2;   // encara a sala
+  b.userData={act:'btn',i,num:i+1}; scene.add(b); btns.push(b);
 }
+function litBtn(b,on){ b.material.emissive.set(on?'#ff5a3a':'#000000'); b.material.emissiveIntensity=on?1:0; }
 
 // ---- display de andar (acima das portas) ----
 function makeDisplay(){
@@ -89,16 +94,50 @@ light.shadow.mapSize.set(1024,1024); light.shadow.bias=-0.002; scene.add(light);
 // luz de emergência fraca (standby, antes de ligar o painel) — dá pra ver as formas
 light.intensity=1.1; lamp.material.emissiveIntensity=0.35; amb.intensity=0.26;
 
-// ---- espelho no fundo (fake) + vulto ----
-const mirror=new THREE.Mesh(new THREE.PlaneGeometry(0.7,1.4),new THREE.MeshStandardMaterial({color:'#0a0d12',roughness:0.15,metalness:0.9}));
+// ---- espelho no fundo (canvas) + vulto ----
+function mirrorTex(){ const cv=document.createElement('canvas'); cv.width=256; cv.height=512; const g=cv.getContext('2d');
+  const gr=g.createLinearGradient(0,0,0,512); gr.addColorStop(0,'#0d1218'); gr.addColorStop(0.5,'#151c24'); gr.addColorStop(1,'#080a0e');
+  g.fillStyle=gr; g.fillRect(0,0,256,512);
+  for(let i=0;i<500;i++){ g.fillStyle=`rgba(255,255,255,${Math.random()*0.018})`; g.fillRect(Math.random()*256,Math.random()*512,2,2); }
+  return { cv, g }; }
+const mirCv=mirrorTex(); const mirTex=new THREE.CanvasTexture(mirCv.cv); mirTex.colorSpace=THREE.SRGBColorSpace;
+const mirror=new THREE.Mesh(new THREE.PlaneGeometry(0.7,1.4),new THREE.MeshStandardMaterial({map:mirTex,roughness:0.15,metalness:0.9}));
 mirror.position.set(0,1.5,D/2-0.02); mirror.rotation.y=Math.PI; mirror.userData={act:'mirror'}; scene.add(mirror);
 const figure=new THREE.Mesh(new THREE.PlaneGeometry(0.55,1.5),new THREE.MeshBasicMaterial({color:'#000',transparent:true,opacity:0})); figure.position.set(0,1.4,D/2-0.06); figure.rotation.y=Math.PI; scene.add(figure);
+// escreve o código no vidro "embaçado" (revelado após o telefone)
+function revealMirrorCode(code){
+  const g=mirCv.g;
+  g.save();
+  // névoa de condensação
+  const fog=g.createRadialGradient(128,256,20,128,256,180); fog.addColorStop(0,'rgba(200,220,230,0.10)'); fog.addColorStop(1,'rgba(200,220,230,0)');
+  g.fillStyle=fog; g.fillRect(0,60,256,400);
+  g.font='900 118px "Courier New",monospace'; g.textAlign='center'; g.textBaseline='middle';
+  g.shadowColor='#dff'; g.shadowBlur=26; g.fillStyle='rgba(215,235,245,0.55)';
+  g.fillText(code.join(' '),128,258);
+  g.font='600 20px "Trebuchet MS",sans-serif'; g.shadowBlur=8; g.fillStyle='rgba(200,220,235,0.4)';
+  g.fillText('não sobe', 128, 360);
+  g.restore(); mirTex.needsUpdate=true;
+}
 
 // corrimão (sombra bonita)
 const rail=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,W*0.8,10),new THREE.MeshStandardMaterial({color:'#3a3a40',metalness:0.8,roughness:0.4}));
 rail.rotation.z=Math.PI/2; rail.position.set(0,0.95,D/2-0.08); rail.castShadow=true; scene.add(rail);
 
-const HOT=[panel,...btns,disp.m,hatch,mirror,doorL,doorR];
+// ---- telefone de parede (parede esquerda) ----
+const phoneGrp=new THREE.Group();
+const phoneBody=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.26,0.09),
+  new THREE.MeshStandardMaterial({color:'#0b0b0d',roughness:0.5,metalness:0.3,emissive:'#000000',emissiveIntensity:0}));
+const handset=new THREE.Mesh(new THREE.CylinderGeometry(0.024,0.024,0.2,12),new THREE.MeshStandardMaterial({color:'#141416',roughness:0.6}));
+handset.rotation.z=Math.PI/2; handset.position.set(0,0.1,0.065);
+const cord=new THREE.Mesh(new THREE.TorusGeometry(0.02,0.006,6,14),new THREE.MeshStandardMaterial({color:'#101012',roughness:0.8}));
+cord.position.set(0,-0.02,0.05);
+phoneGrp.add(phoneBody,handset,cord);
+phoneGrp.position.set(-W/2+0.055,1.42,D/2-0.55); phoneGrp.rotation.y=Math.PI/2;
+phoneGrp.traverse(o=>{ if(o.isMesh) o.userData={act:'phone'}; });
+phoneGrp.children.forEach(c=>c.castShadow=true);
+scene.add(phoneGrp);
+
+const HOT=[panel,...btns,disp.m,hatch,mirror,doorL,doorR,phoneBody,handset,cord];
 
 // ============================ CONTROLES ============================
 let yaw=0, pitch=0, dragging=false, lastX=0,lastY=0, moved=0, downT=0;
@@ -141,18 +180,36 @@ function flash(){ const f=$('flash'); f.style.opacity='1'; setTimeout(()=>f.styl
 let shakeAmt=0; function shake(a){ shakeAmt=a; }
 
 // ============================ ESTADO / INTERAÇÕES ============================
-const G={ powered:false, floor:13, busy:false, phase:0 };
+// phase: 0=antes de descer · 1=descendo · 2=pós-susto (telefone tocando)
+//        3=telefone atendido (espelho legível, botões viram teclado) · 4=código aceito (alçapão liberado) · 5=alçapão aberto (gancho)
+const G={ powered:false, floor:13, busy:false, phase:0, entry:[], code:[] };
+G.code=(()=>{ const pool=[1,2,3,4,5,6,7,8], out=[]; for(let k=0;k<3;k++) out.push(pool.splice((Math.random()*pool.length)|0,1)[0]); return out; })();
+let ringing=false;
 function interact(ud, obj){
   if(G.busy) return;
-  switch(ud.act){
-    case 'door': case undefined: break;
-  }
   if(obj===doorL||obj===doorR){ thud(); shake(0.02); say('As portas não abrem. Alguma coisa as segura por fora.'); return; }
+  if(ud.act==='phone'){
+    if(G.phase===2){ answerPhone(); return; }
+    if(ringing){ answerPhone(); return; }
+    say(G.phase>=3?'A linha está muda. Só estática.':'Um telefone velho na parede. Silencioso.'); return;
+  }
   if(ud.act==='panel'){ if(!G.powered) return powerOn(); say('O painel range. Os botões estão frios.'); return; }
-  if(ud.act==='btn'){ if(!G.powered){ say('Morto. Nenhum botão responde.'); thud(); return; } pressFloor(ud.i, obj); return; }
-  if(ud.act==='display'){ say(G.powered?`Andar ${G.floor}. Descendo.`:'O mostrador está apagado.'); return; }
-  if(ud.act==='hatch'){ say('O alçapão do teto. Trancado — por cima.'); thud(); return; }
-  if(ud.act==='mirror'){ say('Seu reflexo… demora um segundo a mais que você.'); return; }
+  if(ud.act==='btn'){
+    if(!G.powered){ say('Morto. Nenhum botão responde.'); thud(); return; }
+    if(G.phase===0){ pressFloor(ud.i, obj); return; }
+    if(G.phase===3){ enterDigit(ud.num, obj); return; }
+    say('Só desce. E já não há mais para onde descer.'); return;
+  }
+  if(ud.act==='display'){ say(G.powered?`Mostrador: ${G.floor}.`:'O mostrador está apagado.'); return; }
+  if(ud.act==='hatch'){
+    if(G.phase>=5){ say('O alçapão está aberto. O corredor lá em cima espera.'); return; }
+    if(G.phase===4){ openHatch(); return; }
+    say('O alçapão do teto. Trancado — por cima.'); thud(); return;
+  }
+  if(ud.act==='mirror'){
+    if(G.phase>=3){ say('No vidro embaçado, três dígitos. Eles não somem.'); return; }
+    say('Seu reflexo… demora um segundo a mais que você.'); return;
+  }
 }
 async function powerOn(){
   G.busy=true; say('Você força o painel. Ele estala…'); thud(); await sleep(500);
@@ -181,6 +238,80 @@ async function pressFloor(i, obj){
   setFloor('-1'); disp.mat.emissive.set('#ff2a1a');
   say('Isto não é um andar.');
   G.busy=false; G.phase=2;
+  await sleep(2600);
+  say('Em algum canto da parede, um telefone começa a tocar.');
+  startRinging();
+}
+
+// ---- toque do telefone (síntese, tom duplo estilo campainha) ----
+function phoneRing(){ if(!AC)return; const t0=AC.currentTime;
+  [0,0.42].forEach(off=>{ const o=AC.createOscillator(),o2=AC.createOscillator(),g=AC.createGain();
+    o.type='sine';o.frequency.value=440;o2.type='sine';o2.frequency.value=482;o.connect(g);o2.connect(g);g.connect(AC.destination);
+    g.gain.setValueAtTime(0.0001,t0+off); g.gain.linearRampToValueAtTime(0.11,t0+off+0.02);
+    g.gain.setValueAtTime(0.11,t0+off+0.30); g.gain.exponentialRampToValueAtTime(0.0001,t0+off+0.36);
+    o.start(t0+off);o2.start(t0+off);o.stop(t0+off+0.4);o2.stop(t0+off+0.4); }); }
+async function startRinging(){ if(ringing) return; ringing=true;
+  while(ringing){ phoneRing(); for(let k=0;k<13 && ringing;k++) await sleep(200); } }
+
+// ---- atender o telefone (phase 2 -> 3): pista críptica + revela código no espelho ----
+async function answerPhone(){
+  ringing=false; phoneBody.material.emissive.set('#000000'); phoneBody.material.emissiveIntensity=0;
+  G.busy=true;
+  say('Você atende. Uma respiração longa. Depois estática.'); ding(300); await sleep(2000);
+  whisper();
+  say('«…os números não sobem. Olhe onde ninguém te olha de volta.»'); await sleep(2900);
+  say('A linha morre. Atrás de você, o espelho ficou embaçado.'); await sleep(1200);
+  revealMirrorCode(G.code);
+  G.phase=3; G.entry=[];
+  await sleep(1800);
+  say('Três dígitos escritos no vidro. O painel espera por eles.');
+  G.busy=false;
+}
+
+// ---- teclado: digitar o código nos botões (phase 3) ----
+async function enterDigit(num, obj){
+  if(G.busy) return;
+  litBtn(obj,true); ding(560+num*22); G.entry.push(num);
+  say('Código: '+G.entry.join('  '));
+  await sleep(220); litBtn(obj,false);
+  if(G.entry.length>=3){
+    G.busy=true; await sleep(300);
+    const ok=G.entry.every((d,ix)=>d===G.code[ix]);
+    G.entry=[];
+    if(ok){ await codeAccepted(); }
+    else { thud(); shake(0.025); await flicker(2); setLight(true); say('Errado. O elevador estremece, contrariado.'); G.busy=false; }
+  }
+}
+
+// ---- código aceito (phase 3 -> 4): destrava o alçapão ----
+async function codeAccepted(){
+  ding(880); await sleep(220); ding(1040); await sleep(220); ding(1240); await sleep(300);
+  say('Um estalo pesado no teto. O alçapão cedeu.'); thud(); shake(0.02);
+  hatchFrame.material.color.set('#6a5a30'); hatch.material.opacity=0.06;
+  G.phase=4;
+  await sleep(2000);
+  say('Há uma saída acima de você agora. Se tiver coragem, olhe pra cima.');
+  G.busy=false;
+}
+
+// ---- abrir o alçapão (phase 4 -> 5): gancho de fim de capítulo ----
+async function openHatch(){
+  G.busy=true; G.phase=5;
+  say('Você empurra o alçapão. Ar frio desce lá de cima.'); thud(); await sleep(1900);
+  say('Acima não há poço de elevador. Há um corredor. E ele respira.'); await sleep(2900);
+  boom(); whisper(); shake(0.06); figure.material.opacity=0.9;
+  await blackout(160); flash(); await sleep(900);
+  await blackout(1800);
+  say('');
+  showContinua();
+}
+function showContinua(){
+  ringing=false;
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#000;opacity:0;transition:opacity 2.2s;color:#8a8578;font-family:inherit;text-align:center;padding:24px';
+  d.innerHTML='<div style="font-size:13px;letter-spacing:3px;color:#5a564d">CAPÍTULO 1 — O POÇO</div><div style="font-size:26px;letter-spacing:6px;color:#c9c2b2">continua…</div>';
+  document.body.appendChild(d);
+  requestAnimationFrame(()=>{ d.style.opacity='1'; });
 }
 
 // ============================ LOOP ============================
@@ -193,6 +324,8 @@ function tick(){
   shakeAmt*=0.9;
   // cintilar leve da luz quando ligada
   if(lightOn && !G.busy) light.intensity = baseLight*(0.94+Math.sin(t*13)*0.04+ (Math.random()<0.02?-0.35:0));
+  // telefone pulsa enquanto toca
+  if(ringing){ phoneBody.material.emissive.set('#ffcf6a'); phoneBody.material.emissiveIntensity=0.25+Math.max(0,Math.sin(t*9))*0.55; }
   renderer.render(scene,camera);
 }
 function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
@@ -206,4 +339,6 @@ $('startBtn').addEventListener('click', async ()=>{
   await sleep(400); thud(); say('As portas se fecham. O elevador se sacode e começa a descer.');
   await sleep(1600); say('Só a luz de emergência resiste. Ache o painel — olhe em volta.');
 });
-window.__ELEV={ G, powerOn, pressFloor:(i)=>pressFloor(i,btns[i]), setLight, faceYaw:(v)=>{ yaw=v; applyCam(); } };
+window.__ELEV={ G, powerOn, pressFloor:(i)=>pressFloor(i,btns[i]), setLight,
+  answerPhone, enterCode:(arr)=>{ (arr||G.code).forEach(n=>enterDigit(n,btns[n-1])); },
+  openHatch, isRinging:()=>ringing, faceYaw:(v)=>{ yaw=v; applyCam(); } };
