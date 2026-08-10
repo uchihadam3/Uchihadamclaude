@@ -37,47 +37,88 @@ plane(W,H,wallMat,[0,H/2, D/2],[0,Math.PI,0]);      // fundo
 plane(D,H,wallMat,[-W/2,H/2,0],[0,Math.PI/2,0]);    // esquerda
 plane(D,H,wallMat,[ W/2,H/2,0],[0,-Math.PI/2,0]);   // direita
 
-// ---- portas ----
-const doorMat=new THREE.MeshStandardMaterial({ map:metalTex('#3a342b',2), roughness:0.55, metalness:0.6 });
-const doorL=new THREE.Mesh(new THREE.BoxGeometry(W*0.42,H*0.82,0.09),doorMat);
+// ---- portas (metal escovado + batente) ----
+function brushedTex(base='#2b2822'){ const s=256, cv=document.createElement('canvas'); cv.width=cv.height=s; const g=cv.getContext('2d');
+  g.fillStyle=base; g.fillRect(0,0,s,s);
+  for(let i=0;i<s;i+=1){ const a=Math.random()*0.09; g.strokeStyle=`rgba(255,255,255,${a*0.5})`; g.beginPath(); g.moveTo(0,i); g.lineTo(s,i); g.stroke();
+    g.strokeStyle=`rgba(0,0,0,${a})`; g.beginPath(); g.moveTo(0,i+0.5); g.lineTo(s,i+0.5); g.stroke(); }
+  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t; }
+const doorMat=new THREE.MeshStandardMaterial({ map:brushedTex('#2b2822'), roughness:0.32, metalness:0.88 });
+const doorW=W*0.30, doorH=H*0.84, doorY=doorH/2+0.02;
+const doorL=new THREE.Mesh(new THREE.BoxGeometry(doorW,doorH,0.07),doorMat);
 const doorR=doorL.clone();
-doorL.position.set(-W*0.215,H*0.44,-D/2+0.06); doorR.position.set(W*0.215,H*0.44,-D/2+0.06);
+doorL.position.set(-doorW/2-0.006,doorY,-D/2+0.055); doorR.position.set(doorW/2+0.006,doorY,-D/2+0.055);
 [doorL,doorR].forEach(d=>{d.castShadow=d.receiveShadow=true; scene.add(d);});
-const doorSeam=new THREE.Mesh(new THREE.BoxGeometry(0.02,H*0.82,0.11),new THREE.MeshStandardMaterial({color:'#000'})); doorSeam.position.set(0,H*0.44,-D/2+0.06); scene.add(doorSeam);
+// batente/moldura em volta das portas
+const jambMat=new THREE.MeshStandardMaterial({color:'#14110c',roughness:0.6,metalness:0.55});
+const openW=doorW*2+0.06;
+function jamb(w,h,x,y){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.05),jambMat); m.position.set(x,y,-D/2+0.03); m.castShadow=true; scene.add(m); return m; }
+jamb(openW+0.18,0.10, 0, doorY+doorH/2+0.05);            // verga (topo)
+jamb(0.10,doorH+0.12, -(openW/2+0.05), doorY);           // umbral esq
+jamb(0.10,doorH+0.12,  (openW/2+0.05), doorY);           // umbral dir
+// fenda central escura
+const doorSeam=new THREE.Mesh(new THREE.BoxGeometry(0.014,doorH,0.075),new THREE.MeshStandardMaterial({color:'#000'})); doorSeam.position.set(0,doorY,-D/2+0.05); scene.add(doorSeam);
 
-// ---- painel de botões (parede direita, perto da frente) ----
-const panelMat=new THREE.MeshStandardMaterial({color:'#100d09',roughness:0.6,metalness:0.5});
-const panel=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.9,0.06),panelMat);
-panel.position.set(W/2-0.04,1.35,-D/2+0.55); panel.rotation.y=-Math.PI/2; panel.castShadow=true; scene.add(panel);
+// ---- painel de botões (parede direita) ----
+// moldura preta encaixada na parede + placa metálica escura
+const panelFrame=new THREE.Mesh(new THREE.BoxGeometry(0.03,1.08,0.42),
+  new THREE.MeshStandardMaterial({color:'#050403',roughness:0.7,metalness:0.4}));
+panelFrame.position.set(W/2-0.008,1.38,-D/2+0.62); panelFrame.castShadow=true; scene.add(panelFrame);   // bezel recuado (não tapa os botões)
+const panel=new THREE.Mesh(new THREE.BoxGeometry(0.05,1.0,0.34),
+  new THREE.MeshStandardMaterial({color:'#0e0c09',roughness:0.5,metalness:0.6}));
+panel.position.set(W/2-0.026,1.38,-D/2+0.62); panel.castShadow=true; scene.add(panel);
 panel.userData={act:'panel'};
+const PANEL_FACE=W/2-0.05;                       // face da placa voltada pra sala
+
+// botões redondos, salientes, com número legível
 const btns=[];
-function btnTex(n){ const cv=document.createElement('canvas'); cv.width=cv.height=64; const g=cv.getContext('2d');
-  g.fillStyle='#26262d'; g.fillRect(0,0,64,64); g.fillStyle='#0b0b10'; g.beginPath(); g.arc(32,32,25,0,7); g.fill();
-  g.fillStyle='#c9c9d2'; g.font='900 32px monospace'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(String(n),32,35);
+function btnTex(n){ const s=128, cv=document.createElement('canvas'); cv.width=cv.height=s; const g=cv.getContext('2d');
+  g.clearRect(0,0,s,s);
+  g.fillStyle='#101014'; g.beginPath(); g.arc(64,64,62,0,7); g.fill();                 // aro externo
+  const rg=g.createRadialGradient(48,48,6,64,64,58); rg.addColorStop(0,'#42424c'); rg.addColorStop(1,'#0f0f14');
+  g.fillStyle=rg; g.beginPath(); g.arc(64,64,54,0,7); g.fill();                          // corpo do botão
+  g.fillStyle='#0a0a0d'; g.beginPath(); g.arc(64,64,40,0,7); g.fill();                   // recesso do número
+  g.fillStyle='#dcdce4'; g.font='900 54px "Trebuchet MS",sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+  g.fillText(String(n),64,70);
   const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t; }
 for(let i=0;i<8;i++){
-  const b=new THREE.Mesh(new THREE.PlaneGeometry(0.075,0.075),
-    new THREE.MeshStandardMaterial({map:btnTex(i+1),roughness:0.6,emissive:'#000000',emissiveIntensity:0}));
+  const tx=btnTex(i+1);
+  const b=new THREE.Mesh(new THREE.CircleGeometry(0.048,28),
+    new THREE.MeshStandardMaterial({map:tx,emissive:'#ffffff',emissiveMap:tx,transparent:true,roughness:0.45,metalness:0.2,emissiveIntensity:0}));
   const col=i%2, row=(i/2)|0;
-  b.position.set(W/2-0.045, 1.66-row*0.15, -D/2+0.46+col*0.15); b.rotation.y=-Math.PI/2;   // encara a sala
-  b.userData={act:'btn',i,num:i+1}; scene.add(b); btns.push(b);
+  b.position.set(PANEL_FACE-0.006, 1.62-row*0.17, -D/2+0.54+col*0.16); b.rotation.y=-Math.PI/2;   // salta à frente da placa
+  b.userData={act:'btn',i,num:i+1}; b.castShadow=true; scene.add(b); btns.push(b);
 }
-function litBtn(b,on){ b.material.emissive.set(on?'#ff5a3a':'#000000'); b.material.emissiveIntensity=on?1:0; }
+// botões retroiluminados quando há energia; brilho vermelho ao pressionar
+function litBtn(b,on){ if(on){ b.material.emissive.set('#ff6a3a'); b.material.emissiveIntensity=1.2; }
+  else { b.material.emissive.set('#ffffff'); b.material.emissiveIntensity=(typeof G!=='undefined'&&G.powered)?0.75:0; } }
 
-// ---- display de andar (acima das portas) ----
+// mini-mostrador de andar no topo do painel (não fica atrás da porta)
+function makeReadout(w,h){ const cv=document.createElement('canvas'); cv.width=256; cv.height=140; const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace;
+  const mat=new THREE.MeshStandardMaterial({map:t,emissive:'#ff2a1a',emissiveMap:t,emissiveIntensity:0.0,roughness:0.35});
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat); return { cv, t, mat, m }; }
+const pReadFrame=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.17,0.28),new THREE.MeshStandardMaterial({color:'#000',roughness:0.8}));
+pReadFrame.position.set(W/2-0.02,1.86,-D/2+0.62); scene.add(pReadFrame);
+const pRead=makeReadout(0.25,0.135);
+pRead.m.position.set(PANEL_FACE-0.012,1.86,-D/2+0.62); pRead.m.rotation.y=-Math.PI/2; scene.add(pRead.m);
+
+// ---- display de andar (acima da porta, à frente da verga p/ não ser tapado) ----
+const dispHouse=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.34,0.07),new THREE.MeshStandardMaterial({color:'#070609',roughness:0.7,metalness:0.4}));
+dispHouse.position.set(0,doorY+doorH/2+0.20,-D/2+0.10); dispHouse.castShadow=true; scene.add(dispHouse);
 function makeDisplay(){
   const cv=document.createElement('canvas'); cv.width=256; cv.height=128; const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace;
   const mat=new THREE.MeshStandardMaterial({map:t,emissive:'#ff2a1a',emissiveMap:t,emissiveIntensity:0.0,roughness:0.4});
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(0.5,0.25),mat); m.position.set(0,H*0.86,-D/2+0.02); scene.add(m);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(0.62,0.26),mat); m.position.set(0,doorY+doorH/2+0.20,-D/2+0.14); scene.add(m);
   m.userData={act:'display'};
   return { cv, t, mat, m };
 }
 const disp=makeDisplay();
+function draw7(cv,txt,on){ const g=cv.getContext('2d'); g.fillStyle='#0a0402'; g.fillRect(0,0,cv.width,cv.height);
+  g.fillStyle= on?'#ff3a24':'#3a1410'; g.font=`900 ${(cv.height*0.66)|0}px "Courier New",monospace`; g.textAlign='center'; g.textBaseline='middle';
+  g.shadowColor='#ff3a24'; g.shadowBlur=on?18:0; g.fillText(txt,cv.width/2,cv.height*0.54); g.shadowBlur=0; }
 function setFloor(txt, on=true){
-  const g=disp.cv.getContext('2d'); g.fillStyle='#0a0402'; g.fillRect(0,0,256,128);
-  g.fillStyle= on?'#ff3a24':'#3a1410'; g.font='900 84px "Courier New",monospace'; g.textAlign='center'; g.textBaseline='middle';
-  g.shadowColor='#ff3a24'; g.shadowBlur=on?18:0; g.fillText(txt,128,68);
-  disp.t.needsUpdate=true; disp.mat.emissiveIntensity=on?1.0:0.15;
+  draw7(disp.cv,txt,on); disp.t.needsUpdate=true; disp.mat.emissiveIntensity=on?1.0:0.15;
+  draw7(pRead.cv,txt,on); pRead.t.needsUpdate=true; pRead.mat.emissiveIntensity=on?1.0:0.12;
 }
 setFloor('', false);
 
@@ -123,28 +164,49 @@ function revealMirrorCode(code){
 const rail=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,W*0.8,10),new THREE.MeshStandardMaterial({color:'#3a3a40',metalness:0.8,roughness:0.4}));
 rail.rotation.z=Math.PI/2; rail.position.set(0,0.95,D/2-0.08); rail.castShadow=true; scene.add(rail);
 
-// ---- telefone de parede (parede esquerda) ----
+// ---- telefone de parede (parede esquerda) — modelo antigo com teclado + fone no berço ----
+function phoneTex(){ const cv=document.createElement('canvas'); cv.width=128; cv.height=190; const g=cv.getContext('2d');
+  g.fillStyle='#141417'; g.fillRect(0,0,128,190);
+  g.fillStyle='#08080a'; g.fillRect(10,10,108,170);
+  // visor pequeno
+  g.fillStyle='#0d1a12'; g.fillRect(24,22,80,26); g.fillStyle='#2f7a4a'; g.font='700 16px monospace'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('— — —',64,36);
+  // teclado 3x4
+  const keys=['1','2','3','4','5','6','7','8','9','*','0','#'];
+  g.textBaseline='middle'; g.font='700 15px monospace';
+  keys.forEach((k,ix)=>{ const c=ix%3,r=(ix/3)|0, x=30+c*34, y=74+r*27;
+    g.fillStyle='#26262e'; g.fillRect(x-13,y-11,26,22); g.fillStyle='#9a9aa6'; g.fillText(k,x,y+1); });
+  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t; }
 const phoneGrp=new THREE.Group();
-const phoneBody=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.26,0.09),
-  new THREE.MeshStandardMaterial({color:'#0b0b0d',roughness:0.5,metalness:0.3,emissive:'#000000',emissiveIntensity:0}));
-const handset=new THREE.Mesh(new THREE.CylinderGeometry(0.024,0.024,0.2,12),new THREE.MeshStandardMaterial({color:'#141416',roughness:0.6}));
-handset.rotation.z=Math.PI/2; handset.position.set(0,0.1,0.065);
-const cord=new THREE.Mesh(new THREE.TorusGeometry(0.02,0.006,6,14),new THREE.MeshStandardMaterial({color:'#101012',roughness:0.8}));
-cord.position.set(0,-0.02,0.05);
-phoneGrp.add(phoneBody,handset,cord);
-phoneGrp.position.set(-W/2+0.055,1.42,D/2-0.55); phoneGrp.rotation.y=Math.PI/2;
-phoneGrp.traverse(o=>{ if(o.isMesh) o.userData={act:'phone'}; });
-phoneGrp.children.forEach(c=>c.castShadow=true);
+const bodyMat=new THREE.MeshStandardMaterial({color:'#0c0c0f',roughness:0.5,metalness:0.3,emissive:'#000000',emissiveIntensity:0});
+const phoneBody=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.25,0.055),bodyMat);
+const phoneFace=new THREE.Mesh(new THREE.PlaneGeometry(0.135,0.22),new THREE.MeshStandardMaterial({map:phoneTex(),roughness:0.6}));
+phoneFace.position.set(0,-0.008,0.029);
+// berço no topo (onde o fone descansa)
+const cradle=new THREE.Mesh(new THREE.BoxGeometry(0.155,0.035,0.075),bodyMat); cradle.position.set(0,0.15,0.012);
+// fone: barra central + cápsulas nas pontas (formato reconhecível)
+const hMat=new THREE.MeshStandardMaterial({color:'#17171b',roughness:0.5,metalness:0.25});
+const handset=new THREE.Group();
+const hbar=new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.016,0.11,12),hMat); hbar.rotation.z=Math.PI/2;
+const ear=new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.026,0.032,16),hMat); ear.rotation.z=Math.PI/2; ear.position.x=-0.07;
+const mouth=new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.026,0.032,16),hMat); mouth.rotation.z=Math.PI/2; mouth.position.x=0.07;
+handset.add(hbar,ear,mouth); handset.position.set(0,0.172,0.045);
+// cordão espiralado descendo do fone
+const cordMat=new THREE.MeshStandardMaterial({color:'#0a0a0c',roughness:0.85});
+for(let k=0;k<7;k++){ const tr=new THREE.Mesh(new THREE.TorusGeometry(0.014,0.0045,6,12),cordMat);
+  tr.position.set(-0.055,0.13-k*0.026,0.03); tr.rotation.x=Math.PI/2; handset.add(tr); }
+phoneGrp.add(phoneBody,phoneFace,cradle,handset);
+phoneGrp.position.set(-W/2+0.045,1.42,D/2-0.55); phoneGrp.rotation.y=Math.PI/2;
+const phoneMeshes=[]; phoneGrp.traverse(o=>{ if(o.isMesh){ o.userData={act:'phone'}; o.castShadow=true; phoneMeshes.push(o); } });
 scene.add(phoneGrp);
 
-const HOT=[panel,...btns,disp.m,hatch,mirror,doorL,doorR,phoneBody,handset,cord];
+const HOT=[panel,...btns,disp.m,hatch,mirror,doorL,doorR,...phoneMeshes];
 
 // ============================ CONTROLES ============================
 let yaw=0, pitch=0, dragging=false, lastX=0,lastY=0, moved=0, downT=0;
 function applyCam(){ camera.rotation.set(pitch,yaw,0,'YXZ'); }
 canvas.addEventListener('pointerdown',e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; moved=0; downT=performance.now(); });
 canvas.addEventListener('pointermove',e=>{ if(!dragging) return; const dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; moved+=Math.abs(dx)+Math.abs(dy);
-  yaw-=dx*0.0042; pitch-=dy*0.0042; pitch=Math.max(-0.55,Math.min(0.55,pitch)); applyCam(); if($('look').style.opacity!=='0'){$('look').style.opacity='0';} });
+  yaw-=dx*0.0042; pitch-=dy*0.0042; pitch=Math.max(-0.7,Math.min(1.25,pitch)); applyCam(); if($('look').style.opacity!=='0'){$('look').style.opacity='0';} });
 addEventListener('pointerup',e=>{ if(!dragging) return; dragging=false; if(moved<9 && performance.now()-downT<450) tryInteract(e.clientX,e.clientY); });
 const raycaster=new THREE.Raycaster(), ndc=new THREE.Vector2();
 function tryInteract(x,y){
@@ -214,12 +276,12 @@ function interact(ud, obj){
 async function powerOn(){
   G.busy=true; say('Você força o painel. Ele estala…'); thud(); await sleep(500);
   await flicker(5); setLight(true); if(humGain) humGain.gain.linearRampToValueAtTime(0.06,AC.currentTime+1);
-  G.powered=true; setFloor(String(G.floor)); btns.forEach(b=>b.material.emissive.set('#25120e'));
+  G.powered=true; setFloor(String(G.floor)); btns.forEach(b=>litBtn(b,false));   // retroilumina os números
   say('O elevador acende. Andar 13. Escolha um andar.'); G.busy=false;
 }
 async function pressFloor(i, obj){
   if(G.phase>0) { say('Não adianta. Ele só desce.'); return; }
-  G.busy=true; G.phase=1; obj.material.emissive.set('#ff5a3a'); ding(680);
+  G.busy=true; G.phase=1; litBtn(obj,true); ding(680);
   say('O elevador começa a descer.');
   // descida com dings, contando os andares
   const seq=[12,11,10,9,8,7,6,5,4,3,2,1];
@@ -341,4 +403,4 @@ $('startBtn').addEventListener('click', async ()=>{
 });
 window.__ELEV={ G, powerOn, pressFloor:(i)=>pressFloor(i,btns[i]), setLight,
   answerPhone, enterCode:(arr)=>{ (arr||G.code).forEach(n=>enterDigit(n,btns[n-1])); },
-  openHatch, isRinging:()=>ringing, faceYaw:(v)=>{ yaw=v; applyCam(); } };
+  openHatch, isRinging:()=>ringing, faceYaw:(v)=>{ yaw=v; applyCam(); }, look:(y,pi)=>{ yaw=y; pitch=pi; applyCam(); } };
