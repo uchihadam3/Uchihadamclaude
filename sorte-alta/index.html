@@ -28,10 +28,10 @@ import * as CANNON from './vendor/cannon-es.js';
 import { RoundedBoxGeometry } from './vendor/RoundedBoxGeometry.js';
 
 // ---- constantes da bandeja RETANGULAR (unidades de mundo) ----
-const TX = 3.5, TZ = 7.5;     // meia-largura / profundidade (a câmera encaixa na tela)
+const TX = 4.5, TZ = 6.2;     // meia-largura / profundidade (com margem na tela)
 const WT = 1.0;               // espessura da borda/parede
 const N  = 5;                 // quantos dados
-const S  = 0.62;              // meia-aresta do dado
+const S  = 0.5;               // meia-aresta do dado (menor)
 
 // ===== THREE (render) ========================================================
 const canvas = document.getElementById('c');
@@ -165,13 +165,13 @@ function throwDice(){
     const b=d.body; b.wakeUp();
     // cai do alto da borda de cima, escalonado (alturas/fileiras) e se abre em leque
     const a = (i/N)*Math.PI*2 + 0.4;
-    b.position.set(Math.cos(a)*1.15 + (Math.random()-0.5)*0.15,
-                   2.4 + i*0.35,
-                   Math.sin(a)*1.15 + (Math.random()-0.5)*0.15);
+    b.position.set(Math.cos(a)*1.7 + (Math.random()-0.5)*0.15,
+                   2.3 + i*0.28,
+                   Math.sin(a)*1.7 + (Math.random()-0.5)*0.15);
     b.quaternion.setFromEuler(Math.random()*6,Math.random()*6,Math.random()*6);
     // leque: velocidade x afasta do centro; z leva pra frente sem exagero
-    b.velocity.set((Math.random()-0.5)*1.0, -0.4+Math.random()*0.3, (Math.random()-0.5)*1.0);
-    b.angularVelocity.set((Math.random()-0.5)*30,(Math.random()-0.5)*30,(Math.random()-0.5)*30);
+    b.velocity.set((Math.random()-0.5)*0.7, -0.4+Math.random()*0.3, (Math.random()-0.5)*0.7);
+    b.angularVelocity.set((Math.random()-0.5)*26,(Math.random()-0.5)*26,(Math.random()-0.5)*26);
     b.updateMassProperties();
   });
   btn.disabled=true;
@@ -229,9 +229,9 @@ function resize(){
   const w=innerWidth, h=innerHeight;
   renderer.setSize(w,h,false);
   camera.aspect = w/h;
-  // encaixa a LARGURA da mesa (borda externa) na largura da tela — mobile-first
+  // encaixa a mesa com MARGEM (ocupa ~86% da largura, não cola na borda)
   const t = Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
-  camera.position.y = (TX+WT) / (t * camera.aspect);
+  camera.position.y = (TX+WT) / (t * camera.aspect * 0.86);
   camera.lookAt(0,0,0);
   camera.updateProjectionMatrix();
 }
