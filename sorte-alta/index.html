@@ -71,6 +71,22 @@
   #float.go{animation:floatUp 1s cubic-bezier(.2,.7,.3,1)}
   @keyframes floatUp{0%{opacity:0;transform:translateY(10px) scale(.8)}25%{opacity:1;transform:translateY(-10px) scale(1.1)}100%{opacity:0;transform:translateY(-60px) scale(1)}}
 
+  /* ---- contagem de pontos animada (Balatro-style) ---- */
+  #scoreShow{position:fixed;left:0;right:0;bottom:150px;z-index:4;pointer-events:none;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
+  #ssName{font-size:15px;font-weight:900;letter-spacing:1px;color:var(--ink);text-transform:uppercase;text-shadow:0 2px 4px #000}
+  #ssLabel{font-size:12px;font-weight:800;color:var(--gold);min-height:15px;opacity:0}
+  #ssLabel.go{animation:ssl .5s ease}
+  @keyframes ssl{0%{opacity:0;transform:translateY(4px)}30%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}
+  #ssRow{display:flex;align-items:center;gap:10px}
+  #ssRow .pill{font-size:30px;font-weight:900;padding:2px 16px;border-radius:12px;min-width:66px;text-shadow:0 2px 0 #0008}
+  #ssRow .chips{background:#0b3350;color:var(--chip);border:1px solid #1f5f86}
+  #ssRow .mult{background:#4a1414;color:var(--mult);border:1px solid #7a2a2a}
+  #ssRow .ssx{font-size:22px;font-weight:900;color:var(--dim)}
+  #ssRow .pop{animation:sspop .22s ease}
+  @keyframes sspop{40%{transform:scale(1.35)}100%{transform:scale(1)}}
+  #ssTotal{font-size:34px;font-weight:900;color:var(--gold);text-shadow:0 3px 0 #0008;min-height:40px;opacity:0}
+  #ssTotal.go{animation:sst .8s cubic-bezier(.2,.8,.3,1)}
+  @keyframes sst{0%{opacity:0;transform:scale(.6)}30%{opacity:1;transform:scale(1.15)}100%{opacity:1;transform:scale(1)}}
   #banner{position:fixed;left:0;right:0;top:44%;text-align:center;z-index:4;pointer-events:none;
     font-size:30px;font-weight:900;letter-spacing:2px;opacity:0;text-shadow:0 3px 8px #000}
   #banner.ok{color:#7be6a1} #banner.boss{color:var(--gold)} #banner.bad{color:var(--mult)}
@@ -128,6 +144,12 @@
 
 <div id="float"></div>
 <div id="combo"></div>
+<div id="scoreShow" hidden>
+  <div id="ssName"></div>
+  <div id="ssLabel"></div>
+  <div id="ssRow"><span id="ssChips" class="pill chips">0</span><span class="ssx">×</span><span id="ssMult" class="pill mult">0</span></div>
+  <div id="ssTotal"></div>
+</div>
 <div id="banner" class="banner"></div>
 
 <div id="holdHint" hidden>👆 toque nos dados para segurar</div>

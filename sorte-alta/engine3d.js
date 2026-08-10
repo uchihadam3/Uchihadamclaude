@@ -167,8 +167,16 @@ export function createDiceTable(canvas, onResult){
   }
   addEventListener('resize',resize); resize(); tick();
   roll();   // posiciona os dados na mesa ao abrir (resultado ignorado pelo jogo)
+  // destaca um dado (pop + brilho) durante a contagem de pontos
+  function flashDie(i, color=0xffcc44){
+    const d=dice[i]; if(!d) return;
+    d.mat.emissive.set(color); d.mat.emissiveIntensity=0.85; d.mesh.scale.setScalar(1.32);
+    d.ring.visible=true; d.ring.position.set(d.body.position.x,0.04,d.body.position.z);
+    clearTimeout(d._ft);
+    d._ft=setTimeout(()=>{ if(!held[i]){ d.mat.emissive.set(0x000000); d.mat.emissiveIntensity=0; d.ring.visible=false; } d.mesh.scale.setScalar(1); }, 260);
+  }
   return {
-    roll, isRolling:()=>rolling, pick, toggleHeld, clearHeld,
+    roll, isRolling:()=>rolling, pick, toggleHeld, clearHeld, flashDie,
     heldCount:()=>held.filter(Boolean).length,
     values:()=>dice.map(d=>topValue(d.body)),
   };

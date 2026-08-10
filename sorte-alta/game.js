@@ -153,16 +153,67 @@ function doReroll(){
 }
 function onResult(vals){
   if(G.phase!=='rolling') return;
-  G.vals=vals; G.phase='choose'; showCombo(scoreOf(vals,G.relics),true); setButtons('choose');
+  G.vals=vals; G.phase='choose'; setButtons('choose');   // SEM prévia: o jogador lê os dados
 }
-function doScore(){
+// ---- decomposição da pontuação p/ animar em "beats" (estilo Balatro) ----
+function scoreBreakdown(values, relics){
+  const cnt={}; values.forEach(v=>cnt[v]=(cnt[v]||0)+1);
+  const counts=Object.values(cnt).sort((a,b)=>b-a);
+  const uniq=Object.keys(cnt).map(Number).sort((a,b)=>a-b);
+  const straight=uniq.length===5&&(uniq[4]-uniq[0]===4);
+  let key='high';
+  if(counts[0]===5)key='quint'; else if(counts[0]===4)key='quad';
+  else if(counts[0]===3&&counts[1]===2)key='full'; else if(straight)key='straight';
+  else if(counts[0]===3)key='trips'; else if(counts[0]===2&&counts[1]===2)key='twopair';
+  else if(counts[0]===2)key='pair';
+  const cat=CATS[key], sum=values.reduce((a,b)=>a+b,0), has=id=>relics.includes(id);
+  const chipBeats=[], multBeats=[];
+  if(has('espinhos')) chipBeats.push({label:'Espinhos',amount:8});
+  if(has('ganancia')) chipBeats.push({label:'Ganância',amount:12});
+  const ev=values.filter(v=>v%2===0).length; if(has('brasa')&&ev) chipBeats.push({label:'Brasa',amount:4*ev});
+  const od=values.filter(v=>v%2===1).length; if(has('fome')&&od) chipBeats.push({label:'Fome',amount:5*od});
+  const hi=values.filter(v=>v>=5).length; if(has('osso')&&hi) chipBeats.push({label:'Osso',amount:3*hi});
+  if(has('serpente')&&key==='straight') chipBeats.push({label:'Serpente',amount:45});
+  if(has('usura')&&sum>=22) chipBeats.push({label:'Usura',amount:35});
+  if(has('olho')) multBeats.push({label:'Olho',op:'+',amount:1});
+  if(has('pressagio')&&cat.rank>=CATS.trips.rank) multBeats.push({label:'Presságio',op:'+',amount:3});
+  if(has('parsombrio')&&(key==='pair'||key==='twopair')) multBeats.push({label:'Par Sombrio',op:'+',amount:2});
+  const sx=values.filter(v=>v===6).length; if(has('cranio')&&sx) multBeats.push({label:'Crânio',op:'+',amount:2*sx});
+  if(has('chamadupla')&&cat.rank>=CATS.full.rank) multBeats.push({label:'Chama Dupla',op:'×',amount:2});
+  return { name:cat.name, baseChips:cat.chips, baseMult:cat.mult, dicePips:values.slice(), chipBeats, multBeats };
+}
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+async function doScore(){
   if(G.phase!=='choose'||!G.vals) return;
-  const s=scoreOf(G.vals,G.relics);
-  G.score+=s.total; G.handsLeft--; showCombo(s); floatPoints(s.total); table.clearHeld(); updateHUD();
+  G.phase='scoring'; $('bar').hidden=true; $('holdHint').hidden=true;
+  const total = await animateScore(scoreBreakdown(G.vals,G.relics));
+  G.score+=total; G.handsLeft--; table.clearHeld(); updateHUD();
+  $('scoreShow').hidden=true;
   const boss=G.node.type==='chefe';
   if(boss && !G.bossMidShown && G.score>=G.meta*0.5 && G.score<G.meta){ G.bossMidShown=true; G.phase='dialogue'; return runDialogue(BOSS.mid,resolveHand); }
   resolveHand();
 }
+async function animateScore(bd){
+  let chips=bd.baseChips, mult=bd.baseMult;
+  $('ssName').textContent=bd.name; setSS(chips,mult); $('ssTotal').textContent=''; $('scoreShow').hidden=false;
+  let iv=520;                                   // acelera: 1ª lenta → vai ficando rápido
+  const beat = fn => { fn(); };
+  await sleep(340);
+  for(let i=0;i<bd.dicePips.length;i++){ table.flashDie(i); chips+=bd.dicePips[i]; setSS(chips,mult,'c'); await sleep(iv); iv=Math.max(95,iv*0.74); }
+  for(const cb of bd.chipBeats){ chips+=cb.amount; setSS(chips,mult,'c'); ssLabel('+'+cb.amount+' '+cb.label); await sleep(Math.max(150,iv)); iv=Math.max(95,iv*0.8); }
+  for(const mb of bd.multBeats){ mult = mb.op==='×'?mult*mb.amount:mult+mb.amount; setSS(chips,mult,'m'); ssLabel((mb.op==='×'?'×':'+')+mb.amount+' '+mb.label); await sleep(Math.max(170,iv)); iv=Math.max(95,iv*0.8); }
+  await sleep(240);
+  const total=chips*mult; $('ssTotal').textContent='= '+total; $('ssTotal').classList.remove('go'); void $('ssTotal').offsetWidth; $('ssTotal').classList.add('go');
+  floatPoints(total); await sleep(760);
+  return total;
+}
+function setSS(chips,mult,pop){
+  const c=$('ssChips'), m=$('ssMult');
+  c.textContent=chips; m.textContent=mult;
+  if(pop==='c'){ c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); }
+  if(pop==='m'){ m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop'); }
+}
+function ssLabel(txt){ const l=$('ssLabel'); l.textContent=txt; l.classList.remove('go'); void l.offsetWidth; l.classList.add('go'); }
 function resolveHand(){
   if(G.score>=G.meta) return winEncounter();
   if(G.handsLeft<=0){
