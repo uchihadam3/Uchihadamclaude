@@ -1,242 +1,101 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Dados 3D — Física</title>
+<title>A Casa dos Dados</title>
 <style>
+  :root{ --ink:#f3ead2; --dim:#b7c9bf; --gold:#f2c14e; --chip:#7fd0ff; --mult:#ff7a6b; --wood:#2a1d10; }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%;overflow:hidden;background:#0a2820;font-family:'Trebuchet MS',system-ui,sans-serif}
+  [hidden]{display:none!important}   /* garante que o atributo hidden vença o display:flex */
+  html,body{height:100%;overflow:hidden;background:#0a1f18;font-family:'Trebuchet MS',system-ui,sans-serif;color:var(--ink)}
   #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
-  .result{position:fixed;top:22px;left:0;right:0;text-align:center;color:#f4ead2;
-    font-size:20px;font-weight:900;letter-spacing:1px;text-shadow:0 2px 6px #000a;opacity:0;transition:.3s;pointer-events:none}
-  .result.show{opacity:1}
-  .result b{color:#f2c14e;font-size:26px}
-  .btn{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);
+  #table.boss{filter:saturate(.8) brightness(.86)}
+
+  /* ---- HUD topo ---- */
+  #hud{position:fixed;top:0;left:0;right:0;padding:10px 14px 8px;z-index:4;
+    background:linear-gradient(#0009,#0000);pointer-events:none}
+  #stageName{text-align:center;font-weight:900;letter-spacing:1px;font-size:15px;text-shadow:0 2px 4px #000}
+  .metaline{display:flex;justify-content:space-between;font-size:12px;font-weight:800;margin:6px 4px 4px}
+  .metaline .l{color:var(--dim)} #scoreLbl{color:var(--chip)} #metaLbl{color:var(--gold)}
+  #metaBar{height:12px;border-radius:8px;background:#00000055;border:1px solid #0007;overflow:hidden}
+  #metaFill{height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,var(--chip),#bfe9ff);transition:width .5s cubic-bezier(.2,.9,.3,1)}
+  #metaBar.done #metaFill{background:linear-gradient(90deg,#5adb84,#b9ffcf)}
+  #rollsLbl{text-align:center;font-size:15px;letter-spacing:3px;margin-top:5px;filter:drop-shadow(0 1px 2px #000)}
+
+  /* ---- leitura do combo + pontos ---- */
+  #combo{position:fixed;left:0;right:0;bottom:150px;text-align:center;z-index:4;pointer-events:none;
+    opacity:0;transform:translateY(8px);transition:.25s;font-size:16px;font-weight:800}
+  #combo.show{opacity:1;transform:none}
+  #combo b{color:var(--ink);font-size:18px} #combo .calc{color:var(--dim);font-size:13px}
+  #combo em{color:var(--gold);font-style:normal;font-weight:900;font-size:18px}
+  #float{position:fixed;left:0;right:0;bottom:210px;text-align:center;z-index:4;pointer-events:none;
+    font-size:40px;font-weight:900;color:var(--gold);text-shadow:0 3px 0 #0008;opacity:0}
+  #float.go{animation:floatUp 1s cubic-bezier(.2,.7,.3,1)}
+  @keyframes floatUp{0%{opacity:0;transform:translateY(10px) scale(.8)}25%{opacity:1;transform:translateY(-10px) scale(1.1)}100%{opacity:0;transform:translateY(-60px) scale(1)}}
+
+  #banner{position:fixed;left:0;right:0;top:44%;text-align:center;z-index:4;pointer-events:none;
+    font-size:30px;font-weight:900;letter-spacing:2px;opacity:0;text-shadow:0 3px 8px #000}
+  #banner.ok{color:#7be6a1} #banner.boss{color:var(--gold)} #banner.bad{color:var(--mult)}
+  #banner.go{animation:bnr 1.4s ease}
+  @keyframes bnr{0%{opacity:0;transform:scale(.7)}20%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}
+
+  /* ---- botão ROLAR ---- */
+  .btn{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);z-index:5;
     font-family:inherit;font-weight:900;font-size:22px;letter-spacing:1px;color:#20140a;
-    background:linear-gradient(180deg,#f6cf6a,#e0a52f);border:0;border-radius:18px;padding:18px 52px;cursor:pointer;
-    box-shadow:0 7px 0 #9c6f16,0 10px 22px #0006;transition:transform .08s,box-shadow .08s;z-index:5}
+    background:linear-gradient(180deg,#f6cf6a,#e0a52f);border:0;border-radius:18px;padding:15px 48px 12px;cursor:pointer;
+    box-shadow:0 7px 0 #9c6f16,0 10px 22px #0006;transition:transform .08s,box-shadow .08s;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .btn .sub{font-size:11px;font-weight:800;opacity:.85}
   .btn:active{transform:translateX(-50%) translateY(5px);box-shadow:0 2px 0 #9c6f16,0 5px 12px #0006}
-  .btn:disabled{opacity:.55;cursor:default}
+  .btn:disabled{opacity:.5;cursor:default;box-shadow:0 7px 0 #9c6f16}
+
+  /* ---- caixa de diálogo ---- */
+  #dlg{position:fixed;left:0;right:0;bottom:0;z-index:8;padding:14px 14px calc(env(safe-area-inset-bottom,0) + 20px);
+    display:flex;gap:12px;align-items:flex-end;cursor:pointer;
+    background:linear-gradient(#0000,#0b1712 22%,#0b1712)}
+  #dlgPortrait{flex:none;width:76px;height:76px;border-radius:14px;position:relative;overflow:hidden;
+    background:radial-gradient(120% 120% at 50% 20%, color-mix(in srgb,var(--c) 55%,#1a2620), #10201a);
+    border:2px solid var(--c);box-shadow:0 4px 14px #0008}
+  #dlgPortrait .pl{position:absolute;inset:0;display:grid;place-items:center;font-size:38px}
+  #dlgPortrait img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  #dlgMain{flex:1;min-width:0;background:linear-gradient(180deg,#20160c,#171009);
+    border:1px solid #4a331c;border-radius:14px;padding:10px 14px 12px;box-shadow:0 6px 18px #0008;position:relative}
+  #dlgName{font-weight:900;font-size:14px;margin-bottom:3px}
+  #dlgText{font-size:14.5px;line-height:1.35;color:#efe6d2;min-height:2.7em}
+  #dlgHint{position:absolute;right:12px;bottom:8px;font-size:11px;color:#c9b58f;opacity:.8;animation:blink 1.1s infinite}
+  @keyframes blink{50%{opacity:.25}}
+
+  /* ---- tela de fim ---- */
+  #end{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    background:rgba(6,16,12,.92);backdrop-filter:blur(3px);padding:24px;text-align:center}
+  #endTitle{font-size:28px;font-weight:900;color:var(--gold);letter-spacing:1px}
+  #endSub{color:var(--dim);font-size:14px;max-width:300px;line-height:1.5}
+  #endBtn{margin-top:6px;font-weight:900;font-size:17px;color:#20140a;background:linear-gradient(180deg,#f6cf6a,#e0a52f);
+    border:0;border-radius:14px;padding:14px 30px;cursor:pointer;box-shadow:0 5px 0 #9c6f16}
 </style>
 
-<canvas id="c"></canvas>
-<div class="result" id="result"></div>
+<div id="table"><canvas id="c"></canvas></div>
+
+<div id="hud">
+  <div id="stageName"></div>
+  <div class="metaline"><span class="l">Pontos <span id="scoreLbl">0</span></span><span class="l">Meta <span id="metaLbl">0</span></span></div>
+  <div id="metaBar"><div id="metaFill"></div></div>
+  <div id="rollsLbl"></div>
+</div>
+
+<div id="float"></div>
+<div id="combo"></div>
+<div id="banner" class="banner"></div>
+
 <button class="btn" id="btn">🎲 ROLAR</button>
 
-<script type="module">
-import * as THREE from './vendor/three.module.js';
-import * as CANNON from './vendor/cannon-es.js';
-import { RoundedBoxGeometry } from './vendor/RoundedBoxGeometry.js';
+<div id="dlg" hidden>
+  <div id="dlgPortrait"></div>
+  <div id="dlgMain"><div id="dlgName"></div><div id="dlgText"></div><div id="dlgHint">toque ▸</div></div>
+</div>
 
-// ---- constantes da bandeja RETANGULAR (unidades de mundo) ----
-const TX = 4.5, TZ = 6.2;     // meia-largura / profundidade (com margem na tela)
-const WT = 1.0;               // espessura da borda/parede
-const N  = 5;                 // quantos dados
-const S  = 0.5;               // meia-aresta do dado (menor)
+<div id="end" hidden>
+  <div id="endTitle"></div>
+  <div id="endSub"></div>
+  <button id="endBtn"></button>
+</div>
 
-// ===== THREE (render) ========================================================
-const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color('#0c2f26');
-
-// câmera TOTALMENTE DE CIMA (visão aérea), com zoom out p/ ver os dados longe
-const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-camera.position.set(0, 29, 0);
-camera.up.set(0, 0, -1);          // orienta o "para cima" da tela
-camera.lookAt(0, 0, 0);
-
-scene.add(new THREE.AmbientLight(0xffffff, 0.62));
-const key = new THREE.DirectionalLight(0xffffff, 1.15);
-key.position.set(-6, 18, 8);
-key.castShadow = true;
-key.shadow.mapSize.set(1024,1024);
-key.shadow.camera.near = 1; key.shadow.camera.far = 60;
-key.shadow.camera.left=-16; key.shadow.camera.right=16; key.shadow.camera.top=16; key.shadow.camera.bottom=-16;
-key.shadow.bias = -0.0004;
-scene.add(key);
-scene.add(new THREE.DirectionalLight(0x88ccbb, 0.25).translateX(8));
-
-// mesa (feltro) — recebe sombra
-const floorMat = new THREE.MeshStandardMaterial({ color:'#14614e', roughness:0.95, metalness:0 });
-const floor = new THREE.Mesh(new THREE.PlaneGeometry((TX+WT+1)*2,(TZ+WT+1)*2), floorMat);
-floor.rotation.x = -Math.PI/2; floor.receiveShadow = true;
-scene.add(floor);
-// bordas de madeira (visual) — ALINHADAS com as paredes de colisão (borda interna em TX/TZ)
-const railMat = new THREE.MeshStandardMaterial({ color:'#3a2a17', roughness:0.8 });
-function rail(w,d,x,z){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,1.1,d),railMat); m.position.set(x,0.55,z); m.castShadow=m.receiveShadow=true; scene.add(m); }
-rail((TX+WT)*2, WT, 0, -(TZ+WT/2)); rail((TX+WT)*2, WT, 0, (TZ+WT/2));   // topo/baixo
-rail(WT, (TZ+WT)*2, -(TX+WT/2), 0);  rail(WT, (TZ+WT)*2, (TX+WT/2), 0);  // laterais
-
-// ---- DADO PROFISSIONAL: corpo arredondado + pontos 3D reais (esferas fundidas) ----
-// faces (normal, valor, eixos u/v do plano) — opostas somam 7
-const FACES = [
-  { dir:[ 1,0,0], val:1, u:[0,0, 1], v:[0,1,0] },
-  { dir:[-1,0,0], val:6, u:[0,0,-1], v:[0,1,0] },
-  { dir:[0, 1,0], val:2, u:[1,0,0], v:[0,0, 1] },
-  { dir:[0,-1,0], val:5, u:[1,0,0], v:[0,0,-1] },
-  { dir:[0,0, 1], val:3, u:[1,0,0], v:[0,1,0] },
-  { dir:[0,0,-1], val:4, u:[-1,0,0],v:[0,1,0] },
-];
-const PIP_OFF = { // deslocamentos (u,v) por valor, em [-1..1]
-  1:[[0,0]], 2:[[-1,1],[1,-1]], 3:[[-1,1],[0,0],[1,-1]],
-  4:[[-1,1],[1,1],[-1,-1],[1,-1]], 5:[[-1,1],[1,1],[0,0],[-1,-1],[1,-1]],
-  6:[[-1,1],[1,1],[-1,0],[1,0],[-1,-1],[1,-1]],
-};
-const bodyMat = new THREE.MeshStandardMaterial({ color:'#f6efdd', roughness:0.28, metalness:0.04 });
-const pipMat  = new THREE.MeshStandardMaterial({ color:'#241b16', roughness:0.35, metalness:0.15 });
-const bodyGeo = new RoundedBoxGeometry(S*2, S*2, S*2, 5, S*0.34);   // cantos arredondados
-const pipGeo  = new THREE.SphereGeometry(S*0.20, 18, 14);
-const SPREAD  = S*0.52;
-
-function makeDie(){
-  const g = new THREE.Group();
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.castShadow = body.receiveShadow = true;
-  g.add(body);
-  for(const f of FACES){
-    for(const [ou,ov] of PIP_OFF[f.val]){
-      const p = new THREE.Mesh(pipGeo, pipMat);
-      for(let k=0;k<3;k++){
-        p.position.setComponent(k,
-          f.dir[k]*(S*0.95) + f.u[k]*ou*SPREAD + f.v[k]*ov*SPREAD);
-      }
-      p.lookAt(p.position.clone().add(new THREE.Vector3(f.dir[0],f.dir[1],f.dir[2])));
-      p.scale.z = 0.45;                 // achatado = ponto embutido na face
-      p.castShadow = false;
-      g.add(p);
-    }
-  }
-  return g;
-}
-
-// ===== CANNON (física) =======================================================
-const world = new CANNON.World({ gravity:new CANNON.Vec3(0,-62,0) });   // gravidade forte = peso
-world.broadphase = new CANNON.SAPBroadphase(world);
-world.allowSleep = true;
-world.solver.iterations = 20;                                           // colisões mais firmes
-world.defaultContactMaterial.contactEquationStiffness = 1e8;            // contatos rígidos (menos penetração)
-world.defaultContactMaterial.contactEquationRelaxation = 3;
-world.defaultContactMaterial.restitution = 0.3;
-
-const mFloor = new CANNON.Material('floor');
-const mDie   = new CANNON.Material('die');
-const mWall  = new CANNON.Material('wall');
-// pouco quique + atrito levemente menor = peso, com um tico a mais de rolagem
-world.addContactMaterial(new CANNON.ContactMaterial(mDie, mFloor, { friction:0.4, restitution:0.07 }));
-world.addContactMaterial(new CANNON.ContactMaterial(mDie, mDie,   { friction:0.1, restitution:0.1 }));
-world.addContactMaterial(new CANNON.ContactMaterial(mDie, mWall,  { friction:0.2, restitution:0.15 }));
-
-// chão (caixa estática, topo em y=0)
-const floorBody = new CANNON.Body({ mass:0, material:mFloor, shape:new CANNON.Box(new CANNON.Vec3(TX+WT+1,0.5,TZ+WT+1)) });
-floorBody.position.set(0,-0.5,0); world.addBody(floorBody);
-// 4 paredes ALTAS e GROSSAS, com cantos sobrepostos e face interna EXATA em TX/TZ
-const WH = 5;                                  // meia-altura da parede (bem alta = nada passa por cima)
-function wall(hx,hy,hz,x,z){ const b=new CANNON.Body({mass:0,material:mWall,shape:new CANNON.Box(new CANNON.Vec3(hx,hy,hz))}); b.position.set(x,hy,z); world.addBody(b); }
-wall(TX+WT, WH, WT/2, 0, -(TZ+WT/2)); wall(TX+WT, WH, WT/2, 0, (TZ+WT/2));  // topo/baixo
-wall(WT/2, WH, TZ+WT, -(TX+WT/2), 0); wall(WT/2, WH, TZ+WT, (TX+WT/2), 0);  // laterais (sobrepõem os cantos)
-
-// dados: corpo + malha
-const dice = [];
-for(let i=0;i<N;i++){
-  const body = new CANNON.Body({ mass:1, material:mDie, shape:new CANNON.Box(new CANNON.Vec3(S,S,S)) });
-  body.allowSleep=true; body.sleepSpeedLimit=0.22; body.sleepTimeLimit=0.14; body.linearDamping=0.05; body.angularDamping=0.07;
-  world.addBody(body);
-  const mesh = makeDie();
-  scene.add(mesh);
-  dice.push({ body, mesh });
-}
-
-// ---- lançar ----
-const btn = document.getElementById('btn');
-const resultEl = document.getElementById('result');
-let rolling=false, settleFrames=0, rollTimer=0;
-function throwDice(){
-  rolling=true; settleFrames=0;
-  clearTimeout(rollTimer);
-  rollTimer = setTimeout(()=>{ if(rolling){ rolling=false; dice.forEach(d=>d.body.sleep()); showResult(); } }, 5000);
-  resultEl.classList.remove('show');
-  // espaçamento que cabe dentro da bandeja (não nasce na parede)
-  // SOLTA UM PUNHADO DO MEIO (agrupado, empilhado, longe das paredes)
-  dice.forEach((d,i)=>{
-    const b=d.body; b.wakeUp();
-    // cai do alto da borda de cima, escalonado (alturas/fileiras) e se abre em leque
-    const a = (i/N)*Math.PI*2 + 0.4;
-    b.position.set(Math.cos(a)*1.7 + (Math.random()-0.5)*0.15,
-                   2.3 + i*0.28,
-                   Math.sin(a)*1.7 + (Math.random()-0.5)*0.15);
-    b.quaternion.setFromEuler(Math.random()*6,Math.random()*6,Math.random()*6);
-    // leque: velocidade x afasta do centro; z leva pra frente sem exagero
-    b.velocity.set((Math.random()-0.5)*0.7, -0.4+Math.random()*0.3, (Math.random()-0.5)*0.7);
-    b.angularVelocity.set((Math.random()-0.5)*26,(Math.random()-0.5)*26,(Math.random()-0.5)*26);
-    b.updateMassProperties();
-  });
-  btn.disabled=true;
-}
-
-// valor da face que aponta p/ CIMA de um dado assentado
-const LOCAL_N = [ [new CANNON.Vec3(1,0,0),1],[new CANNON.Vec3(-1,0,0),6],[new CANNON.Vec3(0,1,0),2],
-                  [new CANNON.Vec3(0,-1,0),5],[new CANNON.Vec3(0,0,1),3],[new CANNON.Vec3(0,0,-1),4] ];
-function topValue(body){
-  let best=-2, val=1;
-  for(const [n,v] of LOCAL_N){ const w=body.quaternion.vmult(n); if(w.y>best){ best=w.y; val=v; } }
-  return val;
-}
-function showResult(){
-  const vals = dice.map(d=>topValue(d.body));
-  const sum = vals.reduce((a,b)=>a+b,0);
-  resultEl.innerHTML = `${vals.join(' + ')} = <b>${sum}</b>`;
-  resultEl.classList.add('show');
-  btn.disabled=false;
-}
-
-// ===== loop ==================================================================
-const clock = new THREE.Clock();
-function tick(){
-  requestAnimationFrame(tick);
-  const dt = Math.min(clock.getDelta(), 1/30);
-  world.step(1/120, dt, 8);   // passo curto p/ estabilidade com gravidade forte
-  const mx = TX - S - 0.05, mz = TZ - S - 0.05;   // limite do CENTRO do dado dentro da mesa
-  for(const d of dice){
-    const p = d.body.position, v = d.body.velocity, av = d.body.angularVelocity;
-    // rede de segurança: escapou de vez → volta pro centro
-    if(p.y < -1.5 || Math.abs(p.x) > TX+WT || Math.abs(p.z) > TZ+WT){
-      d.body.position.set((Math.random()-0.5)*(TX-1), 1.2, (Math.random()-0.5)*(TZ-1));
-      v.setZero(); av.setZero(); d.body.wakeUp();
-    }
-    // trava anti-penetração: quando o dado está devagar, não deixa vazar a parede
-    else if(v.length()+av.length() < 1.4){
-      if(p.x >  mx){ p.x =  mx; v.x = Math.min(0,v.x); }
-      if(p.x < -mx){ p.x = -mx; v.x = Math.max(0,v.x); }
-      if(p.z >  mz){ p.z =  mz; v.z = Math.min(0,v.z); }
-      if(p.z < -mz){ p.z = -mz; v.z = Math.max(0,v.z); }
-    }
-    d.mesh.position.copy(d.body.position); d.mesh.quaternion.copy(d.body.quaternion);
-  }
-  // detecção de repouso
-  if(rolling){
-    const asleep = dice.every(d => d.body.sleepState===CANNON.Body.SLEEPING || d.body.velocity.length()<0.12 && d.body.angularVelocity.length()<0.12);
-    settleFrames = asleep ? settleFrames+1 : 0;
-    if(settleFrames>16){ rolling=false; clearTimeout(rollTimer); showResult(); }
-  }
-  renderer.render(scene, camera);
-}
-
-function resize(){
-  const w=innerWidth, h=innerHeight;
-  renderer.setSize(w,h,false);
-  camera.aspect = w/h;
-  // encaixa a mesa com MARGEM (ocupa ~86% da largura, não cola na borda)
-  const t = Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
-  camera.position.y = (TX+WT) / (t * camera.aspect * 0.86);
-  camera.lookAt(0,0,0);
-  camera.updateProjectionMatrix();
-}
-addEventListener('resize', resize); resize();
-btn.addEventListener('click', throwDice);
-tick();
-throwDice();
-</script>
+<script type="module" src="game.js"></script>
