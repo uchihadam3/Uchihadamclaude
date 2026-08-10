@@ -49,12 +49,41 @@ function metalTex(base='#26221d', seams=6, streaks=true){
     g.strokeStyle='#ffffff10'; g.beginPath(); g.moveTo(x+2,0); g.lineTo(x+2,s); g.stroke(); }
   const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=renderer.capabilities.getMaxAnisotropy(); return t;
 }
-const wallColor=metalTex('#241f1a',6), floorColor=metalTex('#15120e',10);
-const wallMat=new THREE.MeshStandardMaterial({ map:wallColor, bumpMap:wallColor, bumpScale:0.006, roughness:0.82, metalness:0.35, envMapIntensity:0.5 });
-const floorMat=new THREE.MeshStandardMaterial({ map:floorColor, bumpMap:floorColor, bumpScale:0.004, roughness:0.5, metalness:0.55, envMapIntensity:0.8 });
-const ceilMat =new THREE.MeshStandardMaterial({ color:'#151310', roughness:0.95, metalness:0.1, envMapIntensity:0.3 });
+// ---- MÁSCARAS 2D (canvas) que controlam rugosidade/metal/oclusão por pixel ----
+const maxAniso=renderer.capabilities.getMaxAnisotropy();
+function dataTex(cv){ const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.NoColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=maxAniso; return t; }   // linear (dados, não cor)
+// desgaste: claro = áspero/sujo · escuro = metal polido (arranhão)
+function wearMask(scratch=60, spots=26){ const s=512, cv=document.createElement('canvas'); cv.width=cv.height=s; const g=cv.getContext('2d');
+  g.fillStyle='#8a8a8a'; g.fillRect(0,0,s,s);
+  for(let i=0;i<spots;i++){ const x=Math.random()*s,y=Math.random()*s,r=30+Math.random()*100;
+    const rg=g.createRadialGradient(x,y,0,x,y,r); rg.addColorStop(0,`rgba(255,255,255,${0.12+Math.random()*0.22})`); rg.addColorStop(1,'rgba(255,255,255,0)');
+    g.fillStyle=rg; g.fillRect(x-r,y-r,2*r,2*r); }
+  for(let i=0;i<scratch;i++){ const x=Math.random()*s,y=Math.random()*s,len=10+Math.random()*80,a=Math.random()*Math.PI;
+    g.strokeStyle=`rgba(0,0,0,${0.15+Math.random()*0.4})`; g.lineWidth=Math.random()<0.8?1:2; g.beginPath(); g.moveTo(x,y); g.lineTo(x+Math.cos(a)*len,y+Math.sin(a)*len); g.stroke(); }
+  return cv; }
+function invertCanvas(cv){ const s=cv.width, o=document.createElement('canvas'); o.width=o.height=s; const g=o.getContext('2d');
+  g.drawImage(cv,0,0); g.globalCompositeOperation='difference'; g.fillStyle='#fff'; g.fillRect(0,0,s,s); return o; }
+// oclusão de contato: bordas escurecidas (aterra os cantos da sala)
+function aoMask(border=0.28){ const s=256, cv=document.createElement('canvas'); cv.width=cv.height=s; const g=cv.getContext('2d');
+  g.fillStyle='#fff'; g.fillRect(0,0,s,s); g.globalCompositeOperation='multiply'; const b=s*border;
+  const edge=(x0,y0,x1,y1,rx,ry,rw,rh)=>{ const gr=g.createLinearGradient(x0,y0,x1,y1); gr.addColorStop(0,'#2b2b2b'); gr.addColorStop(1,'#fff'); g.fillStyle=gr; g.fillRect(rx,ry,rw,rh); };
+  edge(0,0,0,b, 0,0,s,b); edge(0,s,0,s-b, 0,s-b,s,b); edge(0,0,b,0, 0,0,b,s); edge(s,0,s-b,0, s-b,0,b,s);
+  return cv; }
 
-function plane(w,h,mat,pos,rot){ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat); m.position.set(...pos); if(rot)m.rotation.set(...rot); m.receiveShadow=true; scene.add(m); return m; }
+const wallColor=metalTex('#241f1a',6), floorColor=metalTex('#15120e',10);
+const wallWear=wearMask(60,26), floorWear=wearMask(90,34);
+const aoWall=dataTex(aoMask(0.30)), aoFloor=dataTex(aoMask(0.22));
+const wallMat=new THREE.MeshStandardMaterial({ map:wallColor, bumpMap:wallColor, bumpScale:0.006,
+  roughnessMap:dataTex(wallWear), roughness:1.0, metalnessMap:dataTex(invertCanvas(wallWear)), metalness:0.7,
+  aoMap:aoWall, aoMapIntensity:0.9, envMapIntensity:0.6 });
+const floorMat=new THREE.MeshStandardMaterial({ map:floorColor, bumpMap:floorColor, bumpScale:0.004,
+  roughnessMap:dataTex(floorWear), roughness:0.95, metalnessMap:dataTex(invertCanvas(floorWear)), metalness:0.85,
+  aoMap:aoFloor, aoMapIntensity:0.7, envMapIntensity:0.95 });
+const ceilMat =new THREE.MeshStandardMaterial({ color:'#151310', roughness:0.95, metalness:0.1, aoMap:aoWall, aoMapIntensity:0.85, envMapIntensity:0.3 });
+
+// plane() adiciona uv1 (canal exigido pelo aoMap)
+function plane(w,h,mat,pos,rot){ const geo=new THREE.PlaneGeometry(w,h); geo.setAttribute('uv1', geo.attributes.uv);
+  const m=new THREE.Mesh(geo,mat); m.position.set(...pos); if(rot)m.rotation.set(...rot); m.receiveShadow=true; scene.add(m); return m; }
 plane(W,D,floorMat,[0,0,0],[-Math.PI/2,0,0]);
 plane(W,D,ceilMat,[0,H,0],[Math.PI/2,0,0]);
 plane(W,H,wallMat,[0,H/2,-D/2],[0,0,0]);            // frente (portas)
@@ -68,8 +97,9 @@ function brushedTex(base='#2b2822'){ const s=256, cv=document.createElement('can
   for(let i=0;i<s;i+=1){ const a=Math.random()*0.09; g.strokeStyle=`rgba(255,255,255,${a*0.5})`; g.beginPath(); g.moveTo(0,i); g.lineTo(s,i); g.stroke();
     g.strokeStyle=`rgba(0,0,0,${a})`; g.beginPath(); g.moveTo(0,i+0.5); g.lineTo(s,i+0.5); g.stroke(); }
   const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return t; }
-const doorBrush=brushedTex('#2b2822');
-const doorMat=new THREE.MeshStandardMaterial({ map:doorBrush, bumpMap:doorBrush, bumpScale:0.002, roughness:0.28, metalness:0.92, envMapIntensity:1.0 });
+const doorBrush=brushedTex('#2b2822'); const doorWear=wearMask(45,10);
+const doorMat=new THREE.MeshStandardMaterial({ map:doorBrush, bumpMap:doorBrush, bumpScale:0.002,
+  roughnessMap:dataTex(doorWear), roughness:0.55, metalnessMap:dataTex(invertCanvas(doorWear)), metalness:1.0, envMapIntensity:1.1 });
 const doorW=W*0.30, doorH=H*0.84, doorY=doorH/2+0.02;
 const doorL=new THREE.Mesh(new THREE.BoxGeometry(doorW,doorH,0.07),doorMat);
 const doorR=doorL.clone();
@@ -90,8 +120,18 @@ const doorSeam=new THREE.Mesh(new THREE.BoxGeometry(0.014,doorH,0.075),new THREE
 const panelFrame=new THREE.Mesh(new THREE.BoxGeometry(0.03,1.08,0.42),
   new THREE.MeshStandardMaterial({color:'#050403',roughness:0.7,metalness:0.4}));
 panelFrame.position.set(W/2-0.008,1.38,-D/2+0.62); panelFrame.castShadow=true; scene.add(panelFrame);   // bezel recuado (não tapa os botões)
+// placa do painel com acabamento escovado + parafusos (máscara 2D em canvas)
+function panelPlateTex(){ const w=256,h=600, cv=document.createElement('canvas'); cv.width=w; cv.height=h; const g=cv.getContext('2d');
+  g.fillStyle='#100e0b'; g.fillRect(0,0,w,h);
+  for(let y=0;y<h;y++){ g.strokeStyle=`rgba(255,255,255,${Math.random()*0.028})`; g.beginPath(); g.moveTo(0,y+0.5); g.lineTo(w,y+0.5); g.stroke(); }
+  g.fillStyle='#0a0908'; g.fillRect(w*0.14,h*0.19,w*0.72,h*0.74);        // recesso central dos botões
+  g.strokeStyle='#00000066'; g.lineWidth=2; g.strokeRect(w*0.14,h*0.19,w*0.72,h*0.74);
+  const screw=(x,y)=>{ g.fillStyle='#2c2a23'; g.beginPath(); g.arc(x,y,7,0,7); g.fill(); g.fillStyle='#050403'; g.beginPath(); g.arc(x,y,5,0,7); g.fill();
+    g.strokeStyle='#413d33'; g.lineWidth=1.5; g.beginPath(); g.moveTo(x-4,y-2); g.lineTo(x+4,y+2); g.stroke(); };
+  screw(22,22); screw(w-22,22); screw(22,h-22); screw(w-22,h-22);
+  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=maxAniso; return t; }
 const panel=new THREE.Mesh(new THREE.BoxGeometry(0.05,1.0,0.34),
-  new THREE.MeshStandardMaterial({color:'#0e0c09',roughness:0.42,metalness:0.7,envMapIntensity:0.8}));
+  new THREE.MeshStandardMaterial({map:panelPlateTex(),roughness:0.4,metalness:0.72,envMapIntensity:0.8}));
 panel.position.set(W/2-0.026,1.38,-D/2+0.62); panel.castShadow=true; scene.add(panel);
 panel.userData={act:'panel'};
 const PANEL_FACE=W/2-0.05;                       // face da placa voltada pra sala
@@ -200,6 +240,20 @@ function revealMirrorCode(code){
 // corrimão (sombra bonita)
 const rail=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,W*0.8,10),new THREE.MeshStandardMaterial({color:'#3a3a40',metalness:0.8,roughness:0.4}));
 rail.rotation.z=Math.PI/2; rail.position.set(0,0.95,D/2-0.08); rail.castShadow=true; scene.add(rail);
+
+// adesivo de instruções de emergência (decalque via textura 2D) na parede direita
+function stickerTex(){ const w=256,h=170, cv=document.createElement('canvas'); cv.width=w; cv.height=h; const g=cv.getContext('2d');
+  g.fillStyle='#c9c3b2'; g.fillRect(0,0,w,h);                                   // papel envelhecido
+  for(let i=0;i<1400;i++){ g.fillStyle=`rgba(90,70,40,${Math.random()*0.06})`; g.fillRect(Math.random()*w,Math.random()*h,2,2); }
+  g.fillStyle='#8a1810'; g.fillRect(0,0,w,34);                                  // faixa vermelha
+  g.fillStyle='#f2ede0'; g.font='900 20px "Trebuchet MS",sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('EM CASO DE PARADA',w/2,17);
+  g.fillStyle='#20201c'; g.font='700 13px "Trebuchet MS",sans-serif'; g.textAlign='left';
+  ['1. Mantenha a calma.','2. Use o telefone de emergência.','3. NÃO force as portas.','4. Aguarde o resgate.'].forEach((s,i)=>g.fillText(s,14,58+i*24));
+  g.strokeStyle='#00000030'; g.lineWidth=2; g.strokeRect(1,1,w-2,h-2);
+  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=maxAniso; return t; }
+const sticker=new THREE.Mesh(new THREE.PlaneGeometry(0.26,0.17),
+  new THREE.MeshStandardMaterial({map:stickerTex(),roughness:0.9,metalness:0.0}));
+sticker.position.set(W/2-0.012,0.72,-D/2+0.62); sticker.rotation.y=-Math.PI/2; sticker.rotation.z=0.02; scene.add(sticker);
 
 // ---- telefone de parede (parede esquerda) — modelo antigo com teclado + fone no berço ----
 function phoneTex(){ const cv=document.createElement('canvas'); cv.width=128; cv.height=190; const g=cv.getContext('2d');
