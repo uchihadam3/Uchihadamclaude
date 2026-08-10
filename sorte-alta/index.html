@@ -28,8 +28,8 @@ import * as CANNON from './vendor/cannon-es.js';
 import { RoundedBoxGeometry } from './vendor/RoundedBoxGeometry.js';
 
 // ---- constantes da bandeja RETANGULAR (unidades de mundo) ----
-const TX = 4.5, TZ = 6.2;     // meia-largura (BEM mais larga) / profundidade
-const WT = 1.2;               // espessura da borda/parede
+const TX = 3.5, TZ = 7.5;     // meia-largura / profundidade (a câmera encaixa na tela)
+const WT = 1.0;               // espessura da borda/parede
 const N  = 5;                 // quantos dados
 const S  = 0.62;              // meia-aresta do dado
 
@@ -126,9 +126,9 @@ const mFloor = new CANNON.Material('floor');
 const mDie   = new CANNON.Material('die');
 const mWall  = new CANNON.Material('wall');
 // pouco quique + atrito levemente menor = peso, com um tico a mais de rolagem
-world.addContactMaterial(new CANNON.ContactMaterial(mDie, mFloor, { friction:0.38, restitution:0.11 }));
-world.addContactMaterial(new CANNON.ContactMaterial(mDie, mDie,   { friction:0.1, restitution:0.15 }));
-world.addContactMaterial(new CANNON.ContactMaterial(mDie, mWall,  { friction:0.2, restitution:0.2 }));
+world.addContactMaterial(new CANNON.ContactMaterial(mDie, mFloor, { friction:0.4, restitution:0.07 }));
+world.addContactMaterial(new CANNON.ContactMaterial(mDie, mDie,   { friction:0.1, restitution:0.1 }));
+world.addContactMaterial(new CANNON.ContactMaterial(mDie, mWall,  { friction:0.2, restitution:0.15 }));
 
 // chão (caixa estática, topo em y=0)
 const floorBody = new CANNON.Body({ mass:0, material:mFloor, shape:new CANNON.Box(new CANNON.Vec3(TX+WT+1,0.5,TZ+WT+1)) });
@@ -164,15 +164,14 @@ function throwDice(){
   dice.forEach((d,i)=>{
     const b=d.body; b.wakeUp();
     // cai do alto da borda de cima, escalonado (alturas/fileiras) e se abre em leque
-    const a = (i/N)*Math.PI*2;
-    b.position.set(Math.cos(a)*0.5 + (Math.random()-0.5)*0.3,
-                   3.2 + i*0.85,
-                   Math.sin(a)*0.5 + (Math.random()-0.5)*0.3);
+    const a = (i/N)*Math.PI*2 + 0.4;
+    b.position.set(Math.cos(a)*1.15 + (Math.random()-0.5)*0.15,
+                   2.4 + i*0.35,
+                   Math.sin(a)*1.15 + (Math.random()-0.5)*0.15);
     b.quaternion.setFromEuler(Math.random()*6,Math.random()*6,Math.random()*6);
     // leque: velocidade x afasta do centro; z leva pra frente sem exagero
-    b.velocity.set((Math.random()-0.5)*2.2, -0.5+Math.random()*0.4, (Math.random()-0.5)*2.2);
-    // giro vivo; cai firme, rola pela mesa e o atrito o assenta
-    b.angularVelocity.set((Math.random()-0.5)*56,(Math.random()-0.5)*56,(Math.random()-0.5)*56);
+    b.velocity.set((Math.random()-0.5)*1.0, -0.4+Math.random()*0.3, (Math.random()-0.5)*1.0);
+    b.angularVelocity.set((Math.random()-0.5)*30,(Math.random()-0.5)*30,(Math.random()-0.5)*30);
     b.updateMassProperties();
   });
   btn.disabled=true;
@@ -229,7 +228,12 @@ function tick(){
 function resize(){
   const w=innerWidth, h=innerHeight;
   renderer.setSize(w,h,false);
-  camera.aspect=w/h; camera.updateProjectionMatrix();
+  camera.aspect = w/h;
+  // encaixa a LARGURA da mesa (borda externa) na largura da tela — mobile-first
+  const t = Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+  camera.position.y = (TX+WT) / (t * camera.aspect);
+  camera.lookAt(0,0,0);
+  camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 btn.addEventListener('click', throwDice);
