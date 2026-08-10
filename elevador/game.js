@@ -149,14 +149,22 @@ const figure=new THREE.Mesh(new THREE.PlaneGeometry(0.55,1.5),new THREE.MeshBasi
 function revealMirrorCode(code){
   const g=mirCv.g;
   g.save();
-  // névoa de condensação
-  const fog=g.createRadialGradient(128,256,20,128,256,180); fog.addColorStop(0,'rgba(200,220,230,0.10)'); fog.addColorStop(1,'rgba(200,220,230,0)');
-  g.fillStyle=fog; g.fillRect(0,60,256,400);
-  g.font='900 118px "Courier New",monospace'; g.textAlign='center'; g.textBaseline='middle';
-  g.shadowColor='#dff'; g.shadowBlur=26; g.fillStyle='rgba(215,235,245,0.55)';
-  g.fillText(code.join(' '),128,258);
-  g.font='600 20px "Trebuchet MS",sans-serif'; g.shadowBlur=8; g.fillStyle='rgba(200,220,235,0.4)';
-  g.fillText('não sobe', 128, 360);
+  // névoa de condensação (halo suave atrás dos números)
+  const fog=g.createRadialGradient(128,250,30,128,250,200); fog.addColorStop(0,'rgba(205,225,235,0.16)'); fog.addColorStop(1,'rgba(205,225,235,0)');
+  g.fillStyle=fog; g.fillRect(0,40,256,440);
+  // três dígitos posicionados à mão, bem dentro do vidro (sem cortar nas bordas)
+  g.textAlign='center'; g.textBaseline='middle';
+  const xs=[70,128,186], y=248;
+  g.font='900 96px "Courier New",monospace'; g.shadowColor='#eaffff'; g.shadowBlur=22;
+  for(let k=0;k<3;k++){
+    g.fillStyle='rgba(225,244,252,0.85)'; g.fillText(String(code[k]),xs[k],y);   // traço nítido
+    g.fillStyle='rgba(235,250,255,0.35)'; g.fillText(String(code[k]),xs[k],y);   // reforço do brilho
+  }
+  // sublinhado como se riscado no embaçado
+  g.shadowBlur=0; g.strokeStyle='rgba(215,238,248,0.35)'; g.lineWidth=2;
+  g.beginPath(); g.moveTo(48,312); g.lineTo(208,312); g.stroke();
+  g.font='600 22px "Trebuchet MS",sans-serif'; g.shadowColor='#dff'; g.shadowBlur=8; g.fillStyle='rgba(210,230,244,0.5)';
+  g.fillText('não sobe', 128, 350);
   g.restore(); mirTex.needsUpdate=true;
 }
 
