@@ -119,8 +119,8 @@ world.defaultContactMaterial.restitution = 0.3;
 const mFloor = new CANNON.Material('floor');
 const mDie   = new CANNON.Material('die');
 const mWall  = new CANNON.Material('wall');
-// pouco quique + atrito médio = peso (cai firme, rola um pouco e para)
-world.addContactMaterial(new CANNON.ContactMaterial(mDie, mFloor, { friction:0.45, restitution:0.1 }));
+// pouco quique + atrito levemente menor = peso, com um tico a mais de rolagem
+world.addContactMaterial(new CANNON.ContactMaterial(mDie, mFloor, { friction:0.38, restitution:0.11 }));
 world.addContactMaterial(new CANNON.ContactMaterial(mDie, mDie,   { friction:0.1, restitution:0.15 }));
 world.addContactMaterial(new CANNON.ContactMaterial(mDie, mWall,  { friction:0.2, restitution:0.2 }));
 
@@ -136,7 +136,7 @@ wall(0.5,3,TZ+1,-(TX+0.6),0); wall(0.5,3,TZ+1,(TX+0.6),0);
 const dice = [];
 for(let i=0;i<N;i++){
   const body = new CANNON.Body({ mass:1, material:mDie, shape:new CANNON.Box(new CANNON.Vec3(S,S,S)) });
-  body.allowSleep=true; body.sleepSpeedLimit=0.24; body.sleepTimeLimit=0.14; body.linearDamping=0.06; body.angularDamping=0.09;
+  body.allowSleep=true; body.sleepSpeedLimit=0.22; body.sleepTimeLimit=0.14; body.linearDamping=0.05; body.angularDamping=0.07;
   world.addBody(body);
   const mesh = makeDie();
   scene.add(mesh);
