@@ -28,7 +28,8 @@ import * as CANNON from './vendor/cannon-es.js';
 import { RoundedBoxGeometry } from './vendor/RoundedBoxGeometry.js';
 
 // ---- constantes da bandeja RETANGULAR (unidades de mundo) ----
-const TX = 2.9, TZ = 6.4;     // meia-largura (retrato) / profundidade
+const TX = 3.6, TZ = 7.6;     // meia-largura (retrato) / profundidade — maior
+const WT = 1.2;               // espessura da borda/parede
 const N  = 5;                 // quantos dados
 const S  = 0.62;              // meia-aresta do dado
 
@@ -42,9 +43,9 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#0c2f26');
 
-// câmera TOTALMENTE DE CIMA (visão aérea)
-const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 100);
-camera.position.set(0, 17.5, 0);
+// câmera TOTALMENTE DE CIMA (visão aérea), com zoom out p/ ver os dados longe
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+camera.position.set(0, 23, 0);
 camera.up.set(0, 0, -1);          // orienta o "para cima" da tela
 camera.lookAt(0, 0, 0);
 
@@ -61,14 +62,14 @@ scene.add(new THREE.DirectionalLight(0x88ccbb, 0.25).translateX(8));
 
 // mesa (feltro) — recebe sombra
 const floorMat = new THREE.MeshStandardMaterial({ color:'#14614e', roughness:0.95, metalness:0 });
-const floor = new THREE.Mesh(new THREE.PlaneGeometry((TX+2)*2,(TZ+2)*2), floorMat);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry((TX+WT+1)*2,(TZ+WT+1)*2), floorMat);
 floor.rotation.x = -Math.PI/2; floor.receiveShadow = true;
 scene.add(floor);
-// bordas de madeira (visual)
+// bordas de madeira (visual) — ALINHADAS com as paredes de colisão (borda interna em TX/TZ)
 const railMat = new THREE.MeshStandardMaterial({ color:'#3a2a17', roughness:0.8 });
-function rail(w,d,x,z){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.8,d),railMat); m.position.set(x,0.4,z); m.castShadow=m.receiveShadow=true; scene.add(m); }
-rail((TX+1)*2,0.6,0,-(TZ+0.6)); rail((TX+1)*2,0.6,0,(TZ+0.6));
-rail(0.6,(TZ+1)*2,-(TX+0.6),0); rail(0.6,(TZ+1)*2,(TX+0.6),0);
+function rail(w,d,x,z){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,1.1,d),railMat); m.position.set(x,0.55,z); m.castShadow=m.receiveShadow=true; scene.add(m); }
+rail((TX+WT)*2, WT, 0, -(TZ+WT/2)); rail((TX+WT)*2, WT, 0, (TZ+WT/2));   // topo/baixo
+rail(WT, (TZ+WT)*2, -(TX+WT/2), 0);  rail(WT, (TZ+WT)*2, (TX+WT/2), 0);  // laterais
 
 // ---- DADO PROFISSIONAL: corpo arredondado + pontos 3D reais (esferas fundidas) ----
 // faces (normal, valor, eixos u/v do plano) — opostas somam 7
@@ -116,6 +117,7 @@ function makeDie(){
 const world = new CANNON.World({ gravity:new CANNON.Vec3(0,-62,0) });   // gravidade forte = peso
 world.broadphase = new CANNON.SAPBroadphase(world);
 world.allowSleep = true;
+world.solver.iterations = 16;                                           // colisões mais firmes
 world.defaultContactMaterial.restitution = 0.3;
 
 const mFloor = new CANNON.Material('floor');
@@ -127,12 +129,13 @@ world.addContactMaterial(new CANNON.ContactMaterial(mDie, mDie,   { friction:0.1
 world.addContactMaterial(new CANNON.ContactMaterial(mDie, mWall,  { friction:0.2, restitution:0.2 }));
 
 // chão (caixa estática, topo em y=0)
-const floorBody = new CANNON.Body({ mass:0, material:mFloor, shape:new CANNON.Box(new CANNON.Vec3(TX+2,0.5,TZ+2)) });
+const floorBody = new CANNON.Body({ mass:0, material:mFloor, shape:new CANNON.Box(new CANNON.Vec3(TX+WT+1,0.5,TZ+WT+1)) });
 floorBody.position.set(0,-0.5,0); world.addBody(floorBody);
-// 4 paredes (caixas estáticas invisíveis)
+// 4 paredes ALTAS e GROSSAS, com cantos sobrepostos e face interna EXATA em TX/TZ
+const WH = 5;                                  // meia-altura da parede (bem alta = nada passa por cima)
 function wall(hx,hy,hz,x,z){ const b=new CANNON.Body({mass:0,material:mWall,shape:new CANNON.Box(new CANNON.Vec3(hx,hy,hz))}); b.position.set(x,hy,z); world.addBody(b); }
-wall(TX+1,3,0.5,0,-(TZ+0.6)); wall(TX+1,3,0.5,0,(TZ+0.6));
-wall(0.5,3,TZ+1,-(TX+0.6),0); wall(0.5,3,TZ+1,(TX+0.6),0);
+wall(TX+WT, WH, WT/2, 0, -(TZ+WT/2)); wall(TX+WT, WH, WT/2, 0, (TZ+WT/2));  // topo/baixo
+wall(WT/2, WH, TZ+WT, -(TX+WT/2), 0); wall(WT/2, WH, TZ+WT, (TX+WT/2), 0);  // laterais (sobrepõem os cantos)
 
 // dados: corpo + malha
 const dice = [];
@@ -193,7 +196,15 @@ function tick(){
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 1/30);
   world.step(1/120, dt, 8);   // passo curto p/ estabilidade com gravidade forte
-  for(const d of dice){ d.mesh.position.copy(d.body.position); d.mesh.quaternion.copy(d.body.quaternion); }
+  for(const d of dice){
+    const p = d.body.position;
+    // rede de segurança: se algum dado escapar, traz de volta pra dentro da mesa
+    if(p.y < -1.5 || Math.abs(p.x) > TX+WT || Math.abs(p.z) > TZ+WT){
+      d.body.position.set((Math.random()-0.5)*(TX-1), 1.2, (Math.random()-0.5)*(TZ-1));
+      d.body.velocity.setZero(); d.body.angularVelocity.setZero(); d.body.wakeUp();
+    }
+    d.mesh.position.copy(d.body.position); d.mesh.quaternion.copy(d.body.quaternion);
+  }
   // detecção de repouso
   if(rolling){
     const asleep = dice.every(d => d.body.sleepState===CANNON.Body.SLEEPING || d.body.velocity.length()<0.12 && d.body.angularVelocity.length()<0.12);
