@@ -486,6 +486,7 @@ const MIN_BAG = 24;                 // nº mínimo de células (visual de "mochi
 function renderInventory(mount, heroId){
   const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
   const inv = S.inventory || [];
+  const equippedInSlot = invFilter.slot !== 'all' ? heroEquip(hs)[invFilter.slot] : null;
   const SLOTS = ['all','weapon','head','chest','hands','feet','trinket'];
   const slotChip = k => `<button class="ivf ${invFilter.slot===k?'on':''}" data-slot="${k}">${k==='all'?'Tudo':SLOT_EMOJI[k]}</button>`;
   const sortChip = (k,l) => `<button class="ivs ${invFilter.sort===k?'on':''}" data-sort="${k}">${l}</button>`;
@@ -517,6 +518,7 @@ function renderInventory(mount, heroId){
       <span class="iv-hero">${def.name}</span>
       <span class="iv-count ${inv.length>=INV_CAP?'full':''}">${inv.length}/${INV_CAP}</span>
     </div>
+    ${equippedInSlot?`<div class="iv-filters"><button class="ivf" id="iv-unequip">↩ Remover ${equippedInSlot.name}</button></div>`:''}
     <div class="iv-filters">${SLOTS.map(slotChip).join('')}</div>
     <div class="iv-filters iv-second">
       <button class="ivf cls ${invFilter.onlyClass?'on':''}" id="iv-cls">${invFilter.onlyClass?`✓ Só ${def.name}`:'Todas as classes'}</button>
@@ -525,6 +527,8 @@ function renderInventory(mount, heroId){
     <div class="bag-wrap">${gridHTML}</div>
     <div class="ivd-layer" id="ivd" hidden></div>`;
 
+  const unequipBtn = mount.querySelector('#iv-unequip');
+  if(unequipBtn) unequipBtn.onclick=()=>{ if(unequipItem(heroId, invFilter.slot)) renderInventory(mount,heroId); };
   mount.querySelectorAll('.ivf[data-slot]').forEach(b=>b.onclick=()=>{ invFilter.slot=b.dataset.slot; renderInventory(mount,heroId); });
   mount.querySelectorAll('.ivs[data-sort]').forEach(b=>b.onclick=()=>{ invFilter.sort=b.dataset.sort; renderInventory(mount,heroId); });
   mount.querySelector('#iv-cls').onclick=()=>{ invFilter.onlyClass=!invFilter.onlyClass; renderInventory(mount,heroId); };
@@ -582,10 +586,11 @@ function equipItem(heroId, invIdx){
 }
 function unequipItem(heroId, slot){
   const hs = S.heroes.find(h=>h.id===heroId); const eq = heroEquip(hs);
-  if(!eq[slot]) return;
-  if((S.inventory||[]).length < INV_CAP) S.inventory.push(eq[slot]);
+  if(!eq[slot]) return false;
+  if((S.inventory||[]).length >= INV_CAP){ toast('Inventário cheio. Libere espaço antes de remover.'); return false; }
+  S.inventory.push(eq[slot]);
   eq[slot] = null;
-  save(S); refreshBase();
+  save(S); refreshBase(); return true;
 }
 function sellItem(invIdx){
   const inst = S.inventory[invIdx]; if(!inst) return;
