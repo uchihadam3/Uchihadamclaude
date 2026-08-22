@@ -149,7 +149,7 @@ function startHand(){
 }
 function doReroll(){
   if(G.phase!=='choose'||G.rerollsLeft<=0||table.isRolling()) return;
-  G.rerollsLeft--; G.phase='rolling'; setButtons('rolling'); table.roll(false);
+  G.rerollsLeft--; G.phase='rolling'; setButtons('rolling'); table.roll(true);
 }
 function onResult(vals){
   if(G.phase!=='rolling') return;
@@ -306,7 +306,7 @@ function setButtons(mode){
   if(mode==='idle'){ show(roll,true);show(rr,false);show(sc,false);hint.hidden=true;roll.disabled=false; }
   else if(mode==='rolling'){ show(roll,false);show(rr,true);show(sc,true);rr.disabled=true;sc.disabled=true;hint.hidden=true; }
   else if(mode==='choose'){ show(roll,false);show(rr,true);show(sc,true);
-    rr.disabled=G.rerollsLeft<=0; rr.innerHTML=`🔁 Rerrolar tudo<span class="sub">${G.rerollsLeft} restantes</span>`; sc.disabled=false; hint.hidden=true; }
+    rr.disabled=G.rerollsLeft<=0; rr.innerHTML=`🔁 Rerrolar soltos<span class="sub">${G.rerollsLeft} restantes</span>`; sc.disabled=false; hint.hidden=false; }
 }
 function updateHUD(){
   $('candles').innerHTML=Array.from({length:CANDLES},(_,k)=>`<span class="cd ${k<G.candles?'lit':'out'}">🕯️</span>`).join('')+`<span class="gold">🪙${G.gold}</span>`;
@@ -337,6 +337,11 @@ table=createDiceTable($('c'), onResult);
 $('btnRoll').addEventListener('click', startHand);
 $('btnReroll').addEventListener('click', doReroll);
 $('btnScore').addEventListener('click', doScore);
+$('c').addEventListener('pointerup', e=>{
+  if(G.phase!=='choose'||table.isRolling()) return;
+  const die = table.pick(e.clientX, e.clientY);
+  if(die>=0) table.toggleHeld(die);
+});
 $('dlg').addEventListener('click', advanceDialogue);
 $('endBtn').addEventListener('click', ()=>{ $('end').hidden=true; beginRun(); });
 beginRun();
