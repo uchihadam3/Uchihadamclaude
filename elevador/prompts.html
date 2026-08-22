@@ -1,0 +1,204 @@
+<title>Texturas do Elevador — Prompts por Face</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* ---- design tokens: mundo escuro comprometido (sala de manutenção) ---- */
+  :root{
+    --bg:#0c0d10; --bg2:#0a0b0d; --surface:#15171b; --surface2:#191c21;
+    --line:#262a31; --line-soft:#1e2127;
+    --ink:#dcd8cc; --ink-dim:#9a978c; --ink-faint:#6f6d64;
+    --accent:#ff5a3a; --brass:#c39a5e; --ok:#7fd6a0;
+    --screw:#2b2f36;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --disp:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:var(--disp); color:var(--ink);
+    background:
+      radial-gradient(120% 80% at 50% -10%, #14161a 0%, var(--bg) 45%, var(--bg2) 100%) fixed;
+    line-height:1.5; padding:28px 18px 80px; letter-spacing:.2px;
+  }
+  .wrap{max-width:760px;margin:0 auto}
+
+  /* ---- cabeçalho ---- */
+  header{border:1px solid var(--line);background:linear-gradient(180deg,var(--surface),var(--surface2));
+    padding:22px 22px 20px;position:relative}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);
+    display:flex;align-items:center;gap:9px}
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--accent);display:inline-block}
+  h1{font-size:clamp(26px,6vw,38px);font-weight:900;letter-spacing:1.5px;text-transform:uppercase;
+    text-wrap:balance;margin:12px 0 6px;line-height:1.02}
+  .sub{color:var(--ink-dim);font-size:14.5px;max-width:60ch}
+  .spec{font-family:var(--mono);font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;
+    color:var(--ink-faint);margin-top:14px;display:flex;flex-wrap:wrap;gap:8px 14px}
+  .spec b{color:var(--brass);font-weight:400}
+  .toolbar{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}
+
+  /* ---- botões ---- */
+  button{font-family:var(--mono);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--ink);background:#1d2026;border:1px solid var(--line);padding:9px 15px;cursor:pointer;
+    transition:border-color .15s,color .15s,background .15s;-webkit-tap-highlight-color:transparent}
+  button:hover{border-color:var(--accent);color:#fff}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  button.copied{color:var(--ok);border-color:var(--ok)}
+  .copy-all{background:#211a17;border-color:#3a2a22;color:#f0d9cf}
+  .copy-all:hover{border-color:var(--accent)}
+
+  /* ---- cartões de face ---- */
+  .cards{display:flex;flex-direction:column;gap:16px;margin-top:16px}
+  .card{border:1px solid var(--line);background:var(--surface);position:relative}
+  /* parafusos nos cantos (eco do painel do elevador) */
+  .card::before,.card::after{content:"";position:absolute;width:5px;height:5px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%,#3b4048,var(--screw));top:9px}
+  .card::before{left:9px}.card::after{right:9px}
+  .chead{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 16px;border-bottom:1px solid var(--line-soft);background:var(--surface2)}
+  .cname{display:flex;flex-direction:column;gap:3px;padding-left:8px}
+  .cname .lbl{font-family:var(--mono);font-size:12.5px;letter-spacing:2px;text-transform:uppercase;color:var(--ink)}
+  .cname .lbl b{color:var(--brass);font-weight:400}
+  .cname .note{font-size:12px;color:var(--ink-dim);letter-spacing:.2px}
+  .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:1px;color:var(--ink-faint);
+    border:1px solid var(--line);padding:3px 7px;white-space:nowrap}
+  .cbody{padding:4px 2px 4px}
+  .prompt{font-family:var(--mono);font-size:12.5px;line-height:1.72;color:var(--ink-dim);
+    white-space:pre-wrap;word-break:normal;overflow-wrap:anywhere;padding:14px 16px;
+    max-height:none;-webkit-user-select:text;user-select:text}
+  .prompt .hot{color:var(--ink)}
+  .prompt .neg{color:var(--ink-faint)}
+  .cfoot{display:flex;justify-content:flex-end;padding:0 16px 14px}
+
+  footer{margin-top:26px;border-top:1px solid var(--line-soft);padding-top:16px;
+    color:var(--ink-faint);font-size:12.5px;line-height:1.7}
+  footer b{color:var(--ink-dim);font-weight:600}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Guia de arte · O Elevador</div>
+    <h1>Texturas do Elevador</h1>
+    <p class="sub">Uma imagem 2D por face do cabine. Geradas como <b>albedo plano</b> (sem sombra/brilho queimado) para as luzes do jogo continuarem mandando no clima — e com as <b>zonas interativas em branco</b>, para os botões, o display e o telefone seguirem em 3D por cima.</p>
+    <div class="spec">
+      <span><b>6</b> faces</span><span><b>albedo</b> plano</span><span>ortográfico <b>reto</b></span><span>painel <b>em branco</b></span><span><b>4K</b> tileable</span>
+    </div>
+    <div class="toolbar">
+      <button class="copy-all" id="copyAll">▣ Copiar todos os prompts</button>
+    </div>
+  </header>
+
+  <div class="cards" id="cards">
+
+    <!-- FRENTE -->
+    <section class="card">
+      <div class="chead">
+        <div class="cname"><span class="lbl"><b>Frente</b> · Portas</span><span class="note">display acima fica em branco (renderizado em 3D)</span></div>
+        <span class="tag">1:1 · 2.6×2.7</span>
+      </div>
+      <div class="cbody"><div class="prompt"><span class="bible">Orthographic straight-on flat elevation, PBR base-color / albedo ONLY, of one interior surface of an old worn passenger elevator cabin. Even neutral lighting, NO baked shadows, NO highlights, NO hotspots, NO vignette (lighting is added later in-engine). Materials: dark aged brushed stainless steel, gunmetal, tungsten-grime patina, satin scuffed finish, faint vertical water streaks, fingerprint smudges, micro-scratches, rivet rows, recessed panel seams, tarnished brass accents. Muted desaturated palette: charcoal and gun-grey. No perspective, no lens distortion, squared flush edges, seamless flat, 4K tileable texture, eerie but neutral exposure.
+<span class="neg">NEGATIVE: people, hands, readable text, warped geometry, cast shadows, colored light, room reflections, fisheye, watermark, logo, rendered buttons, glowing screens.</span>
+
+<span class="hot">SUBJECT: the front wall, dominated by a pair of closed two-leaf sliding steel elevator doors with a central vertical seam, a recessed rubber safety edge, a low scuffed kick-plate and a thin squared door frame / architrave. Above the doors, an EMPTY dark recessed rectangular housing (blank, no digits) reserved for a floor indicator. NO buttons on this wall.</span></span></div></div>
+      <div class="cfoot"><button class="copy">Copiar</button></div>
+    </section>
+
+    <!-- FUNDO -->
+    <section class="card">
+      <div class="chead">
+        <div class="cname"><span class="lbl"><b>Fundo</b> · Espelho</span><span class="note">o embaçado/código é desenhado em 3D por cima</span></div>
+        <span class="tag">1:1 · 2.6×2.7</span>
+      </div>
+      <div class="cbody"><div class="prompt"><span class="bible">Orthographic straight-on flat elevation, PBR base-color / albedo ONLY, of one interior surface of an old worn passenger elevator cabin. Even neutral lighting, NO baked shadows, NO highlights, NO hotspots, NO vignette (lighting is added later in-engine). Materials: dark aged brushed stainless steel, gunmetal, tungsten-grime patina, satin scuffed finish, faint vertical water streaks, fingerprint smudges, micro-scratches, rivet rows, recessed panel seams, tarnished brass accents. Muted desaturated palette: charcoal and gun-grey. No perspective, no lens distortion, squared flush edges, seamless flat, 4K tileable texture, eerie but neutral exposure.
+<span class="neg">NEGATIVE: people, hands, readable text, warped geometry, cast shadows, colored light, room reflections, fisheye, watermark, logo, rendered buttons, glowing screens.</span>
+
+<span class="hot">SUBJECT: the back wall, centered on a large rectangular mirror in a tarnished steel frame — the glass foggy, spotted and de-silvered with age, dark and murky, reflecting almost nothing. A horizontal handrail crosses at waist height. Aged steel panels with seams and rivets around it.</span></span></div></div>
+      <div class="cfoot"><button class="copy">Copiar</button></div>
+    </section>
+
+    <!-- LATERAL ESQUERDA -->
+    <section class="card">
+      <div class="chead">
+        <div class="cname"><span class="lbl"><b>Lateral esq.</b> · Telefone</span><span class="note">nicho em branco — o telefone entra em 3D</span></div>
+        <span class="tag">4:5 · 2.2×2.7</span>
+      </div>
+      <div class="cbody"><div class="prompt"><span class="bible">Orthographic straight-on flat elevation, PBR base-color / albedo ONLY, of one interior surface of an old worn passenger elevator cabin. Even neutral lighting, NO baked shadows, NO highlights, NO hotspots, NO vignette (lighting is added later in-engine). Materials: dark aged brushed stainless steel, gunmetal, tungsten-grime patina, satin scuffed finish, faint vertical water streaks, fingerprint smudges, micro-scratches, rivet rows, recessed panel seams, tarnished brass accents. Muted desaturated palette: charcoal and gun-grey. No perspective, no lens distortion, squared flush edges, seamless flat, 4K tileable texture, eerie but neutral exposure.
+<span class="neg">NEGATIVE: people, hands, readable text, warped geometry, cast shadows, colored light, room reflections, fisheye, watermark, logo, rendered buttons, glowing screens.</span>
+
+<span class="hot">SUBJECT: the left wall in aged steel, with a recessed EMPTY wall-box niche (blank — no telephone) reserved for a mounted emergency phone, a horizontal handrail, a faint rectangular inspection-panel outline, vertical seams and rivet rows.</span></span></div></div>
+      <div class="cfoot"><button class="copy">Copiar</button></div>
+    </section>
+
+    <!-- LATERAL DIREITA -->
+    <section class="card">
+      <div class="chead">
+        <div class="cname"><span class="lbl"><b>Lateral dir.</b> · Painel</span><span class="note">grade de botões EM BRANCO — cabe quantos andares eu quiser</span></div>
+        <span class="tag">4:5 · 2.2×2.7</span>
+      </div>
+      <div class="cbody"><div class="prompt"><span class="bible">Orthographic straight-on flat elevation, PBR base-color / albedo ONLY, of one interior surface of an old worn passenger elevator cabin. Even neutral lighting, NO baked shadows, NO highlights, NO hotspots, NO vignette (lighting is added later in-engine). Materials: dark aged brushed stainless steel, gunmetal, tungsten-grime patina, satin scuffed finish, faint vertical water streaks, fingerprint smudges, micro-scratches, rivet rows, recessed panel seams, tarnished brass accents. Muted desaturated palette: charcoal and gun-grey. No perspective, no lens distortion, squared flush edges, seamless flat, 4K tileable texture, eerie but neutral exposure.
+<span class="neg">NEGATIVE: people, hands, readable text, warped geometry, cast shadows, colored light, room reflections, fisheye, watermark, logo, rendered buttons, glowing screens.</span>
+
+<span class="hot">SUBJECT: the right wall in aged steel. Set into it, a tall rectangular RECESSED CONTROL-PANEL PLATE of dark brushed steel with four corner screws and a large EMPTY inset — LEAVE THE BUTTON GRID COMPLETELY BLANK (no buttons, no numbers, no lights), plus a small blank slot near the top reserved for a readout. Below the plate, a slightly peeling old paper emergency sticker with a faded red header bar (text illegible / blurred). Panel seams and rivets around.</span></span></div></div>
+      <div class="cfoot"><button class="copy">Copiar</button></div>
+    </section>
+
+    <!-- TETO -->
+    <section class="card">
+      <div class="chead">
+        <div class="cname"><span class="lbl"><b>Teto</b> · Alçapão</span><span class="note">luminária apagada — a luz e o brilho são do motor</span></div>
+        <span class="tag">5:4 · 2.6×2.2</span>
+      </div>
+      <div class="cbody"><div class="prompt"><span class="bible">Orthographic straight-on flat elevation, PBR base-color / albedo ONLY, of one interior surface of an old worn passenger elevator cabin. Even neutral lighting, NO baked shadows, NO highlights, NO hotspots, NO vignette (lighting is added later in-engine). Materials: dark aged brushed stainless steel, gunmetal, tungsten-grime patina, satin scuffed finish, faint vertical water streaks, fingerprint smudges, micro-scratches, rivet rows, recessed panel seams, tarnished brass accents. Muted desaturated palette: charcoal and gun-grey. No perspective, no lens distortion, squared flush edges, seamless flat, 4K tileable texture, eerie but neutral exposure.
+<span class="neg">NEGATIVE: people, hands, readable text, warped geometry, cast shadows, colored light, room reflections, fisheye, watermark, logo, rendered buttons, glowing screens.</span>
+
+<span class="hot">SUBJECT: a top-down flat view of the cabin CEILING: a central recessed light-diffuser panel (blank, unlit, no glow), a square maintenance ESCAPE HATCH outline with hinges and a latch, a ventilation grille, corner screws, aged steel with grime around the seams.</span></span></div></div>
+      <div class="cfoot"><button class="copy">Copiar</button></div>
+    </section>
+
+    <!-- CHÃO -->
+    <section class="card">
+      <div class="chead">
+        <div class="cname"><span class="lbl"><b>Chão</b> · Piso</span><span class="note">visto de cima, desgaste no centro</span></div>
+        <span class="tag">5:4 · 2.6×2.2</span>
+      </div>
+      <div class="cbody"><div class="prompt"><span class="bible">Orthographic straight-on flat elevation, PBR base-color / albedo ONLY, of one interior surface of an old worn passenger elevator cabin. Even neutral lighting, NO baked shadows, NO highlights, NO hotspots, NO vignette (lighting is added later in-engine). Materials: dark aged brushed stainless steel, gunmetal, tungsten-grime patina, satin scuffed finish, faint vertical water streaks, fingerprint smudges, micro-scratches, rivet rows, recessed panel seams, tarnished brass accents. Muted desaturated palette: charcoal and gun-grey. No perspective, no lens distortion, squared flush edges, seamless flat, 4K tileable texture, eerie but neutral exposure.
+<span class="neg">NEGATIVE: people, hands, readable text, warped geometry, cast shadows, colored light, room reflections, fisheye, watermark, logo, rendered buttons, glowing screens.</span>
+
+<span class="hot">SUBJECT: a top-down flat view of the cabin FLOOR: scuffed dark steel checker-plate with a central wear patch, grime worked into the seams, scratches, a small floor drain, subtle old stains and worn edges.</span></span></div></div>
+      <div class="cfoot"><button class="copy">Copiar</button></div>
+    </section>
+
+  </div>
+
+  <footer>
+    <b>Por que "em branco"?</b> deixando o painel, o display e o telefone vazios na imagem, eu renderizo esses elementos em 3D por cima — assim eles continuam funcionando e eu posso colocar <b>mais andares</b> (descida mais longa, código maior, paradas no meio do caminho) sem regerar nenhuma arte.<br>
+    <b>Proporção</b> = largura×altura reais da face, pra pedir o aspecto certo no gerador.
+  </footer>
+</div>
+
+<script>
+  function copyText(text, btn){
+    const done=()=>{ const old=btn.dataset.label||btn.textContent; btn.dataset.label=old;
+      btn.classList.add('copied'); btn.textContent='Copiado ✓';
+      clearTimeout(btn._t); btn._t=setTimeout(()=>{ btn.classList.remove('copied'); btn.textContent=btn.dataset.label; },1600); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(()=>fallback(text,done));
+    } else fallback(text,done);
+  }
+  function fallback(text,done){ const ta=document.createElement('textarea'); ta.value=text;
+    ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(e){} document.body.removeChild(ta); }
+
+  document.querySelectorAll('.card').forEach(card=>{
+    const btn=card.querySelector('.copy'); const p=card.querySelector('.prompt');
+    btn.addEventListener('click',()=>copyText(p.innerText.trim(),btn));
+  });
+  document.getElementById('copyAll').addEventListener('click',(e)=>{
+    const parts=[];
+    document.querySelectorAll('.card').forEach(card=>{
+      const name=card.querySelector('.lbl').innerText.trim();
+      const p=card.querySelector('.prompt').innerText.trim();
+      parts.push('=== '+name.toUpperCase()+' ===\n'+p);
+    });
+    copyText(parts.join('\n\n\n'), e.currentTarget);
+  });
+</script>

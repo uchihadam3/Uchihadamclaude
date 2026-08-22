@@ -7,10 +7,16 @@ import {
   SKILLS, CONDITIONS, HERO_DEFS, ENEMY_DEFS, STAGES, FORGE_LEVELS, ACADEMY,
   ITEMS, ITEM_DROPS, itemBonuses, ARMOR_WEIGHTS, WEAPON_STYLES, STATUS_META,
   skillBoard, xpToNext, MAX_LEVEL, LP_PER_LEVEL,
+  CONSUMABLES, consumableCharges,
 } from './data.js';
 import { loadOrNew, save, newGame } from './state.js';
-import { Combat, buildParty, buildWave, forgeAtkBonus } from './engine.js';
+import { Combat, buildParty, buildWave, forgeAtkBonus, ATB_MAX } from './engine.js';
 import { spriteFor } from './sprites.js';
+import {
+  STAT_META, STAT_KEYS, RARITY_META, RARITY_ORDER, SLOT_EMOJI, SLOT_LABEL,
+  itemTotals, itemPower, sellPrice, itemIcon, rarityColor, canEquip, rollDrop,
+  itemTier, itemArt,
+} from './items.js';
 
 const S = loadOrNew();
 const $  = id => document.getElementById(id);
@@ -166,18 +172,17 @@ function renderBase(){
   $('screen-base').innerHTML = `
     <div class="hub-fit">
       <div class="hub-stage">
-        <div class="base-frame base-hub">
-          <div class="base-title"><span>Acampamento Base</span></div>
+        <div class="base-shell">
           <button class="hub-x" title="Ir ao Mapa">✕</button>
           <div class="hub-grid">
             <div class="hub-panel hub-left" id="hub-left"></div>
             <div class="hub-center" id="hub-center"></div>
             <div class="hub-panel hub-right" id="hub-right"></div>
           </div>
+          <div class="detail-frame" id="detail-frame"></div>
         </div>
       </div>
     </div>
-    <div class="base-frame detail-frame" id="detail-frame"></div>
     <div class="base-actions">
       <button class="hub-gear" title="Opções">⚙️</button>
       <button class="gold-cta" id="hub-cta">⚔️ Partir em Expedição</button>
@@ -205,6 +210,16 @@ function fitBase(){
 
 // ---- PAINEL ESQUERDO: 4 heróis (rosto) + resumo de equipamento. Clicar = selecionar ----
 function activeParty(){ return (S.activeParty||[]).map(id=>S.heroes.find(h=>h.id===id)).filter(Boolean); }
+// cargas de consumíveis para a expedição atual (a partir dos liberados na loja)
+function chargesFromConsumables(){
+  const out = {};
+  for(const k in (S.consumables||{})){ const lv = S.consumables[k]; if(lv>0) out[k] = consumableCharges(k, lv); }
+  return out;
+}
+// ações de consumível liberadas (universais — qualquer herói pode usar via gambit)
+function ownedConsumableActions(){
+  return Object.values(CONSUMABLES).filter(c => (S.consumables||{})[c.id] > 0).map(c => c.use);
+}
 function renderHubParty(mount){
   const list = activeParty();
   if(selHero && !list.find(h=>h.id===selHero)) selHero = list[0]?.id;
@@ -212,7 +227,7 @@ function renderHubParty(mount){
     <div class="party-cards">${list.map(hs=>{
       const def = HERO_DEFS.find(h=>h.id===hs.id);
       const {atk, hp} = heroRuntimeStats(hs);
-      const nEquip = EQUIP_SLOTS.filter(s=>s.key!=='weapon' && ITEMS[heroEquip(hs)[s.key]]).length;
+      const nEquip = EQUIP_SLOTS.filter(s=>heroEquip(hs)[s.key]).length;
       return `<div class="party-card ${hs.id===selHero?'sel':''}" data-id="${hs.id}" style="--acc:${accentOf(def.id)}">
         <div class="pc-face">${faceMedia(def.id)}</div>
         <div class="pc-info">
@@ -240,7 +255,6 @@ function openPartyPicker(){
           return `<button class="pick-hero ${on?'on':''}" data-id="${def.id}" style="--acc:${accentOf(def.id)}">
             <div class="ph-face">${faceMedia(def.id)}</div>
             <div class="ph-nm">${def.name}</div>
-            <div class="ph-cl">${def.klass}</div>
             <div class="ph-st">⚔️${rs.atk} ❤️${rs.hp}</div>
             <div class="ph-tags">${w.icon}${st.icon}</div>
             ${on?'<span class="ph-ck">✓</span>':''}
@@ -260,36 +274,141 @@ function openPartyPicker(){
 }
 
 // ---- PRANCHA DE LICENÇA (FFXII-like): XP/Level + destravar skills/aumentos ----
+// ---- PRANCHA DE TALENTOS estilo ATLAS/PoE (árvore circular + moldura por arte) ----
+const STAT_IC = { hp:'❤️', mp:'💧', atk:'⚔️', mag:'🔮', def:'🛡️', spd:'💨' };
+// glifos brancos (art/icons) por status/elemento
+const STATUS_GLYPH = { burn:'fire', poison:'poison', bleed:'dagger', stun:'hammer', sono:'sleep',
+  silencio:'silence', cegueira:'blind', confusao:'confusion', imobilizar:'hourglass', regen:'heal', slow:'hourglass' };
+// mapeia uma SKILL para um glifo (família), inspecionando kind/elemento/status
+function glyphForSkill(sk){
+  if(!sk) return null;
+  const st = sk.applies && sk.applies.status;
+  switch(sk.kind){
+    case 'heal': case 'cleanse': return 'heal';
+    case 'revive': return 'phoenix';
+    case 'shield': case 'guard': case 'invuln': case 'reflect': return 'barrier';
+    case 'dispel': case 'vuln': return 'debuff';
+    case 'taunt': return 'fist';
+    case 'summon': return 'skull';
+    case 'critup': case 'evasion': return 'buff';
+    case 'mana': return null;
+    case 'buff': return (sk.targetType==='enemy' || (sk.buff && (sk.buff.amt||0)<0)) ? 'debuff' : 'buff';
+    case 'ailment': return STATUS_GLYPH[st] || 'debuff';
+  }
+  // dano: status de controle > elemento > status dot > físico
+  if(st && ['sono','silencio','cegueira','confusao','imobilizar'].includes(st)) return STATUS_GLYPH[st];
+  const el = sk.element;
+  const elMap = { fire:'fire', gelo:'ice', raio:'lightning', holy:'holy', dark:'dark', poison:'poison', time:'hourglass' };
+  if(el && elMap[el]) return elMap[el];
+  if(st && STATUS_GLYPH[st]) return STATUS_GLYPH[st];
+  if((sk.hits||1)>=3) return 'shuriken';
+  if((sk.critBonus||0)>=0.3 || sk.alwaysCrit) return 'dagger';
+  if(sk.aoe) return 'explosion';
+  if((sk.power||0)>=2.0) return 'skull';
+  return 'swords';
+}
+function seededRng(seed){ let s=seed>>>0||1; return ()=>{ s=(s*1103515245+12345)&0x7fffffff; return s/0x7fffffff; }; }
+function hashStr(str){ let h=2166136261; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function tierBadge(name){ const m=(''+name).match(/\b(III|II|I)\b/); if(m) return m[1]; const d=(''+name).match(/([1-4])\s*$/); return d?['','I','II','III','IV'][+d[1]]:''; }
+// Gera o layout (posições + arestas) UMA vez por classe — determinístico.
+// Layout estilo WoW: 1 nódulo RAIZ no topo -> 3 ramos verticais (2 subcolunas cada),
+// com interconexões. Skills por tema; atributos balanceados na coluna mais curta.
+function buildWowLayout(def){
+  const raw = skillBoard(def).slice();
+  const branchOf = (n)=>{
+    const sk=SKILLS[n.skill]||{}; const k=sk.kind;
+    if(k==='damage') return 0;                                             // Ofensiva
+    if(['shield','guard','invuln','reflect','taunt'].includes(k)) return 1; // Defesa
+    if(k==='buff') return (sk.targetType==='enemy') ? 2 : 1;
+    return 2;                                                              // Utilidade
+  };
+  const cols=[[],[],[]];
+  for(const n of raw.filter(n=>n.type==='skill')) cols[Math.max(0,branchOf(n))].push(n);
+  const stats=raw.filter(n=>n.type==='stat').sort((a,b)=>a.reqLevel-b.reqLevel);
+  for(const n of stats){ let m=0; for(let c=1;c<3;c++) if(cols[c].length<cols[m].length) m=c; cols[m].push(n); }
+  cols.forEach(c=>c.sort((a,b)=>a.reqLevel-b.reqLevel));
+  const SUBGAP=50, ROWH=58, TOP=104, ROOTY=40, BRANCHW=112, NODE=42, ROOTSZ=56;
+  const W=BRANCHW*3;
+  const items=[]; const key=new Map();
+  const bcx=b=>BRANCHW*(b+0.5);
+  cols.forEach((col,b)=> col.forEach((n,i)=>{
+    const sub=i%2, row=Math.floor(i/2);
+    key.set(b+':'+i, items.length);
+    items.push({ node:n, x:bcx(b)+(sub-0.5)*SUBGAP, y:TOP+row*ROWH, b, i, r:NODE/2 });
+  }));
+  const maxRow=Math.max(1,...cols.map(c=>Math.ceil(c.length/2)));
+  const H=TOP+maxRow*ROWH+22;
+  const links=[]; const adj=items.map(()=>[]);
+  const idx=(b,i)=> key.has(b+':'+i)?key.get(b+':'+i):-1;
+  const link=(a,c)=>{ if(a<0||c<0)return; links.push([a,c]); adj[a].push(c); adj[c].push(a); };
+  const roots=[];
+  cols.forEach((col,b)=>{
+    for(let i=0;i<col.length;i++){ link(idx(b,i), idx(b,i+2)); if(i%2===0) link(idx(b,i), idx(b,i+1)); }
+    if(col.length) roots.push(idx(b,0));
+  });
+  for(let r=1;r<maxRow-1;r+=2){ link(idx(0,r*2+1), idx(1,r*2)); link(idx(1,r*2+1), idx(2,r*2)); } // interconexões
+  return { items, links, adj, roots, W, H, rootX:W/2, rootY:ROOTY, rootSz:ROOTSZ };
+}
+const _treeCache = {};
 function openSkillBoard(heroId){
   const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
-  openPanelModal(`🎓 Licenças — ${def.name}`, body=>{
+  const L = (_treeCache[heroId] ||= buildWowLayout(def));
+  openPanelModal(`🎓 Licenças`, body=>{
+    const isOwned = it => hs.boughtNodes.includes(it.node.id) || (it.node.type==='skill' && hs.unlockedSkills.includes(it.node.skill));
+    body.closest('.box')?.classList.add('wow-modal');
+    let collapsed = false, savedScroll = 0;
     const draw = ()=>{
-      const nodes = skillBoard(def);
-      const need = xpToNext(hs.level); const pct = hs.level>=MAX_LEVEL ? 100 : Math.min(100, 100*hs.xp/need);
-      const nodeHTML = nodes.map(n=>{
-        const owned = hs.boughtNodes.includes(n.id) || (n.type==='skill' && hs.unlockedSkills.includes(n.skill));
-        const lvlOk = hs.level >= n.reqLevel; const canBuy = !owned && lvlOk && hs.lp >= n.cost;
-        const label = n.type==='skill' ? SKILLS[n.skill].name : `+${n.amt} ${n.stat.toUpperCase()}`;
-        const icon  = n.type==='skill' ? '✨' : '💪';
-        const sub   = owned ? 'Adquirido' : (!lvlOk ? `Requer Nv.${n.reqLevel}` : `${n.cost} LP`);
-        return `<button class="lic-node ${owned?'owned':canBuy?'buy':'lock'}" data-id="${n.id}" ${canBuy?'':'disabled'}>
-          <span class="ln-ic">${icon}</span>
-          <span class="ln-nm">${label}</span>
-          <span class="ln-cost">${owned?'✓':sub}</span></button>`;
+      const owned = L.items.map(isOwned);
+      const reach = L.items.map((it,i)=> !owned[i] && hs.level>=it.node.reqLevel && (L.roots.includes(i) || L.adj[i].some(j=>owned[j])) );
+      const stateArr = L.items.map((it,i)=> owned[i]?'owned' : reach[i]?'avail' : 'locked');
+      const conCls=(a,b)=>{ const sa=stateArr[a],sb=stateArr[b]; if(sa==='owned'&&sb==='owned')return 'on'; if(sa==='owned'||sb==='owned')return 'near'; return 'off'; };
+      const ownedCount = owned.filter(Boolean).length, total=L.items.length;
+      const rootLines = L.roots.map(i=>{ const it=L.items[i]; const cl=owned[i]?'on':(stateArr[i]==='avail'?'near':'off');
+        return `<line x1="${L.rootX}" y1="${L.rootY}" x2="${it.x}" y2="${it.y}" class="${cl}"/>`; }).join('');
+      const lines = L.links.map(([a,b])=>{ const A=L.items[a],B=L.items[b];
+        return `<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" class="${conCls(a,b)}"/>`; }).join('');
+      const nodesHTML = L.items.map((it,i)=>{
+        const st=stateArr[i]; const n=it.node; const isSkill=n.type==='skill';
+        const buyable = st==='avail' && hs.lp>=n.cost;
+        let ic;
+        if(isSkill && st==='locked') ic=`<span class="wn-ic q">?</span>`;
+        else if(isSkill){ const g=glyphForSkill(SKILLS[n.skill]); ic = g?`<span class="wn-g" style="--g:url('art/icons/${g}.png')"></span>`:`<span class="wn-ic">✦</span>`; }
+        else ic=`<span class="wn-g" style="--g:url('art/icons/${n.stat}.png')"></span>`;
+        const badge = st==='owned' ? '✓' : (n.cost||1);
+        const label = isSkill ? (SKILLS[n.skill]?.name||n.skill) : `+${n.amt} ${n.stat.toUpperCase()}`;
+        return `<button class="wn ${st} ${buyable?'buyable':''}" data-i="${i}" style="left:${it.x}px;top:${it.y}px"
+          title="${label} · ${n.cost} LP · Nv.${n.reqLevel}">${ic}<span class="wn-rk">${badge}</span></button>`;
       }).join('');
+      const rs = heroRuntimeStats(hs);
+      const statsRows=[['❤️','HP',rs.hp],['⚔️','ATK',rs.atk],['🛡️','DEF',rs.defense],['🔮','MAG',rs.mag],['💨','SPD',rs.spd],['💧','MP',rs.mp]]
+        .map(([i,k,v])=>`<div class="ws"><span>${i} ${k}</span><b>${v}</b></div>`).join('');
       body.innerHTML = `
-        <div class="lic-head" style="--acc:${accentOf(def.id)}">
-          <div class="lic-face">${faceMedia(def.id)}</div>
-          <div class="lic-meta">
-            <div class="lic-lv">Nível <b>${hs.level}</b>${hs.level>=MAX_LEVEL?' (máx)':''} · <span class="lic-lp">${hs.lp} LP</span></div>
-            <div class="lic-xpbar"><i style="width:${pct}%"></i></div>
-            <div class="lic-xptxt">${hs.level>=MAX_LEVEL?'XP máx':`XP ${hs.xp}/${need}`}</div>
+        <div class="wow-inner ${collapsed?'collapsed':''}" id="wowInner">
+          <div class="wow-side">
+            <div class="wow-port">${faceMedia(def.id)}<span class="wp-lvl">Nível ${hs.level}</span></div>
+            <div class="wow-nm">${def.name}</div>
+            <div class="wow-pts">${hs.lp} LP livre · ${ownedCount}/${total}</div>
+            <div class="wow-stats">${statsRows}</div>
           </div>
+          <button class="wow-toggle" id="wowToggle" title="Esconder/mostrar painel">${collapsed?'›':'‹'}</button>
+          <div class="wow-tree-wrap" id="wowWrap"><div class="wow-scale" id="wowScale"><div class="wow-tree" id="wowTree" style="width:${L.W}px;height:${L.H}px">
+            <svg class="wow-links" viewBox="0 0 ${L.W} ${L.H}" style="width:${L.W}px;height:${L.H}px">${rootLines}${lines}</svg>
+            <div class="wn root learned" style="left:${L.rootX}px;top:${L.rootY}px"><span class="wn-g" style="--g:url('art/icons/star.png')"></span></div>
+            ${nodesHTML}
+          </div></div></div>
         </div>
-        <p class="muted tiny" style="margin:2px 2px 8px">Ganhe XP e LP nas expedições. Gaste LP p/ destravar ações e aumentos. As <b>condições</b> são universais (Loja de Gambits).</p>
-        <div class="lic-grid">${nodeHTML}</div>`;
-      body.querySelectorAll('.lic-node.buy').forEach(b=> b.onclick = ()=>{
-        const n = skillBoard(def).find(x=>x.id===b.dataset.id); if(!n || hs.lp<n.cost) return;
+        <div class="wow-legend"><span><i class="wl-l"></i>Aprendido</span><span><i class="wl-a"></i>Disponível</span><span><i class="wl-k"></i>Bloqueado</span><span>? = travada</span></div>`;
+      const fitTree=()=>{ const wrap=$('wowWrap'), sc=$('wowScale'), tr=$('wowTree'); if(!wrap||!sc||!tr) return;
+        const k=Math.max(0.5, Math.min(1.35, (wrap.clientWidth-6)/L.W));
+        tr.style.transformOrigin='0 0'; tr.style.transform='scale('+k+')';
+        sc.style.width=(L.W*k)+'px'; sc.style.height=(L.H*k)+'px'; };
+      const wrap=$('wowWrap'); if(wrap) wrap.scrollTop=savedScroll;
+      wrap?.addEventListener('scroll',()=>{ savedScroll=wrap.scrollTop; });
+      requestAnimationFrame(fitTree);
+      $('wowToggle').onclick=()=>{ collapsed=!collapsed; const inner=$('wowInner'); inner.classList.toggle('collapsed',collapsed); $('wowToggle').textContent=collapsed?'›':'‹'; requestAnimationFrame(fitTree); };
+      window.__wowFit=fitTree;
+      body.querySelectorAll('.wn.buyable').forEach(bt=> bt.onclick = ()=>{
+        const it = L.items[+bt.dataset.i]; const n=it.node; if(!n || hs.lp<n.cost) return;
         hs.lp -= n.cost; hs.boughtNodes.push(n.id);
         if(n.type==='skill'){ if(!hs.unlockedSkills.includes(n.skill)) hs.unlockedSkills.push(n.skill); }
         else { hs.augments[n.stat] = (hs.augments[n.stat]||0) + n.amt; }
@@ -311,81 +430,173 @@ function renderDetail(){
   const wgt = ARMOR_WEIGHTS[def.armorWeight]; const sty = WEAPON_STYLES[def.weaponStyle];
   const slotImg = (src,cls='')=>`<img class="ds-img ${cls}" src="${src}" alt="" onerror="this.style.display='none'">`;
   const slotsHTML = EQUIP_SLOTS.map(s=>{
-    if(s.key==='weapon'){
-      return `<button class="d-slot on wpn" data-slot="weapon" title="Arma (${sty.label}) · Forja" style="--acc:${accentOf(hs.id)}">
-        ${slotImg('assets/slot_weapon.png')}<span class="ds-badge">+${hs.weaponLevel}</span></button>`;
+    const inst = eq[s.key];
+    if(inst){
+      return `<button class="d-slot on" data-slot="${s.key}" title="${s.label} · ${inst.name} (${RARITY_META[inst.rarity].label}) — tocar p/ trocar"
+        style="--acc:${accentOf(hs.id)};--rar:${rarityColor(inst)}">
+        <span class="ds-thumb">${itemThumb(inst)}</span></button>`;
     }
-    const it = ITEMS[eq[s.key]];
-    if(it){
-      return `<button class="d-slot on" data-slot="${s.key}" title="${s.label} · ${it.name}" style="--acc:${accentOf(hs.id)}">
-        ${slotImg(it.img)}<span class="ds-x" title="Desequipar">✕</span></button>`;
-    }
-    return `<button class="d-slot" data-slot="${s.key}" title="${s.label} (vazio)" style="--acc:${accentOf(hs.id)}">
-      ${slotImg('assets/slot_'+s.key+'.png','ghost')}</button>`;
+    return `<button class="d-slot" data-slot="${s.key}" title="${s.label} (vazio) — tocar p/ abrir o inventário" style="--acc:${accentOf(hs.id)}">
+      ${slotImg('assets/slot_'+s.key+'.png','ghost')}<span class="ds-add">+</span></button>`;
   }).join('');
-  const inv = S.inventory || [];
-  const invHTML = inv.length ? inv.map((iid,idx)=>{
-    const it = ITEMS[iid]; if(!it) return '';
-    const bon = Object.entries(it.bonus).map(([k,v])=>`+${v}${k.toUpperCase()}`).join(' ');
-    const wearable = canWear(def, it);
-    const lock = wearable ? '' : `<span class="ii-lock" title="Só ${ARMOR_WEIGHTS[it.weight]?.label||'—'} — ${def.name} usa ${wgt.label}">🔒</span>`;
-    const tt = wearable ? `${it.name} (${bon}) — tocar p/ equipar em ${def.name}`
-                        : `${it.name} — armadura ${ARMOR_WEIGHTS[it.weight]?.label}; ${def.name} só veste ${wgt.label}`;
-    return `<button class="inv-item r-${it.rarity} ${wearable?'':'locked'}" data-idx="${idx}" title="${tt}">
-      <img class="ii-img" src="${it.img}" alt="" onerror="this.style.display='none'"><span class="ii-bo">${bon}</span>${lock}</button>`;
-  }).join('') : `<div class="inv-empty">Inventário vazio — itens caem nas expedições.</div>`;
-
   frame.innerHTML = `
-    <div class="detail-title"><span>Herói & Inventário</span></div>
     <div class="detail-body">
       <div class="d-hero" style="--acc:${accentOf(hs.id)}">
         <div class="d-face">${faceMedia(def.id)}</div>
         <div class="d-meta">
-          <div class="d-nm">${def.name} <small>${def.klass}</small> <span class="d-lv">Nv.${hs.level}</span></div>
+          <div class="d-nm">${def.name} <span class="d-lv">Nv.${hs.level}</span></div>
           <div class="d-prof"><span class="prof-chip w-${def.armorWeight}" title="Armadura: ${wgt.focus}">${wgt.icon} ${wgt.label}</span><span class="prof-chip sty" title="${sty.desc}">${sty.icon} ${sty.label}</span></div>
           <div class="d-stats">${statChip('⚔️',rs.atk)}${statChip('❤️',rs.hp)}${statChip('🔮',rs.mag)}${statChip('🛡️',rs.defense)}${statChip('👟',rs.spd)}${statChip('💧',rs.mp)}</div>
         </div>
       </div>
       <div class="d-slots">${slotsHTML}</div>
       <button class="lic-btn" id="d-lic">🎓 Licenças${hs.lp>0?` <b>· ${hs.lp} LP</b>`:''}</button>
-      <div class="inv-cap">🎒 Inventário <small>(toque num item p/ equipar em ${def.name})</small></div>
-      <div class="inv-grid">${invHTML}</div>
     </div>`;
 
   frame.querySelector('#d-lic').onclick = () => openSkillBoard(hs.id);
-  frame.querySelectorAll('.d-slot').forEach(b => b.onclick = (e) => {
-    const slot = b.dataset.slot;
-    if(slot==='weapon'){ openPanelModal('🔨 Forja', body=>renderForge(body, hs.id)); return; }
-    if(e.target.classList.contains('ds-x') || eq[slot]){ unequipItem(hs.id, slot); }
+  // Tocar num slot abre o INVENTÁRIO já filtrado por aquele encaixe + a classe do herói.
+  frame.querySelectorAll('.d-slot').forEach(b => b.onclick = () => {
+    openInventory(hs.id, { slot: b.dataset.slot, onlyClass:true });
   });
-  frame.querySelectorAll('.inv-item').forEach(b => b.onclick = () => equipItem(hs.id, +b.dataset.idx));
 }
 
-// Regra de trava: acessório é livre; armadura (head/chest/hands/feet) precisa
-// bater com o PESO da classe. (arma é tratada na Forja.)
-function canWear(def, it){
-  if(!it) return false;
-  if(!it.weight) return true;               // acessório / sem peso = livre
-  return it.weight === def.armorWeight;
+const INV_CAP = 300;               // teto de itens no inventário
+let invFilter = { slot:'all', onlyClass:true, sort:'power' };  // estado dos filtros
+
+// INVENTÁRIO — janela alta e rolável com filtros (encaixe · classe · ordenação),
+// venda e equipar com COMPARATIVO (verde melhora / vermelho piora vs. o equipado).
+function openInventory(heroId, opts={}){
+  if(opts.slot) invFilter.slot = opts.slot;
+  if(opts.onlyClass != null) invFilter.onlyClass = opts.onlyClass;
+  $('modal-root').innerHTML = `<div class="modal"><div class="box box-wide inv-modal">
+    <button class="modal-x" title="Fechar">✕</button>
+    <h2>🎒 Inventário</h2>
+    <div id="inv-mount"></div>
+  </div></div>`;
+  bindModalDismiss();
+  renderInventory($('inv-mount'), heroId);
 }
+// ícone de item (arte do tier por cima, emoji atrás como fallback se a arte faltar)
+function itemThumb(it){
+  const art = itemArt(it);
+  return `<span class="it-emoji">${itemIcon(it)}</span>${art?`<img class="it-art" src="${art}" alt="" onerror="this.style.display='none'">`:''}`;
+}
+const MIN_BAG = 24;                 // nº mínimo de células (visual de "mochila")
+
+function renderInventory(mount, heroId){
+  const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
+  const inv = S.inventory || [];
+  const equippedInSlot = invFilter.slot !== 'all' ? heroEquip(hs)[invFilter.slot] : null;
+  const SLOTS = ['all','weapon','head','chest','hands','feet','trinket'];
+  const slotChip = k => `<button class="ivf ${invFilter.slot===k?'on':''}" data-slot="${k}">${k==='all'?'Tudo':SLOT_EMOJI[k]}</button>`;
+  const sortChip = (k,l) => `<button class="ivs ${invFilter.sort===k?'on':''}" data-sort="${k}">${l}</button>`;
+
+  // filtra + ordena, guardando o índice ORIGINAL (p/ equipar/vender)
+  let rows = inv.map((it,idx)=>({ it, idx }));
+  if(invFilter.slot!=='all') rows = rows.filter(r=>r.it.slot===invFilter.slot);
+  if(invFilter.onlyClass)    rows = rows.filter(r=>canEquip(def, r.it));
+  const rarRank = it => RARITY_META[it.rarity]?.rank || 0;
+  const sorters = {
+    power:  (a,b)=> itemPower(b.it)-itemPower(a.it),
+    rarity: (a,b)=> rarRank(b.it)-rarRank(a.it) || itemPower(b.it)-itemPower(a.it),
+    recent: (a,b)=> b.idx-a.idx,
+  };
+  rows.sort(sorters[invFilter.sort]||sorters.power);
+
+  // GRADE de slots (estilo mochila MMO): ícone do item + borda pela raridade.
+  const cell = ({it,idx}) =>
+    `<button class="bag-cell" data-idx="${idx}" style="--rar:${rarityColor(it)}" title="${it.name} · ${RARITY_META[it.rarity].label}">
+      ${itemThumb(it)}</button>`;
+  const cells = rows.map(cell).join('');
+  const pad = Array.from({length: Math.max(0, MIN_BAG - rows.length)}, () => `<div class="bag-cell empty"></div>`).join('');
+  const gridHTML = rows.length || inv.length===0
+    ? `<div class="bag-grid">${cells}${pad}</div>`
+    : `<div class="iv-empty">Nada com esse filtro.${invFilter.onlyClass?`<br><small>Toque em “Todas as classes”.</small>`:''}</div>`;
+
+  mount.innerHTML = `
+    <div class="iv-head">
+      <span class="iv-hero">${def.name}</span>
+      <span class="iv-count ${inv.length>=INV_CAP?'full':''}">${inv.length}/${INV_CAP}</span>
+    </div>
+    ${equippedInSlot?`<div class="iv-filters"><button class="ivf" id="iv-unequip">↩ Remover ${equippedInSlot.name}</button></div>`:''}
+    <div class="iv-filters">${SLOTS.map(slotChip).join('')}</div>
+    <div class="iv-filters iv-second">
+      <button class="ivf cls ${invFilter.onlyClass?'on':''}" id="iv-cls">${invFilter.onlyClass?`✓ Só ${def.name}`:'Todas as classes'}</button>
+      <span class="iv-sortlbl">Ordenar:</span>${sortChip('power','Mais forte')}${sortChip('rarity','Raridade')}${sortChip('recent','Recente')}
+    </div>
+    <div class="bag-wrap">${gridHTML}</div>
+    <div class="ivd-layer" id="ivd" hidden></div>`;
+
+  const unequipBtn = mount.querySelector('#iv-unequip');
+  if(unequipBtn) unequipBtn.onclick=()=>{ if(unequipItem(heroId, invFilter.slot)) renderInventory(mount,heroId); };
+  mount.querySelectorAll('.ivf[data-slot]').forEach(b=>b.onclick=()=>{ invFilter.slot=b.dataset.slot; renderInventory(mount,heroId); });
+  mount.querySelectorAll('.ivs[data-sort]').forEach(b=>b.onclick=()=>{ invFilter.sort=b.dataset.sort; renderInventory(mount,heroId); });
+  mount.querySelector('#iv-cls').onclick=()=>{ invFilter.onlyClass=!invFilter.onlyClass; renderInventory(mount,heroId); };
+  mount.querySelectorAll('.bag-cell[data-idx]').forEach(b=>b.onclick=()=>showItemDetail(mount, heroId, +b.dataset.idx));
+}
+
+// POPUP de detalhe do item (abre ao clicar num slot): atributos + comparativo + ações.
+function showItemDetail(mount, heroId, invIdx){
+  const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
+  const eq = heroEquip(hs); const it = S.inventory[invIdx];
+  const layer = mount.querySelector('#ivd'); if(!it || !layer) return;
+  const equippable = canEquip(def, it);
+  const totals = itemTotals(it);
+  const cur = eq[it.slot] ? itemTotals(eq[it.slot]) : {};
+  const cmp = equippable && eq[it.slot];
+  const statLine = STAT_KEYS.map(k=>{
+    const v = totals[k]||0; if(!v) return '';
+    const d = v-(cur[k]||0);
+    const dl = cmp ? `<i class="${d>0?'up':d<0?'dn':'eq'}">${d>0?'▲':d<0?'▼':''}${d?Math.abs(d):''}</i>` : '';
+    return `<div class="ivd-st"><span>${STAT_META[k].icon} ${STAT_META[k].label}</span><b>${v}${dl}</b></div>`;
+  }).join('') || '<div class="ivd-st muted">Sem atributos</div>';
+  layer.innerHTML = `<div class="ivd-back"></div>
+    <div class="ivd-card" style="--rar:${rarityColor(it)}">
+      <button class="ivd-x" title="Fechar">✕</button>
+      <div class="ivd-top"><span class="ivd-ic">${itemThumb(it)}</span>
+        <div class="ivd-id"><b>${it.name}</b>
+          <span class="ivd-tags"><em class="ivd-rar">${RARITY_META[it.rarity].label}</em><em class="ivd-tier">${SLOT_LABEL[it.slot]} · Nível ${it.ilvl} (faixa T${itemTier(it)})</em></span></div>
+      </div>
+      <div class="ivd-stats">${statLine}</div>
+      ${cmp?'<p class="ivd-hint">Comparado com o item equipado — <span class="up">▲ verde</span> melhora · <span class="dn">▼ vermelho</span> piora.</p>':''}
+      ${!equippable?`<p class="ivd-hint warn">${def.name} não pode usar este item.</p>`:''}
+      <div class="ivd-acts">
+        ${equippable?`<button class="ivd-eq">⚔️ Equipar</button>`:''}
+        <button class="ivd-sell">💰 Vender · ${sellPrice(it)}</button>
+      </div>
+    </div>`;
+  layer.hidden = false;
+  const close = ()=>{ layer.hidden = true; layer.innerHTML=''; };
+  layer.querySelector('.ivd-x').onclick = close;
+  layer.querySelector('.ivd-back').onclick = close;
+  const eqBtn = layer.querySelector('.ivd-eq');
+  if(eqBtn) eqBtn.onclick = ()=>{ equipItem(heroId, invIdx); close(); renderInventory(mount, heroId); };
+  layer.querySelector('.ivd-sell').onclick = ()=>{ sellItem(invIdx); close(); renderInventory(mount, heroId); };
+}
+
 function equipItem(heroId, invIdx){
   const hs = S.heroes.find(h=>h.id===heroId); const def = HERO_DEFS.find(h=>h.id===heroId);
   const eq = heroEquip(hs);
-  const iid = S.inventory[invIdx]; const it = ITEMS[iid]; if(!it) return;
-  if(!canWear(def, it)){
-    toast(`${def.name} usa armadura ${ARMOR_WEIGHTS[def.armorWeight].label} — ${it.name} é ${ARMOR_WEIGHTS[it.weight]?.label||'—'}.`);
-    return;
-  }
-  S.inventory.splice(invIdx,1);            // tira do inventário
-  if(eq[it.slot]) S.inventory.push(eq[it.slot]);  // devolve o que estava equipado
-  eq[it.slot] = iid;
+  const inst = S.inventory[invIdx]; if(!inst) return;
+  if(!canEquip(def, inst)){ toast(`${def.name} não pode equipar ${inst.name}.`); return; }
+  S.inventory.splice(invIdx,1);                    // tira do inventário
+  if(eq[inst.slot]) S.inventory.push(eq[inst.slot]);  // devolve o que estava equipado
+  eq[inst.slot] = inst;
   save(S); refreshBase();
 }
 function unequipItem(heroId, slot){
   const hs = S.heroes.find(h=>h.id===heroId); const eq = heroEquip(hs);
-  if(!eq[slot]) return;
-  S.inventory.push(eq[slot]); eq[slot] = null;
-  save(S); refreshBase();
+  if(!eq[slot]) return false;
+  if((S.inventory||[]).length >= INV_CAP){ toast('Inventário cheio. Libere espaço antes de remover.'); return false; }
+  S.inventory.push(eq[slot]);
+  eq[slot] = null;
+  save(S); refreshBase(); return true;
+}
+function sellItem(invIdx){
+  const inst = S.inventory[invIdx]; if(!inst) return;
+  const g = sellPrice(inst);
+  S.inventory.splice(invIdx,1);
+  grant(S.resources,'gold',g); save(S); bumpRes(); toast(`Vendido: +${g} ouro.`);
 }
 function refreshBase(){
   if($('hub-left')) renderHubParty($('hub-left'));
@@ -397,16 +608,39 @@ function renderHubCenter(mount){
   const items = [
     { act:'forge',   img:'ic_forge',   label:'Forja' },
     { act:'academy', img:'ic_academy', label:'Academia' },
+    { act:'items',   emoji:'🧪',       label:'Itens' },
     { act:'map',     img:'ic_map',     label:'Mapa' },
   ];
   mount.innerHTML = items.map(it =>
-    `<button class="hub-ic" data-act="${it.act}"><img src="assets/${it.img}.png" alt=""><span>${it.label}</span></button>`).join('');
+    `<button class="hub-ic" data-act="${it.act}">${it.emoji?`<span class="hub-emoji">${it.emoji}</span>`:`<img src="assets/${it.img}.png" alt="">`}<span>${it.label}</span></button>`).join('');
   mount.querySelectorAll('.hub-ic').forEach(b => b.onclick = () => {
     const a = b.dataset.act;
     if(a==='forge')   openPanelModal('🔨 Forja', renderForge);
     if(a==='academy') openGambitHUD();
+    if(a==='items')   openPanelModal('🧪 Loja de Itens', openItemShop);
     if(a==='map')     show('map');
   });
+}
+
+// Loja de Consumíveis: comprar libera o uso; upgrade aumenta as cargas/expedição.
+function openItemShop(body){
+  const draw = () => {
+    body.innerHTML = `<p class="muted tiny" style="margin:0 2px 11px">Comprar <b>libera o uso</b> (sem equipar). As cargas <b>recarregam a cada expedição</b>. Use via gambit — ex.: <i>"Eu: MP &lt; 10 → Usar Poção de Mana"</i>.</p>
+      <div class="shop-list">${Object.values(CONSUMABLES).map(c=>{
+        const lv = (S.consumables||{})[c.id] || 0; const owned = lv>0; const ch = consumableCharges(c.id, lv);
+        const cost = owned ? c.upgrade : c.cost;
+        return `<div class="ci-row ${owned?'own':''}">
+          <span class="ci-ic">${c.icon}</span>
+          <div class="ci-b"><div class="ci-nm">${c.name}${owned?` <small>· ${ch} cargas/exp</small>`:''}</div><div class="ci-d">${c.desc}</div></div>
+          <button class="ci-buy" data-id="${c.id}" ${canAfford(cost)?'':'disabled'}>${owned?`Melhorar (${ch}→${ch+1})`:'Comprar'}<span class="ci-cost">${costHTML(cost)}</span></button>
+        </div>`;
+      }).join('')}</div>`;
+    body.querySelectorAll('.ci-buy').forEach(b => b.onclick = () => {
+      const c = CONSUMABLES[b.dataset.id]; const lv = (S.consumables||{})[c.id] || 0; const cost = lv>0 ? c.upgrade : c.cost;
+      if(!canAfford(cost)) return; spend(cost); (S.consumables = S.consumables || {})[c.id] = lv + 1; save(S); bumpRes(); draw();
+    });
+  };
+  draw();
 }
 
 // ================================================================ EDITOR DE GAMBITS (HUD estilo FF XII)
@@ -416,7 +650,7 @@ let ghPick = null;   // {line, kind} quando a lista inline está aberta naquela 
 function ghInlineList(hs, def, line, kind){
   const isCond = kind==='condition';
   const options = isCond ? S.unlockedConditions.map(c=>({id:c,label:CONDITIONS[c].label}))
-                         : (hs.unlockedSkills||def.skills).map(s=>({id:s,label:SKILLS[s].name}));
+                         : [...(hs.unlockedSkills||def.skills), ...ownedConsumableActions()].map(s=>({id:s,label:SKILLS[s].name}));
   const current = isCond ? hs.gambits[line].condition : hs.gambits[line].action;
   return `<div class="gg-opts">${options.map(o=>`
     <button class="gopt ${isCond?'c':'a'} ${o.id===current?'sel':''}" data-line="${line}" data-kind="${kind}" data-id="${o.id}">
@@ -695,11 +929,11 @@ function gambitLineHTML(g, i, def, condOpts){
 }
 
 // ================================================================ EXPEDIÇÃO
-const TICK_MS = 850;
+const TICK_MS = 110;   // micro-tick do ATB (a barra enche entre chamadas)
 function startExpedition(stageId){
   const stage = STAGES.find(s=>s.id===stageId);
   const party = buildParty(S);                 // referencia S.heroes[].gambits (edição ao vivo!)
-  expo = { stage, party, waveIndex:0, combat:null, timer:null, lastLog:0, runLoot:{gold:0}, over:false };
+  expo = { stage, party, waveIndex:0, combat:null, timer:null, lastLog:0, runLoot:{gold:0}, over:false, charges: chargesFromConsumables() };
   screen = 'expedition';
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   $('screen-expedition').classList.add('active');
@@ -734,7 +968,7 @@ function startWave(i){
   expo.waveIndex = i;
   const enemies = buildWave(expo.stage.waves[i]);
   expo.enemies = enemies;
-  expo.combat = new Combat(expo.party, enemies, { seed: 1000 + i*37 + Math.floor(Math.random()*900) });
+  expo.combat = new Combat(expo.party, enemies, { seed: 1000 + i*37 + Math.floor(Math.random()*900), charges: expo.charges });
   expo.lastLog = expo.combat.log.length;
   renderBattlers();
   $('expo-info').innerHTML = `📍 ${expo.stage.name} · Onda ${i+1}/${expo.stage.waves.length}`;
@@ -746,9 +980,10 @@ function startWave(i){
 function expoTick(){
   const c = expo.combat;
   const before = c.log.length;
-  c.step();
+  c.atbTick();
   for(const ev of c.log.slice(before)) presentEvent(ev);
   refreshBattlerBars();
+  refreshAtbBars();
   if(c.isOver()){
     stopExpo();
     if(c.outcome()==='victory'){
@@ -804,13 +1039,19 @@ function presentEvent(ev){
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="g">escuda ${ev.scope==='allies'?'a party':ev.target.name} (+${ev.amount})</span>`);
     return;
   }
-  // INVOCAÇÃO (Reanimar)
+  // INVOCAÇÃO (Reanimar / Cavaleiro / Horda / Legião)
   if(ev.type==='summon'){
     const lane = $('lane-heroes');
-    if(lane && ev.unit){ lane.insertAdjacentHTML('beforeend', battlerHTML(ev.unit,false)); refreshBattlerBars(); }
-    const be = battlerEl(ev.unit);
-    if(be){ const f=document.createElement('div'); f.className='float buff'; f.textContent='✨'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
-    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">ergue um Esqueleto ⚔️</span>`);
+    const mins = ev.units || (ev.unit ? [ev.unit] : []);
+    for(const mu of mins){
+      if(lane) lane.insertAdjacentHTML('beforeend', battlerHTML(mu,false));
+      const be = battlerEl(mu);
+      if(be){ const f=document.createElement('div'); f.className='float buff'; f.textContent='✨'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    }
+    refreshBattlerBars();
+    const nm = mins[0]?.name || 'aliado';
+    const quantos = mins.length>1 ? `${mins.length}× ${nm}` : nm;
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">ergue ${quantos}</span>`);
     return;
   }
   // REVIVER
@@ -837,6 +1078,14 @@ function presentEvent(ev){
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">${verb} ${ev.target.name}</span>${ev.amount?` (${ev.amount})`:''}`);
     return;
   }
+  // CONSUMÍVEL: restauração de MP (ou efeito sem número)
+  if(ev.type==='item'){
+    const be = battlerEl(ev.target);
+    if(be){ const f=document.createElement('div'); f.className='float heal'; f.textContent=ev.mp?`💧+${ev.amount}`:'✔'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerBars();
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b>${ev.mp?` <span class="g">+${ev.amount} MP</span>`:''}`);
+    return;
+  }
   // REGEN: cura por turno
   if(ev.type==='regen'){
     const be = battlerEl(ev.target);
@@ -851,11 +1100,34 @@ function presentEvent(ev){
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> <span class="muted">${meta.label.toLowerCase()} — perde o turno</span>`);
     return;
   }
-  // ERROU (cegueira)
+  // ERROU / BLOQUEADO / ESQUIVOU
   if(ev.type==='damage' && ev.missed){
-    const be = battlerEl(ev.source);
-    if(be){ const f=document.createElement('div'); f.className='float stun'; f.textContent='errou'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
-    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="muted">errou (cegueira)</span>`);
+    const alvoBe = battlerEl(ev.target), be = battlerEl(ev.source);
+    const txt = ev.blocked ? '✨ imune' : ev.evaded ? '🌀 esquiva' : 'errou';
+    const showOn = ev.blocked || ev.evaded ? alvoBe : be;
+    if(showOn){ const f=document.createElement('div'); f.className='float stun'; f.textContent=txt; showOn.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    const why = ev.blocked ? 'INVULNERÁVEL' : ev.evaded ? 'ESQUIVOU' : 'errou (cegueira)';
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="muted">${why}</span>`);
+    return;
+  }
+  // RESTAURAR MP (Refresco/Poção de Mana/Refluxo/Inspiração)
+  if(ev.type==='mana'){
+    const be = battlerEl(ev.target);
+    if(be){ const f=document.createElement('div'); f.className='float heal'; f.textContent=`💧+${ev.amount}`; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerBars();
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b> <span class="g">+${ev.amount} MP</span>`);
+    return;
+  }
+  // ESCUDOS REATIVOS / FOCO (guard·invuln·reflect·vuln·critup·evasion)
+  if(['guard','invuln','reflect','vuln','critup','evasion'].includes(ev.type)){
+    const ICON = { guard:'🛡️', invuln:'✨', reflect:'🪞', vuln:'🎯', critup:'💥', evasion:'🌀' };
+    const VERB = { guard:'assume guarda', invuln:'fica invulnerável', reflect:'ergue reflexão',
+      vuln:'marca o alvo (vulnerável)', critup:'foca (+crítico)', evasion:'aumenta a evasão' };
+    const isDebuff = ev.type==='vuln';
+    const be = battlerEl(ev.target);
+    if(be){ const f=document.createElement('div'); f.className='float '+(isDebuff?'stun':'buff'); f.textContent=ICON[ev.type]; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    refreshBattlerStatus(ev.target); refreshBattlerBars();
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="${isDebuff?'c':'g'}">${VERB[ev.type]}${ev.scope==='allies'?' (party)':''}</span>`);
     return;
   }
   // dano/cura flutuante + hit flash
@@ -909,9 +1181,16 @@ function expeditionCleared(){
   let unlockedMsg = '';
   if(next && !S.stagesUnlocked[next.id]){ S.stagesUnlocked[next.id]=true; unlockedMsg = `🔓 ${next.name} desbloqueada!`; }
   S.progress.clears = (S.progress.clears||0)+1;
-  // drop de itens de equipamento
+  // drop de itens de equipamento — instâncias GERADAS (base+raridade+mods), ilvl pela fase
   expo.runLoot.items = expo.runLoot.items || [];
-  for(const d of ITEM_DROPS){ if(Math.random() < d.chance){ (S.inventory=S.inventory||[]).push(d.item); expo.runLoot.items.push(d.item); } }
+  S.inventory = S.inventory || [];
+  const ilvl = idx + 1;
+  const nDrops = 1 + (Math.random()<0.55?1:0) + (Math.random()<0.25?1:0);   // 1–3 por corrida
+  for(let i=0;i<nDrops;i++){
+    if(S.inventory.length >= INV_CAP){ toast('Inventário cheio — venda itens.'); break; }
+    const it = rollDrop(ilvl); if(!it) continue;
+    S.inventory.push(it); expo.runLoot.items.push(it);
+  }
   // XP p/ a party (escala com a fase)
   const xpGain = 30 + idx*25 + (expo.stage.waves.length*8);
   expo.runLoot.xp = xpGain;
@@ -934,7 +1213,7 @@ function lootModal(unlockedMsg){
   const SKIP = new Set(['items','levels','xp']);
   const items = Object.entries(L).filter(([k,v])=>!SKIP.has(k)&&v>0)
     .map(([k,v])=>`<span>${RES_ICON[k]||''} ${v}</span>`).join('') || '<span class="muted">—</span>';
-  const drops = (L.items||[]).map(iid=>{ const it=ITEMS[iid]; return it?`<span class="drop">${it.icon} ${it.name}</span>`:''; }).join('');
+  const drops = (L.items||[]).map(it=> it ? `<span class="drop" style="border-color:${rarityColor(it)}">${itemIcon(it)} ${it.name} <em style="color:${rarityColor(it)};font-style:normal;font-weight:800">${RARITY_META[it.rarity].label}</em></span>` : '').join('');
   const ups = (L.levels||[]).filter(r=>r.up).map(r=>`<span class="drop">⭐ ${r.name} Nv.${r.up} (+${r.lp} LP)</span>`).join('');
   const root = $('modal-root');
   root.innerHTML = `<div class="modal"><div class="box">
@@ -973,6 +1252,7 @@ function battlerHTML(u, foe){
     <div class="nmtag">${u.name}</div>
     <div class="b-status"></div>
     <div class="ohp"><i></i></div>
+    <div class="atb ${foe?'foe':''}"><i></i></div>
     <div class="spr">${spriteFor(u.id)}</div>
     <div class="shadow"></div></div>`;
 }
@@ -993,6 +1273,16 @@ function refreshBattlerBars(){
     be.classList.toggle('dead', u.hp<=0);
     be.querySelector('.ohp>i').style.width = Math.max(0, 100*u.hp/u.maxHp) + '%';
     refreshBattlerStatus(u);
+  }
+}
+// barra ATB: enche pela destreza; "cheia" pisca ao agir
+function refreshAtbBars(){
+  for(const u of [...(expo.party||[]), ...(expo.enemies||[])]){
+    const be = battlerEl(u); if(!be) continue;
+    const bar = be.querySelector('.atb>i'); if(!bar) continue;
+    const pct = u.hp<=0 ? 0 : Math.min(100, 100*(u.atb||0)/ATB_MAX);
+    bar.style.width = pct + '%';
+    be.querySelector('.atb').classList.toggle('full', u.hp>0 && pct>=100);
   }
 }
 

@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>O Elevador</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+  html,body{height:100%;overflow:hidden;background:#000;font-family:'Trebuchet MS',system-ui,sans-serif;color:#d8d2c4}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+  #c:active{cursor:grabbing}
+  /* granulação de filme (ruído SVG) por cima do render */
+  #grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.07;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:160px 160px}
+  /* vinheta escura por cima, reforça o clima */
+  #vig{position:fixed;inset:0;z-index:2;pointer-events:none;box-shadow:inset 0 0 160px 14px #000c, inset 0 0 60px 6px #0007}
+  /* legenda estilo point-and-click */
+  #say{position:fixed;left:0;right:0;bottom:46px;z-index:3;text-align:center;pointer-events:none;padding:0 24px}
+  #say span{display:inline-block;background:#000000aa;padding:9px 16px;border-radius:10px;font-size:15px;line-height:1.4;
+    letter-spacing:.3px;color:#e6e0d2;opacity:0;transition:opacity .35s;max-width:520px;box-shadow:0 0 0 1px #ffffff12}
+  #say span.show{opacity:1}
+  /* dica de olhar */
+  #look{position:fixed;top:16px;left:0;right:0;z-index:3;text-align:center;font-size:12px;color:#ffffff55;letter-spacing:1px;pointer-events:none;transition:opacity .5s}
+  /* flash de susto */
+  #flash{position:fixed;inset:0;z-index:4;background:#000;opacity:0;pointer-events:none;transition:opacity .08s}
+  /* start */
+  #start{position:fixed;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    background:#000;text-align:center;padding:28px}
+  #start h1{font-size:34px;letter-spacing:6px;font-weight:900;color:#c9c2b2}
+  #start p{color:#8a8578;font-size:13px;max-width:280px;line-height:1.6}
+  #start .go{margin-top:10px;font-family:inherit;font-weight:800;font-size:16px;letter-spacing:2px;color:#0a0a0a;
+    background:#c9c2b2;border:0;border-radius:12px;padding:14px 32px;cursor:pointer}
+  #start .tip{font-size:11px;color:#5a564d;letter-spacing:.5px}
+</style>
+
+<canvas id="c"></canvas>
+<div id="grain"></div>
+<div id="vig"></div>
+<div id="look">arraste para olhar · toque para interagir</div>
+<div id="say"><span id="sayT"></span></div>
+<div id="flash"></div>
+
+<div id="start">
+  <h1>O ELEVADOR</h1>
+  <p>Você entra. As portas se fecham sozinhas. O elevador começa a descer… e não para no seu andar.</p>
+  <button class="go" id="startBtn">ENTRAR</button>
+  <div class="tip">use fones · melhor no escuro</div>
+</div>
+
+<script type="module" src="game.js"></script>

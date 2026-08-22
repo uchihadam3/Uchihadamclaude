@@ -85,6 +85,14 @@ function removeStatuses(target, pred){
   return n;
 }
 
+// resolve os destinatários de um efeito de apoio conforme o escopo
+//  'allies' = party viva · 'self' = só o executor · (padrão) = o alvo
+function recipsFor(unit, target, ctx, scope){
+  if(scope === 'allies') return ctx.alliesOf(unit).filter(a => a.hp > 0);
+  if(scope === 'self')   return [unit];
+  return [target];
+}
+
 // -- CUSTO / EXECUÇÃO ---------------------------------------------------------
 export function canPay(unit, skill){ return unit.mp >= (skill.mp || 0); }
 
@@ -122,8 +130,16 @@ export function execute(unit, skill, target, ctx){
   }
 
   // REVIVER: traz um aliado caído de volta com uma fração do HP.
+  //  healPower>0: também CURA aliados vivos (usado por "Salvação").
   if(skill.kind === 'revive'){
-    if(target.hp > 0) return { type:'heal', source:unit, target, skill:skill.id, amount:0 };
+    if(target.hp > 0){
+      if(skill.healPower){
+        const before = target.hp; const h = Math.round(skill.healPower * unit.stats.mag);
+        target.hp = Math.min(target.maxHp, target.hp + h);
+        return { type:'heal', source:unit, target, skill:skill.id, amount: target.hp - before };
+      }
+      return { type:'heal', source:unit, target, skill:skill.id, amount:0 };
+    }
     const amt = Math.max(1, Math.round(target.maxHp * (skill.revive || 0.4)));
     target.hp = amt; target.statuses = [];
     return { type:'revive', source:unit, target, skill:skill.id, amount:amt };
@@ -158,21 +174,85 @@ export function execute(unit, skill, target, ctx){
     return { type:'heal', source:unit, target, skill:skill.id, amount: target.hp - before };
   }
 
+  // RESTAURAR MP (Refresco/Poção de Mana/Refluxo/Canção de Inspiração).
+  if(skill.kind === 'mana'){
+    const amt = skill.amount || 0; const before = target.mp;
+    target.mp = Math.min(target.maxMp, target.mp + amt);
+    return { type:'mana', source:unit, target, skill:skill.id, amount: target.mp - before };
+  }
+  // GUARDA (redução de dano por N turnos): Bloqueio Total / Pele de Pedra reativa.
+  if(skill.kind === 'guard'){
+    const rs = recipsFor(unit, target, ctx, skill.scope || 'self');
+    for(const r of rs) addStatus(r, { id:'guard', kind:'guard', frac:skill.frac || 0.5, ticks:(skill.duration || 1) + 1 });
+    return { type:'guard', source:unit, target:rs[0] || unit, skill:skill.id, amount:skill.frac || 0.5 };
+  }
+  // INVULNERÁVEL (Baluarte / Intervenção Divina): ignora todo dano por N turnos.
+  if(skill.kind === 'invuln'){
+    const rs = recipsFor(unit, target, ctx, skill.scope || 'self');
+    for(const r of rs) addStatus(r, { id:'invuln', kind:'invuln', ticks:(skill.duration || 1) + 1 });
+    return { type:'invuln', source:unit, target:rs[0] || unit, skill:skill.id };
+  }
+  // REFLEXÃO (Runa de Espinhos/Espelho/Contra-Runa): devolve fração do dano.
+  if(skill.kind === 'reflect'){
+    const rs = recipsFor(unit, target, ctx, skill.scope || 'self');
+    for(const r of rs) addStatus(r, { id:'reflect', kind:'reflect', mode:skill.mode || 'any', frac:skill.frac || 0.3, ticks:(skill.duration || 3) + 1 });
+    return { type:'reflect', source:unit, target:rs[0] || unit, skill:skill.id, amount:skill.frac || 0.3 };
+  }
+  // VULNERÁVEL (Marca da Morte): o alvo recebe mais dano por N turnos.
+  if(skill.kind === 'vuln'){
+    addStatus(target, { id:'vuln', kind:'vuln', frac:skill.frac || 0.25, ticks:(skill.duration || 4) + 1 });
+    return { type:'vuln', source:unit, target, skill:skill.id, amount:skill.frac || 0.25 };
+  }
+  // FOCO/CRÍTICO (Mira Firme/Foco Assassino…): +chance de crítico por N turnos.
+  if(skill.kind === 'critup'){
+    const rs = recipsFor(unit, target, ctx, skill.scope || 'self');
+    for(const r of rs) addStatus(r, { id:'critup', kind:'critup', amt:skill.amt || 0.25, ticks:(skill.duration || 4) + 1 });
+    return { type:'critup', source:unit, target:rs[0] || unit, skill:skill.id, amount:skill.amt || 0.25 };
+  }
+  // EVASÃO (Fumaça/Postura de Duelo/Vanish): chance de o alvo esquivar por N turnos.
+  if(skill.kind === 'evasion'){
+    const rs = recipsFor(unit, target, ctx, skill.scope || 'self');
+    for(const r of rs) addStatus(r, { id:'evasion', kind:'evasion', chance:skill.chance || 0.35, ticks:(skill.duration || 3) + 1 });
+    return { type:'evasion', source:unit, target:rs[0] || unit, skill:skill.id, amount:skill.chance || 0.35 };
+  }
+
   // dano (suporta multi-hit via skill.hits)
   // CEGUEIRA: quem está cego pode errar o ataque
   if(hasKind(unit, 'blind') && ctx.rng() < 0.40){
     return { type:'damage', source:unit, target, skill:skill.id, amount:0, crit:false, dead:false, missed:true };
   }
+  // INVULNERÁVEL: o alvo ignora todo o dano
+  if(hasKind(target, 'invuln')){
+    return { type:'damage', source:unit, target, skill:skill.id, amount:0, crit:false, dead:false, missed:true, blocked:true };
+  }
+  // EVASÃO: chance de o alvo esquivar por completo
+  const eva = (target.statuses || []).find(s => s.ticks > 0 && s.kind === 'evasion');
+  if(eva && ctx.rng() < (eva.chance || 0.35)){
+    return { type:'damage', source:unit, target, skill:skill.id, amount:0, crit:false, dead:false, missed:true, evaded:true };
+  }
   const atkStat = unit.stats[skill.stat] ?? unit.stats.atk;
   // bônus SAGRADO vs morto-vivo (sinergia Clérigo/Paladino)
   const holyVsUndead = (skill.element === 'holy' && target.type === 'morto-vivo') ? 1.5 : 1;
+  // FOCO/CRÍTICO acumulado do atacante (status critup)
+  const critAtk = (unit.statuses || []).reduce((a,s)=> a + (s.ticks>0 && s.kind==='critup' ? (s.amt||0) : 0), 0);
+  // VULNERABILIDADE do alvo (recebe mais dano)
+  const vulnMul = 1 + (target.statuses || []).reduce((a,s)=> a + (s.ticks>0 && s.kind==='vuln' ? (s.frac||0) : 0), 0);
+  // GUARDA do alvo (redução de dano)
+  const guardMul = 1 - Math.min(0.9, (target.statuses || []).reduce((a,s)=> a + (s.ticks>0 && s.kind==='guard' ? (s.frac||0) : 0), 0));
+  // DEF efetiva (ignoreDef reduz a defesa considerada)
+  const effDef = target.stats.def * 0.5 * (1 - Math.min(1, skill.ignoreDef || 0));
   // multi-hit: soma o dano de cada acerto (crit rolado por acerto)
   const hits = Math.max(1, skill.hits || 1);
   let isCrit = false, dmg = 0;
-  for(let h = 0; h < hits; h++){
-    const crit = ctx.rng() < (0.10 + (skill.critBonus || 0)); if(crit) isCrit = true;
-    let d = atkStat * skill.power - target.stats.def * 0.5;
-    dmg += Math.max(1, Math.round(d * (crit ? 1.6 : 1) * holyVsUndead));
+  if(skill.pctHp){
+    // GRAVIDADE: dano = fração do HP MÁXIMO do alvo (ignora DEF e crítico)
+    dmg = Math.max(1, Math.round(target.maxHp * skill.pctHp * vulnMul * guardMul));
+  } else {
+    for(let h = 0; h < hits; h++){
+      const crit = ctx.rng() < (0.10 + (skill.critBonus || 0) + critAtk) || skill.alwaysCrit; if(crit) isCrit = true;
+      let d = atkStat * skill.power - effDef;
+      dmg += Math.max(1, Math.round(d * (crit ? 1.6 : 1) * holyVsUndead * vulnMul * guardMul));
+    }
   }
   // absorção por ESCUDO (consome o escudo antes de tirar HP)
   let absorbed = 0;
@@ -191,6 +271,21 @@ export function execute(unit, skill, target, ctx){
     lifesteal = Math.max(1, Math.round(dmg * skill.lifesteal));
     unit.hp = Math.min(unit.maxHp, unit.hp + lifesteal);
   }
+  // DANO QUE RECUPERA MP do executor (Dreno de Mana)
+  if(skill.restoreSelfMp && dmg > 0 && unit.maxMp > 0){
+    unit.mp = Math.min(unit.maxMp, unit.mp + skill.restoreSelfMp);
+  }
+  // REFLEXÃO: se o alvo tem escudo reflexivo compatível, devolve dano ao atacante
+  let reflected = 0;
+  if(dmg > 0){
+    const isPhys = (skill.stat || 'atk') === 'atk';
+    const rf = (target.statuses || []).find(s => s.ticks > 0 && s.kind === 'reflect'
+      && (s.mode === 'any' || (s.mode === 'phys' && isPhys) || (s.mode === 'magic' && !isPhys)));
+    if(rf && unit.hp > 0){
+      reflected = Math.max(1, Math.round(dmg * (rf.frac || 0.3)));
+      unit.hp = Math.max(0, unit.hp - reflected);
+    }
+  }
   // tomar dano ACORDA / tira a confusão do alvo
   if(dmg > 0 && !dead && target.statuses)
     target.statuses = target.statuses.filter(s => !(s.kind === 'sleep' || s.kind === 'confuse'));
@@ -203,5 +298,5 @@ export function execute(unit, skill, target, ctx){
     if(kind === 'regen') st.amt = a.amt;
     addStatus(target, st); applied = a.status;
   }
-  return { type:'damage', source:unit, target, skill:skill.id, amount:dmg, crit:isCrit, dead, holy: holyVsUndead>1, applied, absorbed, lifesteal };
+  return { type:'damage', source:unit, target, skill:skill.id, amount:dmg, crit:isCrit, dead, holy: holyVsUndead>1, applied, absorbed, lifesteal, reflected, reflectDead: reflected>0 && unit.hp===0 };
 }

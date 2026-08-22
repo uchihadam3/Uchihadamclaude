@@ -6,7 +6,7 @@
 //     a 1ª condição verdadeira executa a ação e PARA a busca daquela unidade.
 // =============================================================================
 
-import { SKILLS, HERO_DEFS, ENEMY_DEFS, ENEMY_GAMBITS, FORGE_LEVELS, itemBonuses, MINION_DEF } from './data.js';
+import { SKILLS, HERO_DEFS, ENEMY_DEFS, ENEMY_GAMBITS, FORGE_LEVELS, itemBonuses, MINION_DEF, MINION_DEFS } from './data.js';
 import { CONDITION_FNS, canPay, execute } from './gambits.js';
 
 // status que fazem a unidade PERDER o turno
@@ -44,8 +44,16 @@ export function unitFrom(def, side, opts = {}){
     isBoss: !!opts.isBoss,
     taunt: 0,                               // ticks restantes de provocação (aggro)
     statuses: [],                           // efeitos ativos (dot/stun/buff)
+    atb: 0,                                 // medidor ATB (0..ATB_MAX) — enche pela destreza (spd)
   };
 }
+
+// --- ATB (Active Time Battle) -------------------------------------------------
+// O medidor de cada unidade enche a cada micro-tick conforme sua DESTREZA (spd).
+// Quando enche, a unidade AGE (uma ação) e o medidor zera. Unidades rápidas agem
+// com mais frequência → cada uma joga em tempos diferentes, não todas de uma vez.
+export const ATB_MAX = 100;
+export function atbRate(spd){ return 1.6 + Math.max(1, spd) * 1.35; }  // por micro-tick
 
 // Soma do bônus de ATK da forja até um nível.
 export function forgeAtkBonus(level){
@@ -86,7 +94,8 @@ export function buildWave(enemyIds){
 
 // --- COMBATE -----------------------------------------------------------------
 export class Combat {
-  constructor(party, enemies, { seed = 12345 } = {}){
+  constructor(party, enemies, { seed = 12345, charges } = {}){
+    const opts = { charges };
     this.party   = party;                   // unidades side='hero'
     this.enemies = enemies;                 // unidades side='enemy'
     this.units   = [...party, ...enemies];
@@ -95,11 +104,13 @@ export class Combat {
     this.log     = [];                      // histórico de eventos (para a View)
     this.corpses = 0;                       // cadáveres de inimigos (p/ Necromante reanimar)
     this._summons = 0;                      // contador de invocações (uid único)
+    this.charges = opts.charges || {};      // cargas de consumíveis (por expedição)
   }
 
-  // Invoca um esqueleto aliado a partir de um cadáver.
-  summonMinion(owner){
-    const m = unitFrom(MINION_DEF, 'hero', { uid:`minion#${++this._summons}`, gambits: MINION_DEF.gambits });
+  // Invoca um minion aliado (esqueleto padrão ou variante) a partir de um cadáver.
+  summonMinion(owner, defId){
+    const def = (MINION_DEFS && MINION_DEFS[defId]) || MINION_DEF;
+    const m = unitFrom(def, 'hero', { uid:`minion#${++this._summons}`, gambits: def.gambits });
     this.party.push(m); this.units.push(m);
     return m;
   }
@@ -129,6 +140,31 @@ export class Combat {
       }
     }
     return this.log;
+  }
+
+  // --- ATB: um MICRO-TICK. Enche os medidores; quando alguém enche, ELE age.
+  // Retorna { acted: unidade|null, ready: [unidades cheias na fila] }.
+  // A View chama isto num intervalo curto; a barra ATB anima entre chamadas.
+  atbTick(){
+    if(this.isOver()) return { acted:null };
+    this.tick++;
+    for(const u of this.units){
+      if(u.hp <= 0){ u.atb = 0; continue; }
+      u.atb = Math.min(ATB_MAX * 2, (u.atb || 0) + atbRate(u.stats.spd));
+    }
+    // pega o mais "pronto" (maior medidor) — só UM age por micro-tick.
+    const ready = this.units.filter(u => u.hp > 0 && (u.atb || 0) >= ATB_MAX)
+                            .sort((a, b) => (b.atb || 0) - (a.atb || 0));
+    const u = ready[0];
+    if(!u) return { acted:null };
+    u.atb = 0;                              // gastou o turno
+    const ev = this.act(u);
+    // upkeep por-turno da unidade que agiu (aggro decai, MP regenera devagar)
+    if(u.taunt > 0) u.taunt--;
+    if(u.hp > 0 && u.maxMp > 0 && u.mp < u.maxMp){
+      u.mp = Math.min(u.maxMp, u.mp + Math.max(1, Math.round(u.maxMp * 0.05)));
+    }
+    return { acted:u, ev };
   }
 
   // Aggro: se algum alvo-herói está provocando, o inimigo é forçado a mirá-lo.
@@ -195,12 +231,26 @@ export class Combat {
       let target = condFn(u, ctx);
       if(!target) continue;                 // condição FALSA → próxima linha
       if(!canPay(u, skill)) continue;       // sem MP → tenta a próxima (fallback)
-      // INVOCAÇÃO (Necromante): consome um cadáver e ergue um esqueleto aliado
+      // CONSUMÍVEL: gasta uma carga (por expedição) e aplica o efeito no aliado-alvo
+      if(skill.kind === 'item'){
+        if((this.charges[skill.item] || 0) <= 0) continue;   // sem carga → próxima linha
+        this.charges[skill.item]--;
+        let ev;
+        if(skill.heal){ const b = target.hp; target.hp = Math.min(target.maxHp, target.hp + skill.heal); ev = { type:'heal', source:u, target, skill:skill.id, amount: target.hp - b }; }
+        else if(skill.restoreMp){ const b = target.mp; target.mp = Math.min(target.maxMp, target.mp + skill.restoreMp); ev = { type:'item', source:u, target, skill:skill.id, amount: target.mp - b, mp:true }; }
+        else if(skill.cleanse){ ev = execute(u, { kind:'cleanse', id:skill.id, cure:'all' }, target, ctx); }
+        else { ev = { type:'item', source:u, target, skill:skill.id, amount:0 }; }
+        ev.tick = this.tick; ev.item = skill.item; this.log.push(ev); return ev;
+      }
+      // INVOCAÇÃO (Necromante): consome um cadáver e ergue um ou mais minions
       if(skill.kind === 'summon'){
         if(this.corpses <= 0) continue;     // sem cadáver → próxima linha
         this.corpses--; u.mp -= (skill.mp || 0);
-        const m = this.summonMinion(u);
-        const ev = { type:'summon', source:u, target:m, unit:m, skill:skill.id, tick:this.tick };
+        const count = Math.max(1, skill.count || 1);
+        const mins = [];
+        for(let i = 0; i < count; i++) mins.push(this.summonMinion(u, skill.minion));
+        const m = mins[mins.length - 1];
+        const ev = { type:'summon', source:u, target:m, unit:m, units:mins, skill:skill.id, count, tick:this.tick };
         this.log.push(ev); return ev;
       }
       // ÁREA (AoE): acerta o time inteiro; paga o MP uma vez só
@@ -215,6 +265,7 @@ export class Combat {
         for(const tg of team){
           const ev = execute(u, single, tg, ctx); ev.tick = this.tick; ev.aoe = true;
           if(ev.dead && ev.target.side === 'enemy') this.corpses++;
+          if(ev.reflectDead && u.side === 'enemy') this.corpses++;
           this.log.push(ev); last = ev;
         }
         return last;
@@ -223,6 +274,7 @@ export class Combat {
       if(skill.targetType === 'enemy') target = this.tauntRedirect(u, target);
       const ev = execute(u, skill, target, ctx);
       if(ev.dead && ev.target.side === 'enemy') this.corpses++;  // matou → cadáver
+      if(ev.reflectDead && u.side === 'enemy') this.corpses++;   // morreu pela reflexão
       ev.tick = this.tick;
       this.log.push(ev);
       return ev;                            // 1ª verdadeira executou → PARA
