@@ -21,7 +21,7 @@ import { TelaDeArte } from './tela.js';
 export const LARGURA = 96;
 export const ALTURA = 96;
 /** A linha em que os pés encostam. Deixa margem para a arma passar por baixo. */
-const CHAO = 90;
+export const CHAO = 90;
 /** O eixo do corpo. Sobra à direita para o braço e a lâmina. */
 const EIXO = 40;
 

@@ -25,8 +25,10 @@ export interface Save {
   readonly versao: 1;
   readonly classes: Readonly<Partial<Record<IdDeClasse, RecordeDeClasse>>>;
   readonly preferencias: {
-    readonly volume: number;
-    readonly mudo: boolean;
+    /* Música e efeitos são controles separados: quem joga no ônibus quer o
+     * efeito sem a trilha, e juntar os dois num só tira essa escolha. */
+    readonly volumeDaMusica: number;
+    readonly volumeDosEfeitos: number;
     readonly velocidade: number;
   };
   /** O jogador já viu que existe Maestria Dourada? */
@@ -36,15 +38,26 @@ export interface Save {
 export const SAVE_VAZIO: Save = {
   versao: 1,
   classes: {},
-  preferencias: { volume: 0.6, mudo: false, velocidade: 1 },
+  preferencias: { volumeDaMusica: 0.55, volumeDosEfeitos: 0.7, velocidade: 1 },
   conheceAMaestria: false,
 };
 
-const ehSave = (valor: unknown): valor is Save =>
-  typeof valor === 'object' &&
-  valor !== null &&
-  (valor as { versao?: unknown }).versao === 1 &&
-  typeof (valor as { classes?: unknown }).classes === 'object';
+/**
+ * Um save só é aceito se tiver a forma esperada **inteira**.
+ *
+ * Um save de versão anterior, com `volume` em vez dos dois controles
+ * separados, é descartado em silêncio e o jogo abre com o padrão. Migrar
+ * valeria a pena se houvesse progresso de verdade guardado; nesta fase,
+ * descartar é honesto e não deixa meia estrutura circulando.
+ */
+const ehSave = (valor: unknown): valor is Save => {
+  if (typeof valor !== 'object' || valor === null) return false;
+  const bruto = valor as { versao?: unknown; classes?: unknown; preferencias?: unknown };
+  if (bruto.versao !== 1) return false;
+  if (typeof bruto.classes !== 'object' || bruto.classes === null) return false;
+  const pref = bruto.preferencias as { volumeDaMusica?: unknown } | undefined;
+  return typeof pref?.volumeDaMusica === 'number';
+};
 
 export const carregar = (): Save => {
   try {

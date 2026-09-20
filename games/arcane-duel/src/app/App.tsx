@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { BALANCEAMENTO } from '../dados/balanceamento.js';
 import { classePorId } from '../dados/classes.js';
 import type { Recompensa } from '../dados/recompensas.js';
-import type { IdDeClasse } from '../dados/tipos.js';
 import { audio } from '../audio/AudioManager.js';
 import type { BuildParcial } from '../nucleo/build.js';
 import { buildVazia } from '../nucleo/build.js';
@@ -24,13 +23,18 @@ import {
   registrarRun,
   salvar,
 } from '../nucleo/salvar.js';
+import { Botao } from '../ui/Botao.js';
+import { aplicarAtualizacao, registrarAtualizacoes } from './atualizacao.js';
 import { compartilharResultado } from './compartilhar.js';
 import { Draft } from './telas/Draft.js';
 import type { FimDaLuta } from './telas/Dungeon.js';
 import { Dungeon } from './telas/Dungeon.js';
 import type { DadosDoResultado } from './telas/Fluxo.js';
 import { Checkpoint, Desbloqueio, Despertar, EscolhaDeModo, Resultado } from './telas/Fluxo.js';
-import { Inicio, SelecaoDeClasse } from './telas/Inicio.js';
+import { Classes } from './telas/Classes.js';
+import { Titulo } from './telas/Titulo.js';
+import type { Estilo } from './Transicao.js';
+import { DURACAO_DA_TRANSICAO_MS, Transicao } from './Transicao.js';
 
 /*
  * O fluxo do jogo.
@@ -66,38 +70,89 @@ export const App = (): React.JSX.Element => {
   const [save, definirSave] = useState<Save>(() => carregar());
   const [tela, definirTela] = useState<Tela>({ t: 'inicio' });
   const [velocidade, definirVelocidade] = useState(1);
+  const [versaoNova, definirVersaoNova] = useState(false);
+  const [transicao, definirTransicao] = useState<{
+    readonly estilo: Estilo;
+    readonly progresso: number;
+  } | null>(null);
 
   const gravar = useCallback((proximo: Save) => {
     definirSave(proximo);
     salvar(proximo);
   }, []);
 
-  /* O primeiro gesto libera o áudio. O navegador exige, e não há como fugir. */
+  /*
+   * A troca de tela, com transição.
+   *
+   * A tela nova entra exatamente no **pico** da cobertura, quando o véu está
+   * fechado, então a substituição nunca é vista. Sem esse cuidado a transição
+   * vira um enfeite por cima de um corte seco — e continua parecendo site.
+   */
+  const trocar = useCallback((destino: Tela, estilo: Estilo): void => {
+    const comeco = performance.now();
+    let trocou = false;
+    const passo = (agora: number): void => {
+      const t = Math.min(1, (agora - comeco) / DURACAO_DA_TRANSICAO_MS);
+      if (!trocou && t >= 0.5) {
+        trocou = true;
+        definirTela(destino);
+      }
+      definirTransicao(t >= 1 ? null : { estilo, progresso: t });
+      if (t < 1) requestAnimationFrame(passo);
+    };
+    requestAnimationFrame(passo);
+  }, []);
+
+  /*
+   * O primeiro gesto libera o áudio.
+   *
+   * Todo navegador móvel exige uma interação antes de deixar tocar som, e não
+   * há como fugir disso. O que dá para fazer — e é o que se faz aqui — é não
+   * deixar o jogo mudo em silêncio: qualquer toque na tela destrava, e o
+   * primeiro toque costuma ser o que pula a entrada cinemática.
+   */
   useEffect(() => {
     const destravar = (): void => {
       audio.destravar();
-      audio.definirVolume(save.preferencias.volume);
-      audio.silenciar(save.preferencias.mudo);
+      audio.definirVolumes(
+        save.preferencias.volumeDaMusica,
+        save.preferencias.volumeDosEfeitos,
+      );
+      /* O unlock chega depois do primeiro render: a música precisa começar agora. */
+      if (audio.camadaAtualDoMenu >= 0) audio.tocarMusicaDeMenu(audio.camadaAtualDoMenu);
     };
     globalThis.addEventListener('pointerdown', destravar, { once: true });
+    globalThis.addEventListener('keydown', destravar, { once: true });
     return () => {
       globalThis.removeEventListener('pointerdown', destravar);
+      globalThis.removeEventListener('keydown', destravar);
     };
-  }, [save.preferencias.volume, save.preferencias.mudo]);
+  }, [save.preferencias.volumeDaMusica, save.preferencias.volumeDosEfeitos]);
 
+  /*
+   * O tema do menu, ganhando corpo.
+   *
+   * Não se troca de música entre as telas de preparação: é o **mesmo** tema,
+   * com mais camadas. Na tela inicial só o colchão; escolhendo a classe entra
+   * a harmonia; no draft entra o arpejo. Como as camadas já estão tocando, a
+   * passagem não corta o compasso — a música apenas cresce junto com a
+   * expectativa de quem está montando a build.
+   */
   useEffect(() => {
-    if (tela.t === 'inicio' || tela.t === 'classe' || tela.t === 'draft' || tela.t === 'modo') {
-      audio.tocarMusica(1);
-    }
+    const camada =
+      tela.t === 'inicio' ? 0 : tela.t === 'classe' ? 1 : tela.t === 'draft' || tela.t === 'modo' ? 2 : -1;
+    if (camada >= 0) audio.tocarMusicaDeMenu(camada);
   }, [tela.t]);
 
-  const comecarDraft = useCallback(
-    (classe: IdDeClasse, dourada: boolean) => {
-      const novaSeed = gerarSeed();
-      definirTela({ t: 'draft', draft: iniciarDraft(buildVazia(classe, dourada), novaSeed) });
-    },
-    [],
-  );
+  /*
+   * A versão nova.
+   *
+   * O aviso aparece e fica; ele não interrompe nada. Quem está no meio de uma
+   * run continua na versão que começou, e atualiza quando quiser.
+   */
+  useEffect(() => registrarAtualizacoes(() => {
+    definirVersaoNova(true);
+  }), []);
 
   /* ---------------------------------------------------------------------
    * O fim de cada sala.
@@ -226,29 +281,36 @@ export const App = (): React.JSX.Element => {
    * As telas.
    * ------------------------------------------------------------------ */
 
-  switch (tela.t) {
+  const conteudo = ((): React.JSX.Element => {
+    switch (tela.t) {
     case 'inicio':
       return (
-        <Inicio
+        <Titulo
           save={save}
           aoJogar={() => {
-            definirTela({ t: 'classe' });
+            trocar({ t: 'classe' }, 'cortina');
           }}
-          aoAlternarSom={() => {
-            const mudo = !save.preferencias.mudo;
-            audio.silenciar(mudo);
-            gravar(comPreferencias(save, { mudo }));
+          aoMudarVolume={(musica, efeitos) => {
+            audio.definirVolumes(musica, efeitos);
+            gravar(
+              comPreferencias(save, { volumeDaMusica: musica, volumeDosEfeitos: efeitos }),
+            );
           }}
         />
       );
 
     case 'classe':
       return (
-        <SelecaoDeClasse
+        <Classes
           save={save}
-          aoEscolher={comecarDraft}
+          aoEscolher={(classe, dourada) => {
+            trocar(
+              { t: 'draft', draft: iniciarDraft(buildVazia(classe, dourada), gerarSeed()) },
+              'portal',
+            );
+          }}
           aoVoltar={() => {
-            definirTela({ t: 'inicio' });
+            trocar({ t: 'inicio' }, 'cortina');
           }}
         />
       );
@@ -275,11 +337,10 @@ export const App = (): React.JSX.Element => {
           build={tela.build}
           seed={tela.seed}
           aoComecar={(modo) => {
-            definirTela({
-              t: 'dungeon',
-              run: iniciarRun(tela.build, tela.seed, modo),
-              soberano: false,
-            });
+            trocar(
+              { t: 'dungeon', run: iniciarRun(tela.build, tela.seed, modo), soberano: false },
+              'portal',
+            );
           }}
           aoVoltar={() => {
             definirTela({ t: 'classe' });
@@ -340,16 +401,50 @@ export const App = (): React.JSX.Element => {
         <Resultado
           dados={tela.dados}
           aoNovaRun={() => {
-            comecarDraft(tela.dados.build.classe, recordeDe(save, tela.dados.build.classe).dourada);
+            trocar(
+              {
+                t: 'draft',
+                draft: iniciarDraft(
+                  buildVazia(
+                    tela.dados.build.classe,
+                    recordeDe(save, tela.dados.build.classe).dourada,
+                  ),
+                  gerarSeed(),
+                ),
+              },
+              'portal',
+            );
           }}
           aoMenu={() => {
-            definirTela({ t: 'inicio' });
+            trocar({ t: 'inicio' }, 'cortina');
           }}
           aoCompartilhar={() => {
             void compartilharResultado(tela.dados);
           }}
         />
       );
-  }
+    }
+  })();
 
+  return (
+    <>
+      {conteudo}
+      {versaoNova && (
+        <div className="aviso-de-versao" role="status">
+          <span>NOVA VERSÃO DISPONÍVEL</span>
+          <Botao
+            variante="forte"
+            onClick={() => {
+              aplicarAtualizacao();
+            }}
+          >
+            ATUALIZAR
+          </Botao>
+        </div>
+      )}
+      {transicao !== null && (
+        <Transicao estilo={transicao.estilo} progresso={transicao.progresso} />
+      )}
+    </>
+  );
 };

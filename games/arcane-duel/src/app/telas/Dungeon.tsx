@@ -194,7 +194,16 @@ export const Dungeon = ({
       height: CONFIG_DA_FASE.ALTURA,
       pixelArt: true,
       backgroundColor: '#0d0a12',
-      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+      /*
+       * A cena **cobre** o espaço, e não cabe dentro dele.
+       *
+       * FIT deixaria tarjas pretas num celular largo; e forçar o canvas a
+       * 100% por CSS, que era o que estava aqui, esticava a imagem e ainda
+       * cortava com `object-fit`. ENVELOP é o próprio Phaser cobrindo o
+       * espaço: a composição fica inteira na horizontal e o que sobra na
+       * vertical é sempre céu e chão, que o HUD já cobre.
+       */
+      scale: { mode: Phaser.Scale.ENVELOP, autoCenter: Phaser.Scale.CENTER_BOTH },
       scene: [CenaDeCombate],
       audio: { noAudio: true },
     });

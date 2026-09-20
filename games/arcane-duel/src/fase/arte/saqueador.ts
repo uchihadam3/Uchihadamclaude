@@ -15,7 +15,7 @@ import { TelaDeArte } from './tela.js';
 
 export const LARGURA = 80;
 export const ALTURA = 80;
-const CHAO = 74;
+export const CHAO = 74;
 const EIXO = 36;
 
 export interface Pose {

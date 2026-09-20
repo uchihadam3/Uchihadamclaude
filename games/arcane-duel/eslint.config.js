@@ -3,9 +3,26 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules'] },
+  { ignores: ['dist', 'node_modules', 'public/sw.js'] },
   js.configs.recommended,
-  ...tseslint.configs.strictTypeChecked,
+  /*
+   * As regras com tipo valem só para o TypeScript.
+   *
+   * Os arquivos `.js` e `.mjs` deste projeto — a própria configuração do
+   * ESLint e os scripts de build — não estão no programa do TypeScript, e
+   * pedir tipagem para eles só produz erro de carregamento de regra.
+   */
+  ...tseslint.configs.strictTypeChecked.map((config) => ({
+    ...config,
+    files: ['**/*.{ts,tsx}'],
+  })),
+  {
+    /* Os scripts de build rodam no Node, não no navegador. */
+    files: ['scripts/**/*.mjs', 'eslint.config.js', 'vite.config.ts'],
+    languageOptions: {
+      globals: { Buffer: 'readonly', console: 'readonly', process: 'readonly' },
+    },
+  },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {

@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "publicar": "node scripts/publicar.mjs"
+    "publicar": "node scripts/publicar.mjs",
+    "icones": "node scripts/icones.mjs"
   },
   "dependencies": {
     "phaser": "^3.90.0",

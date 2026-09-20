@@ -75,15 +75,16 @@ const ESCALAS: readonly (readonly number[])[] = [
 
 export class AudioManager {
   private contexto: AudioContext | null = null;
-  private mestre: GainNode | null = null;
   private barramentoDeMusica: GainNode | null = null;
   private barramentoDeEfeito: GainNode | null = null;
   private ruidoBuffer: AudioBuffer | null = null;
-  private mudo = false;
-  private volume = 0.6;
+  private volumeDaMusica = 0.55;
+  private volumeDosEfeitos = 0.7;
 
   private musica: { parar: () => void } | null = null;
   private camadasDeBoss: GainNode[] = [];
+  private camadasDeMenu: GainNode[] = [];
+  private menuEmCamada = 0;
 
   /** O navegador só libera áudio depois de um gesto. Antes disso, silêncio. */
   public destravar(): void {
@@ -104,24 +105,27 @@ export class AudioManager {
       const Construtor = janela.AudioContext ?? janela.webkitAudioContext;
       if (Construtor === undefined) return;
       const contexto = new Construtor();
-      const mestre = contexto.createGain();
-      mestre.gain.value = this.mudo ? 0 : this.volume;
-      /* Um compressor no fim: uma ultimate com boss e música satura o telefone. */
-      const compressor = contexto.createDynamicsCompressor();
-      compressor.threshold.value = -12;
-      compressor.ratio.value = 4;
-      mestre.connect(compressor);
-      compressor.connect(contexto.destination);
+      /*
+       * Um compressor no fim da cadeia.
+       *
+       * Uma ultimate somando explosão, grave longo e música satura o
+       * alto-falante do telefone e vira chiado justamente no momento que
+       * deveria impressionar. Os dois barramentos entram direto nele — não há
+       * volume mestre, porque música e efeitos já têm o seu.
+       */
+      const mestre = contexto.createDynamicsCompressor();
+      mestre.threshold.value = -12;
+      mestre.ratio.value = 4;
+      mestre.connect(contexto.destination);
 
       const musica = contexto.createGain();
-      musica.gain.value = 0.42;
+      musica.gain.value = this.volumeDaMusica * 0.5;
       musica.connect(mestre);
       const efeito = contexto.createGain();
-      efeito.gain.value = 1;
+      efeito.gain.value = this.volumeDosEfeitos;
       efeito.connect(mestre);
 
       this.contexto = contexto;
-      this.mestre = mestre;
       this.barramentoDeMusica = musica;
       this.barramentoDeEfeito = efeito;
       this.ruidoBuffer = this.criarRuido(contexto);
@@ -138,25 +142,19 @@ export class AudioManager {
     return buffer;
   }
 
-  public definirVolume(volume: number): void {
-    this.volume = volume;
-    if (this.mestre !== null) this.mestre.gain.value = this.mudo ? 0 : volume;
-  }
-
-  public silenciar(mudo: boolean): void {
-    this.mudo = mudo;
-    if (this.mestre !== null) this.mestre.gain.value = mudo ? 0 : this.volume;
-  }
-
-  public estaMudo(): boolean {
-    return this.mudo;
+  /** Os dois controles são independentes, e valem na hora. */
+  public definirVolumes(musica: number, efeitos: number): void {
+    this.volumeDaMusica = musica;
+    this.volumeDosEfeitos = efeitos;
+    if (this.barramentoDeMusica !== null) this.barramentoDeMusica.gain.value = musica * 0.5;
+    if (this.barramentoDeEfeito !== null) this.barramentoDeEfeito.gain.value = efeitos;
   }
 
   /** Toca uma família de som. */
   public tocar(familia: Familia): void {
     const contexto = this.contexto;
     const destino = this.barramentoDeEfeito;
-    if (contexto === null || destino === null || this.mudo) return;
+    if (contexto === null || destino === null || this.volumeDosEfeitos <= 0) return;
     const receita = RECEITAS[familia];
     const agora = contexto.currentTime;
 
@@ -215,7 +213,7 @@ export class AudioManager {
     const escala = ESCALAS[Math.max(0, Math.min(ESCALAS.length - 1, area - 1))] ?? ESCALAS[0] ?? [];
     let passo = 0;
     const intervalo = globalThis.setInterval(() => {
-      if (this.mudo) return;
+      if (this.volumeDaMusica <= 0) return;
       const nota = escala[passo % escala.length] ?? 220;
       const agora = contexto.currentTime;
       const ganho = contexto.createGain();
@@ -254,6 +252,114 @@ export class AudioManager {
   }
 
   /**
+   * O tema do menu, em camadas.
+   *
+   * A arquitetura é a mesma da música de boss e pelo mesmo motivo: as três
+   * camadas tocam desde o primeiro compasso e o que muda é o **ganho**. Na
+   * tela inicial toca só o colchão — grave, lento, quase ambiente. Na escolha
+   * de classe entra a harmonia. No draft entra o arpejo, que dá a sensação de
+   * que algo já começou. Como nada é cortado, a passagem entre telas não
+   * quebra o compasso; a música apenas ganha corpo.
+   */
+  public tocarMusicaDeMenu(camada = 0): void {
+    if (this.camadasDeMenu.length > 0) {
+      this.camadaDoMenu(camada);
+      return;
+    }
+    this.pararMusica();
+    const contexto = this.contexto;
+    const destino = this.barramentoDeMusica;
+    if (contexto === null || destino === null) return;
+
+    const raiz = 98;
+
+    /* Camada 1: o colchão. Duas ondas quase em uníssono, batendo devagar. */
+    const colchao = contexto.createGain();
+    colchao.gain.value = 0;
+    colchao.connect(destino);
+    const filtroDoColchao = contexto.createBiquadFilter();
+    filtroDoColchao.type = 'lowpass';
+    filtroDoColchao.frequency.value = 620;
+    filtroDoColchao.connect(colchao);
+    for (const desafinacao of [-4, 4]) {
+      const osc = contexto.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = raiz;
+      osc.detune.value = desafinacao;
+      osc.connect(filtroDoColchao);
+      osc.start();
+    }
+
+    /* Camada 2: a harmonia, uma quinta acima, com filtro mais aberto. */
+    const harmonia = contexto.createGain();
+    harmonia.gain.value = 0;
+    harmonia.connect(destino);
+    const filtroDaHarmonia = contexto.createBiquadFilter();
+    filtroDaHarmonia.type = 'lowpass';
+    filtroDaHarmonia.frequency.value = 1400;
+    filtroDaHarmonia.connect(harmonia);
+    for (const razao of [1.5, 2]) {
+      const osc = contexto.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = raiz * razao;
+      osc.detune.value = 6;
+      osc.connect(filtroDaHarmonia);
+      osc.start();
+    }
+
+    /* Camada 3: o arpejo, disparado nota a nota. */
+    const arpejo = contexto.createGain();
+    arpejo.gain.value = 0;
+    arpejo.connect(destino);
+
+    this.camadasDeMenu = [colchao, harmonia, arpejo];
+
+    const notas = [raiz * 2, raiz * 2.4, raiz * 3, raiz * 4, raiz * 3, raiz * 2.4];
+    let passo = 0;
+    const intervalo = globalThis.setInterval(() => {
+      if (this.volumeDaMusica <= 0) return;
+      const agora = contexto.currentTime;
+      const ganho = contexto.createGain();
+      ganho.gain.setValueAtTime(0.0001, agora);
+      ganho.gain.exponentialRampToValueAtTime(0.5, agora + 0.03);
+      ganho.gain.exponentialRampToValueAtTime(0.0001, agora + 0.9);
+      ganho.connect(arpejo);
+      const osc = contexto.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = notas[passo % notas.length] ?? raiz * 2;
+      osc.connect(ganho);
+      osc.start(agora);
+      osc.stop(agora + 1);
+      passo += 1;
+    }, 520);
+
+    const camadas = this.camadasDeMenu;
+    this.musica = {
+      parar: () => {
+        globalThis.clearInterval(intervalo);
+        for (const c of camadas) c.gain.value = 0;
+      },
+    };
+    this.camadaDoMenu(camada);
+  }
+
+  /** 0 = tela inicial, 1 = escolha de classe, 2 = draft. */
+  public camadaDoMenu(camada: number): void {
+    const contexto = this.contexto;
+    this.menuEmCamada = camada;
+    if (contexto === null || this.camadasDeMenu.length === 0) return;
+    const alvos = camada <= 0 ? [0.16, 0, 0] : camada === 1 ? [0.14, 0.07, 0] : [0.12, 0.07, 0.09];
+    this.camadasDeMenu.forEach((c, i) => {
+      c.gain.setTargetAtTime(alvos[i] ?? 0, contexto.currentTime, 0.9);
+    });
+  }
+
+  /** Quanto o tema do menu está tocando agora — para reaplicar após o unlock. */
+  public get camadaAtualDoMenu(): number {
+    return this.menuEmCamada;
+  }
+
+  /**
    * A música de boss, em três camadas.
    *
    * Esta é a arquitetura que a direção pediu para o futuro, já funcionando:
@@ -289,7 +395,7 @@ export class AudioManager {
     /* A pulsação por cima: é ela que dá urgência sem precisar de melodia. */
     let passo = 0;
     const intervalo = globalThis.setInterval(() => {
-      if (this.mudo) return;
+      if (this.volumeDaMusica <= 0) return;
       const agora = contexto.currentTime;
       const ganho = contexto.createGain();
       ganho.gain.setValueAtTime(0.0001, agora);
@@ -328,6 +434,7 @@ export class AudioManager {
     this.musica?.parar();
     this.musica = null;
     this.camadasDeBoss = [];
+    this.camadasDeMenu = [];
   }
 
   public descartar(): void {

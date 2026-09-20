@@ -309,9 +309,15 @@
 }
 
 .dungeon__cena canvas {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover;
+  /*
+   * O canvas não é esticado por CSS.
+   *
+   * Quem dimensiona é o Phaser, em modo ENVELOP. Forçar largura e altura aqui
+   * produzia escala fracionária em cima da escala do Phaser — que é como se
+   * perde a nitidez de pixel art sem ninguém perceber de onde veio.
+   */
+  display: block;
+  image-rendering: pixelated;
 }
 
 .hud {
@@ -387,11 +393,24 @@
   text-shadow: 0 2px 0 #000;
 }
 
+/*
+ * O bloco do jogador.
+ *
+ * Ele tem fundo próprio. Barras soltas por cima da cena passam por cima das
+ * pernas do personagem e o desenho some atrás de uma faixa colorida — que é
+ * exatamente o que faz um HUD parecer colado depois, e não feito junto.
+ */
 .hud__jogador {
   display: flex;
   gap: calc(var(--u) * 2);
   align-items: flex-end;
+  align-self: flex-start;
   margin-top: auto;
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2);
+  background: linear-gradient(90deg, rgb(10 8 14 / 86%) 0%, rgb(10 8 14 / 70%) 100%);
+  border-top: 2px solid #2c2440;
+  border-right: 2px solid #2c2440;
+  box-shadow: 0 -2px 0 rgb(0 0 0 / 40%);
 }
 
 .hud__retrato {
@@ -414,7 +433,8 @@
   flex: 1;
   flex-direction: column;
   gap: 3px;
-  max-width: 340px;
+  min-width: 210px;
+  max-width: 260px;
 }
 
 .hud__linha {
@@ -425,6 +445,7 @@
 
 .hud__linha .barra {
   flex: 1;
+  min-width: 96px;
 }
 
 .hud__rotulo {
@@ -434,7 +455,7 @@
 }
 
 .hud__numero {
-  min-width: 56px;
+  min-width: 46px;
   font-size: 7px;
   text-align: right;
   color: var(--tinta);

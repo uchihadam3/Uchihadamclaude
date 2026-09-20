@@ -48,15 +48,39 @@ body,
   margin: 0;
 }
 
+/* Alvo de toque mínimo: nada abaixo do polegar. */
+button {
+  min-height: 44px;
+}
+
+/*
+ * O corpo, preparado para telefone.
+ *
+ * `overscroll-behavior: none` impede o puxão elástico que rola a página
+ * inteira quando o dedo arrasta durante a batalha. `touch-action: manipulation`
+ * mata o duplo-toque-para-dar-zoom, que num jogo é sempre acidente. E
+ * `height: 100dvh` usa a altura **dinâmica** da viewport: em celular a barra
+ * do navegador aparece e some, e `100vh` deixaria um pedaço do HUD embaixo
+ * dela.
+ */
 body {
+  height: 100dvh;
   background: var(--fundo);
   color: var(--tinta);
   font-family: var(--leitura);
   overflow: hidden;
+  overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+#raiz {
+  height: 100dvh;
+  /* As margens seguras: o entalhe do telefone não pode cobrir nada. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 canvas {
