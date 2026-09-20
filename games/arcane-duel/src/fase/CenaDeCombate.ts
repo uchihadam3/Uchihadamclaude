@@ -509,7 +509,13 @@ export class CenaDeCombate extends Phaser.Scene {
       switch (evento.tipo) {
         case 'habilidade':
           this.atacar(this.heroi, true, evento.porte);
-          arcoDeGolpe(this, X_HEROI + 30, CHAO_Y - 34, true, this.dados.classe.corPrimaria);
+          /*
+           * O rastro nasce na **arma**, não no meio do caminho.
+           *
+           * Longe do corpo ele vira um risco solto no ar, que não se liga a
+           * ninguém. Colado no braço, ele lê como o arco que a lâmina fez.
+           */
+          arcoDeGolpe(this, X_HEROI + 18, CHAO_Y - 36, true, this.dados.classe.corPrimaria);
           if (evento.porte !== 'basico') {
             this.cameras.main.shake(
               BALANCEAMENTO.tremor.duracaoMs,

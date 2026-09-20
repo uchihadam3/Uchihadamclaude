@@ -537,11 +537,24 @@
   animation: anuncio 1.8s steps(6) both;
 }
 
+/*
+ * O nome do boss precisa ser lido contra a cena escura.
+ *
+ * Vermelho sobre um véu preto num Trono Oculto é vermelho sobre preto: o
+ * nome sumia justo no momento em que ele é o único texto na tela. O corpo
+ * passa a ser claro e o vermelho vira o contorno.
+ */
 .anuncio-de-boss__nome {
   font-family: var(--pixel);
   font-size: clamp(14px, 4vw, 30px);
-  color: var(--perigo);
-  text-shadow: 0 var(--u) 0 #000;
+  color: #ffe2d8;
+  text-shadow:
+    0 0 0 #000,
+    -2px 0 0 #7a1f18,
+    2px 0 0 #7a1f18,
+    0 -2px 0 #7a1f18,
+    0 var(--u) 0 #000,
+    0 0 18px rgb(192 57 43 / 70%);
 }
 
 @keyframes anuncio {

@@ -272,7 +272,19 @@ export const App = (): React.JSX.Element => {
 
   const aoPerder = useCallback(
     (fim: FimDaLuta) => {
-      fecharRun({ ...fim.run, tempoS: fim.run.tempoS + fim.duracaoS }, false, false, fim.run.sala);
+      /*
+       * A sala do Soberano não é a sala 51.
+       *
+       * Ela é um encontro escondido **depois** do Boss 50, e a run guarda o
+       * número 51 só para saber que já passou do fim. Mostrar "51 / 50" na
+       * tela de resultado lê como erro de contagem, não como segredo.
+       */
+      fecharRun(
+        { ...fim.run, tempoS: fim.run.tempoS + fim.duracaoS },
+        false,
+        false,
+        Math.min(fim.run.sala, BALANCEAMENTO.dungeon.totalDeSalas),
+      );
     },
     [fecharRun],
   );

@@ -131,7 +131,7 @@ export const arcoDeGolpe = (
   const sentido = paraDireita ? 1 : -1;
   grafico.lineStyle(2, Number.parseInt(ajustar(cor, 0.4).slice(1), 16), 0.95);
   grafico.beginPath();
-  grafico.arc(0, 0, 22, -Math.PI * 0.42 * sentido, Math.PI * 0.42 * sentido, !paraDireita);
+  grafico.arc(0, 0, 16, -Math.PI * 0.42 * sentido, Math.PI * 0.42 * sentido, !paraDireita);
   grafico.strokePath();
   cena.tweens.add({
     targets: grafico,
