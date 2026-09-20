@@ -734,3 +734,46 @@
     text-align: center;
   }
 }
+
+/*
+ * A ficha de resultado num celular deitado.
+ *
+ * Ela tem nove linhas de estatística, onze etiquetas de build e três botões.
+ * Em 420 pontos de altura isso não cabe no tamanho normal, e o que acontecia
+ * era o pior desfecho possível: os botões NOVA RUN e MENU ficavam cortados
+ * pela borda de baixo — o jogador termina a run e não tem como sair da tela.
+ */
+@media (max-height: 520px) {
+  .tela--resultado.centro {
+    gap: calc(var(--u) * 2);
+    padding: calc(var(--u) * 2);
+  }
+
+  .tela--resultado h1 {
+    font-size: clamp(14px, 3.4vw, 22px);
+  }
+
+  .tela--resultado .ficha {
+    gap: calc(var(--u) * 1.5);
+    width: min(560px, 96vw);
+    padding: calc(var(--u) * 2) calc(var(--u) * 3);
+  }
+
+  .tela--resultado .ficha__linhas {
+    grid-template-columns: auto 1fr auto 1fr;
+    gap: 2px calc(var(--u) * 2);
+    font-size: 7px;
+  }
+
+  .tela--resultado .ficha__escolhas {
+    padding-top: calc(var(--u) * 1.5);
+  }
+
+  .tela--resultado .ficha__escolha {
+    font-size: 9px;
+  }
+
+  .tela--resultado .acoes {
+    gap: calc(var(--u) * 2);
+  }
+}
