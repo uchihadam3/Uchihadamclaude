@@ -6,6 +6,7 @@ import { prepararInstalacao } from './app/instalar.js';
 import { jogoPronto } from './app/carregando.js';
 
 import './estilos/base.css';
+import './estilos/kit.css';
 import './estilos/componentes.css';
 import './estilos/telas.css';
 import './estilos/titulo.css';

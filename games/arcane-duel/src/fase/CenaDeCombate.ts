@@ -36,11 +36,69 @@ import { anelDeRuptura, arcoDeGolpe, clarao, estilhacos, numeroFlutuante, pausaD
  * altura e ainda se lê a armadura, o elmo e a capa. Mudar este espaço é
  * mudar a arte inteira junto, e é por isso que ele está declarado uma vez só.
  */
-const LARGURA = area1.LARGURA;
+/*
+ * A largura da cena é calculada, não constante.
+ *
+ * O jogo é jogado em pé e deitado, e a faixa de combate muda de proporção
+ * entre os dois. Antes a cena tinha 320 de largura fixa e o Phaser cobria a
+ * tela com ela; num telefone em pé isso dava uma escala de 4,7 e **o herói
+ * ficava fora da tela** — a tela inteira mostrava metade do inimigo.
+ *
+ * Agora a altura é que é fixa (é ela que define a escala do mundo) e a
+ * largura vem da proporção da caixa. O cenário é desenhado nessa largura, e
+ * os atores são posicionados em fração dela.
+ */
+const LARGURA_MINIMA = 208;
+const LARGURA_MAXIMA = 640;
+const ALTURA_MINIMA = 180;
+const ALTURA_MAXIMA = 340;
+
+export interface TamanhoLogico {
+  readonly largura: number;
+  readonly altura: number;
+}
+
+/**
+ * O tamanho lógico da cena para uma caixa de tantos por tantos pixels.
+ *
+ * A regra é: **a proporção do mundo acompanha a proporção da caixa**, dentro
+ * de limites. Numa caixa larga, o mundo fica largo e mostra mais colunata;
+ * numa caixa alta, ele fica alto e mostra mais céu e mais chão. Nos dois
+ * casos o FIT não corta nada e não deixa tarja, porque as proporções batem.
+ *
+ * Os limites existem para o desenho continuar legível: abaixo de 208 de
+ * largura os dois atores não cabem lado a lado, e acima de 340 de altura o
+ * Guerreiro vira uma formiga no meio de um céu enorme.
+ */
+export const tamanhoLogico = (larguraDaCaixa: number, alturaDaCaixa: number): TamanhoLogico => {
+  const proporcao = Math.max(0.2, larguraDaCaixa / Math.max(1, alturaDaCaixa));
+  const parOuImpar = (n: number): number => Math.round(n / 2) * 2;
+
+  /* Caixa larga: a altura fica no mínimo e a largura acompanha. */
+  if (proporcao >= LARGURA_MINIMA / ALTURA_MINIMA) {
+    return {
+      largura: Math.min(LARGURA_MAXIMA, parOuImpar(ALTURA_MINIMA * proporcao)),
+      altura: ALTURA_MINIMA,
+    };
+  }
+  /* Caixa alta: a largura fica no mínimo e a altura acompanha. */
+  return {
+    largura: LARGURA_MINIMA,
+    altura: Math.min(ALTURA_MAXIMA, parOuImpar(LARGURA_MINIMA / proporcao)),
+  };
+};
 const ALTURA = area1.ALTURA;
-const CHAO_Y = 146;
-const X_HEROI = 104;
-const X_INIMIGO = 240;
+/** A distância do pé dos atores até a borda de baixo. Fixa, em qualquer altura. */
+const DO_CHAO = 34;
+/*
+ * Onde os dois ficam.
+ *
+ * Em fração da largura, e não em pixel: o herói a 26% e o inimigo a 74%
+ * mantêm a mesma leitura numa faixa estreita e numa larga. Em pixels fixos,
+ * uma faixa larga os colava no meio com dois vazios nas pontas.
+ */
+const FRACAO_HEROI = 0.26;
+const FRACAO_INIMIGO = 0.74;
 
 export interface DadosDaCena {
   readonly classe: Classe;
@@ -73,6 +131,12 @@ export class CenaDeCombate extends Phaser.Scene {
   private elencoDoHeroi!: Elenco;
   private elencoDoAlvo!: Elenco;
   private tochasDaArea: readonly (readonly [number, number])[] = [];
+  /* A largura lógica desta cena, e os postos dos dois atores dentro dela. */
+  private largura = area1.LARGURA;
+  private altura = ALTURA;
+  private chaoY = ALTURA - DO_CHAO;
+  private xHeroi = Math.round(area1.LARGURA * FRACAO_HEROI);
+  private xInimigo = Math.round(area1.LARGURA * FRACAO_INIMIGO);
   private chamas: { x: number; y: number; nucleo: Phaser.GameObjects.Ellipse; halo: Phaser.GameObjects.Ellipse; fase: number }[] = [];
   private corposDeChama: Phaser.GameObjects.Ellipse[] = [];
   private tempoDaCena = 0;
@@ -97,14 +161,24 @@ export class CenaDeCombate extends Phaser.Scene {
     const area = areaDaSala(sala);
     this.paleta = area.paleta;
 
+    /* O tamanho vem do jogo, que a tela já ajustou à caixa. */
+    this.largura = Math.round(this.scale.width);
+    this.altura = Math.round(this.scale.height);
+    this.chaoY = this.altura - DO_CHAO;
+    this.xHeroi = Math.round(this.largura * FRACAO_HEROI);
+    this.xInimigo = Math.round(this.largura * FRACAO_INIMIGO);
+
     if (area.numero === 1) {
       /* A Área 1 é a cena-padrão: quatro planos desenhados à mão pelo código. */
-      this.registrarTela('a1:ceu', area1.ceu());
-      this.registrarTela('a1:longe', area1.longe());
-      const perto = area1.perto();
-      this.registrarTela('a1:perto', perto.tela);
+      const l = this.largura;
+      const a = this.altura;
+      const sufixo = `${String(l)}x${String(a)}`;
+      this.registrarTela(`a1:ceu:${sufixo}`, area1.ceu(l, a));
+      this.registrarTela(`a1:longe:${sufixo}`, area1.longe(l, a));
+      const perto = area1.perto(l, a);
+      this.registrarTela(`a1:perto:${sufixo}`, perto.tela);
       this.tochasDaArea = perto.tochas;
-      this.registrarTela('a1:frente', area1.frente());
+      this.registrarTela(`a1:frente:${sufixo}`, area1.frente(l, a));
     } else {
       /*
        * As outras quatro áreas ainda usam o gerador antigo.
@@ -161,8 +235,11 @@ export class CenaDeCombate extends Phaser.Scene {
        * sozinho — a chama das tochas, as brasas que sobem, a poeira que
        * atravessa, a névoa junto ao chão.
        */
-      for (const chave of ['a1:ceu', 'a1:longe', 'a1:perto', 'a1:frente'] as const) {
-        this.add.image(0, 0, chave).setOrigin(0, 0).setDepth(chave === 'a1:frente' ? 60 : 0);
+      for (const nome of ['ceu', 'longe', 'perto', 'frente'] as const) {
+        this.add
+          .image(0, 0, `a1:${nome}:${String(this.largura)}x${String(this.altura)}`)
+          .setOrigin(0, 0)
+          .setDepth(nome === 'frente' ? 60 : 0);
       }
       this.montarTochas();
 
@@ -175,41 +252,41 @@ export class CenaDeCombate extends Phaser.Scene {
        */
       const nevoa = this.add.graphics().setDepth(15);
       for (let i = 0; i < 40; i += 1) {
-        const y = area1.HORIZONTE - 34 + i;
+        const y = area1.horizonteDe(this.altura) - 34 + i;
         nevoa.fillStyle(0x78a0b9, 0.16 * (1 - i / 40));
-        nevoa.fillRect(0, y, LARGURA, 1);
+        nevoa.fillRect(0, y, this.largura, 1);
       }
     } else {
-      const ceu = this.add.tileSprite(0, 0, LARGURA, ALTURA, `ceu:${area.numero}`).setOrigin(0, 0);
+      const ceu = this.add.tileSprite(0, 0, this.largura, this.altura, `ceu:${area.numero}`).setOrigin(0, 0);
       ceu.setTileScale(2, 2);
       const medio = this.add
-        .tileSprite(0, 0, LARGURA, ALTURA, `medio:${area.numero}`)
+        .tileSprite(0, 0, this.largura, this.altura, `medio:${area.numero}`)
         .setOrigin(0, 0);
       medio.setTileScale(2, 2);
       const proximo = this.add
-        .tileSprite(0, 0, LARGURA, ALTURA, `proximo:${area.numero}`)
+        .tileSprite(0, 0, this.largura, this.altura, `proximo:${area.numero}`)
         .setOrigin(0, 0);
       proximo.setTileScale(2, 2);
       const chao = this.add
-        .tileSprite(0, CHAO_Y - 6, LARGURA, ALTURA - CHAO_Y + 6, `chao:${area.numero}`)
+        .tileSprite(0, this.chaoY - 6, this.largura, this.altura - this.chaoY + 6, `chao:${area.numero}`)
         .setOrigin(0, 0);
       chao.setTileScale(2, 2);
       this.camadas = [ceu, medio, proximo, chao];
 
       /* A neblina do fundo, que empurra o parallax para longe. */
       this.add
-        .rectangle(0, 0, LARGURA, CHAO_Y, Number.parseInt(area.paleta.neblina.slice(1), 16), 0.13)
+        .rectangle(0, 0, this.largura, this.chaoY, Number.parseInt(area.paleta.neblina.slice(1), 16), 0.13)
         .setOrigin(0, 0);
     }
 
     this.heroi = this.montarLado(
-      X_HEROI,
+      this.xHeroi,
       this.elencoDoHeroi,
       `heroi:${classe.id}:${String(dourado)}`,
       'heroi',
     );
     this.alvo = this.montarLado(
-      X_INIMIGO,
+      this.xInimigo,
       this.elencoDoAlvo,
       `inimigo:${inimigo.id}`,
       'inimigo',
@@ -266,7 +343,7 @@ export class CenaDeCombate extends Phaser.Scene {
      * ator sobe — o que também comunica o salto do golpe.
      */
     const largura = Math.round(elenco.largura * elenco.escala * 0.42);
-    const sombra = this.add.ellipse(x, CHAO_Y + 2, largura, 7, 0x000000, 0.38).setDepth(10);
+    const sombra = this.add.ellipse(x, this.chaoY + 2, largura, 7, 0x000000, 0.38).setDepth(10);
     /*
      * A âncora do pé.
      *
@@ -275,7 +352,7 @@ export class CenaDeCombate extends Phaser.Scene {
      * origem vertical é a **linha do pé** dentro do quadro, não a base dele.
      */
     const sprite = this.add
-      .image(x, CHAO_Y, `${prefixo}:repouso:0`)
+      .image(x, this.chaoY, `${prefixo}:repouso:0`)
       .setOrigin(0.5, elenco.chao / elenco.altura)
       .setScale(elenco.escala)
       .setDepth(20);
@@ -285,7 +362,7 @@ export class CenaDeCombate extends Phaser.Scene {
       sombra,
       elenco,
       prefixo,
-      base: CHAO_Y,
+      base: this.chaoY,
       quem,
       nome: 'repouso',
       tempo: 0,
@@ -337,7 +414,7 @@ export class CenaDeCombate extends Phaser.Scene {
     for (let i = 0; i < quantidade; i += 1) {
       const tamanho = paleta.clima === 'brasas' || paleta.clima === 'faiscas' ? 1 : 2;
       const particula = this.add
-        .rectangle(Math.random() * LARGURA, Math.random() * ALTURA, tamanho, tamanho, cor, 0.55)
+        .rectangle(Math.random() * this.largura, Math.random() * this.altura, tamanho, tamanho, cor, 0.55)
         .setDepth(5);
       this.particulas.push(particula);
     }
@@ -352,21 +429,21 @@ export class CenaDeCombate extends Phaser.Scene {
     this.tweens.add({
       targets: [this.heroi.sprite, this.heroi.sombra],
       alpha: 1,
-      x: { from: X_HEROI - 28, to: X_HEROI },
+      x: { from: this.xHeroi - 28, to: this.xHeroi },
       duration: 420,
       ease: 'Cubic.easeOut',
     });
     this.tweens.add({
       targets: [this.alvo.sprite, this.alvo.sombra],
       alpha: 1,
-      x: { from: X_INIMIGO + (ehBoss ? 48 : 28), to: X_INIMIGO },
+      x: { from: this.xInimigo + (ehBoss ? 48 : 28), to: this.xInimigo },
       duration: ehBoss ? 900 : 420,
       delay: ehBoss ? 260 : 120,
       ease: ehBoss ? 'Cubic.easeInOut' : 'Cubic.easeOut',
     });
     if (ehBoss) {
       const veu = this.add
-        .rectangle(0, 0, LARGURA, ALTURA, 0x000000, 0.75)
+        .rectangle(0, 0, this.largura, this.altura, 0x000000, 0.75)
         .setOrigin(0, 0)
         .setDepth(800);
       this.tweens.add({
@@ -436,9 +513,9 @@ export class CenaDeCombate extends Phaser.Scene {
       const sobe = clima === 'brasas' || clima === 'faiscas';
       particula.y += (sobe ? -18 : 14) * s;
       particula.x += (clima === 'folhas' ? -24 : -8) * s;
-      if (particula.y < -4) particula.y = ALTURA + 4;
-      if (particula.y > ALTURA + 4) particula.y = -4;
-      if (particula.x < -4) particula.x = LARGURA + 4;
+      if (particula.y < -4) particula.y = this.altura + 4;
+      if (particula.y > this.altura + 4) particula.y = -4;
+      if (particula.x < -4) particula.x = this.largura + 4;
     }
   }
 
@@ -458,7 +535,7 @@ export class CenaDeCombate extends Phaser.Scene {
 
     const alcance = porte === 'basico' ? 11 : porte === 'skill' ? 18 : 25;
     const destino = lado.sprite.x + (paraDireita ? alcance : -alcance);
-    const origem = paraDireita ? X_HEROI : X_INIMIGO;
+    const origem = paraDireita ? this.xHeroi : this.xInimigo;
 
     this.tweens.chain({
       targets: lado.sprite,
@@ -515,7 +592,7 @@ export class CenaDeCombate extends Phaser.Scene {
            * Longe do corpo ele vira um risco solto no ar, que não se liga a
            * ninguém. Colado no braço, ele lê como o arco que a lâmina fez.
            */
-          arcoDeGolpe(this, X_HEROI + 18, CHAO_Y - 36, true, this.dados.classe.corPrimaria);
+          arcoDeGolpe(this, this.xHeroi + 18, this.chaoY - 36, true, this.dados.classe.corPrimaria);
           if (evento.porte !== 'basico') {
             this.cameras.main.shake(
               BALANCEAMENTO.tremor.duracaoMs,
@@ -527,21 +604,21 @@ export class CenaDeCombate extends Phaser.Scene {
         case 'golpe': {
           const doJogador = evento.origem === 'jogador';
           const alvo = doJogador ? this.alvo : this.heroi;
-          const x = doJogador ? X_INIMIGO : X_HEROI;
+          const x = doJogador ? this.xInimigo : this.xHeroi;
           if (!doJogador) this.atacar(this.alvo, false, evento.porte);
           this.apanhar(alvo, evento.critico);
           clarao(
             this,
             x,
-            CHAO_Y - 34,
+            this.chaoY - 34,
             doJogador ? 0xffd08a : 0xff6b5a,
             evento.critico ? 19 : 12,
           );
-          estilhacos(this, x, CHAO_Y - 34, doJogador ? 0xffd08a : 0xff6b5a, evento.critico ? 9 : 5);
+          estilhacos(this, x, this.chaoY - 34, doJogador ? 0xffd08a : 0xff6b5a, evento.critico ? 9 : 5);
           numeroFlutuante(
             this,
             x,
-            CHAO_Y - 46,
+            this.chaoY - 46,
             String(Math.max(1, Math.round(evento.valor))),
             doJogador ? (evento.critico ? '#ffe9a8' : '#ffffff') : '#ff8a7a',
             evento.critico ? 16 : 11,
@@ -559,30 +636,30 @@ export class CenaDeCombate extends Phaser.Scene {
         case 'armadura-quebrada':
           anelDeRuptura(
             this,
-            evento.alvo === 'inimigo' ? X_INIMIGO : X_HEROI,
-            CHAO_Y - 34,
+            evento.alvo === 'inimigo' ? this.xInimigo : this.xHeroi,
+            this.chaoY - 34,
           );
           this.cameras.main.shake(140, BALANCEAMENTO.tremor.skill);
           break;
 
         case 'cura':
           if (evento.valor < 1) break;
-          numeroFlutuante(this, X_HEROI, CHAO_Y - 56, `+${String(Math.round(evento.valor))}`, '#7fe4d2', 11);
+          numeroFlutuante(this, this.xHeroi, this.chaoY - 56, `+${String(Math.round(evento.valor))}`, '#7fe4d2', 11);
           break;
 
         case 'pocao':
           this.tocar(this.heroi, 'pocao', true);
-          clarao(this, X_HEROI, CHAO_Y - 34, 0x7fe4d2, 22);
-          numeroFlutuante(this, X_HEROI, CHAO_Y - 56, `+${String(Math.round(evento.valor))}`, '#7fe4d2', 14);
+          clarao(this, this.xHeroi, this.chaoY - 34, 0x7fe4d2, 22);
+          numeroFlutuante(this, this.xHeroi, this.chaoY - 56, `+${String(Math.round(evento.valor))}`, '#7fe4d2', 14);
           break;
 
         case 'momentum':
-          numeroFlutuante(this, X_HEROI - 18, CHAO_Y - 62, `+${String(evento.valor)}`, '#e8873a', 10);
+          numeroFlutuante(this, this.xHeroi - 18, this.chaoY - 62, `+${String(evento.valor)}`, '#e8873a', 10);
           break;
 
         case 'especial': {
           const aviso = this.add
-            .text(Math.min(X_INIMIGO, LARGURA - 70), CHAO_Y - 86, evento.nome.toUpperCase(), {
+            .text(Math.min(this.xInimigo, this.largura - 70), this.chaoY - 86, evento.nome.toUpperCase(), {
               fontFamily: 'monospace',
               fontSize: '8px',
               color: '#ff8a7a',
@@ -615,8 +692,8 @@ export class CenaDeCombate extends Phaser.Scene {
           });
           estilhacos(
             this,
-            evento.quem === 'inimigo' ? X_INIMIGO : X_HEROI,
-            CHAO_Y - 32,
+            evento.quem === 'inimigo' ? this.xInimigo : this.xHeroi,
+            this.chaoY - 32,
             0xffffff,
             16,
           );
@@ -636,7 +713,7 @@ export class CenaDeCombate extends Phaser.Scene {
   }
 }
 
-export const CONFIG_DA_FASE = { LARGURA, ALTURA, CHAO_Y, X_HEROI, X_INIMIGO } as const;
+export const CONFIG_DA_FASE = { ALTURA, DO_CHAO, FRACAO_HEROI, FRACAO_INIMIGO } as const;
 
 /** A cor de um ator, para quem precisa combinar HUD com cena. */
 export const corDoAtor = (cor: string): string => ajustar(cor, 0.1);

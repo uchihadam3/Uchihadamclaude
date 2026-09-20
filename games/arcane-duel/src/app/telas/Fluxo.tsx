@@ -6,8 +6,10 @@ import type { BuildParcial } from '../../nucleo/build.js';
 import type { OfertaDeCheckpoint } from '../../nucleo/checkpoint.js';
 import { avaliarBuild, sinergiasCom } from '../../nucleo/poder.js';
 import type { EstadoDaRun } from '../../nucleo/run.js';
+import { emblemaDaTag, emblemaDoSlot } from '../../fase/arte/emblemas.js';
 import { Carta } from '../../ui/Carta.js';
 import { Sinergia } from '../../ui/Basicos.js';
+import { Botao } from '../../ui/Botao.js';
 
 /*
  * As telas curtas do fluxo: modo, checkpoint, resultado, desbloqueio.
@@ -33,23 +35,32 @@ export const EscolhaDeModo = ({
   return (
     <div className="tela tela--modo">
       <header className="cabecalho">
-        <button type="button" className="botao botao--discreto" onClick={aoVoltar}>
+        <Botao variante="discreto" onClick={aoVoltar}>
           VOLTAR
-        </button>
+        </Botao>
         <h2>SUA BUILD</h2>
-        <span className="pixel semente">SEED {seed}</span>
+        <span className="cabecalho__eco pixel">{seed}</span>
       </header>
 
+      {/*
+        O resumo da build.
+
+        Antes era uma lista com nome e descrição inteira de cada uma das dez
+        peças, e ela não cabia em tela nenhuma — nem em pé nem deitada. O que
+        o jogador precisa aqui não é reler as dez descrições que acabou de
+        ler no draft: é ver **o conjunto**. Então são os emblemas, os nomes,
+        e os três números que resumem a escolha.
+      */}
       <div className="resumo-da-build">
-        <div className="resumo__medidor">
-          <span className="medidor__valor pixel" style={{ color: classe.corPrimaria }}>
+        <div className="resumo__medidor moldura--fina">
+          <span className="resumo__poder pixel" style={{ color: classe.corPrimaria }}>
             {avaliacao.poder}
           </span>
           <span className="medidor__faixa pixel">{avaliacao.faixa}</span>
           <Sinergia nivel={avaliacao.sinergia} />
           <div className="medidor__tags">
             {avaliacao.tags.map((tag) => (
-              <span key={tag.tag} className="medidor__tag pixel">
+              <span key={tag.tag} className={`etiqueta etiqueta--${tag.tag}`}>
                 {tag.rotulo} ×{tag.quantidade}
               </span>
             ))}
@@ -59,44 +70,53 @@ export const EscolhaDeModo = ({
         <div className="resumo__listas">
           {(
             [
-              ['HABILIDADES', build.ativas.map((a) => `${a.nome} · ${a.descricao}`)],
-              ['PASSIVAS', build.passivas.map((p) => `${p.nome} · ${p.descricao}`)],
-              ['EQUIPAMENTOS', build.equipamentos.map((e) => `${e.nome} · ${e.descricao}`)],
+              ['ATIVAS', build.ativas, 'ativa'],
+              ['PASSIVAS', build.passivas, 'passiva'],
+              ['EQUIPAMENTOS', build.equipamentos, 'equipamento'],
             ] as const
-          ).map(([titulo, itens]) => (
+          ).map(([titulo, itens, familia]) => (
             <div key={titulo} className="resumo__grupo">
-              <h3>{titulo}</h3>
-              <ul>
-                {itens.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              <h3 className="pixel">{titulo}</h3>
+              <div className="resumo__pecas">
+                {itens.map((item) => {
+                  const tag = item.tags[0];
+                  const arte =
+                    'slot' in item
+                      ? emblemaDoSlot(item.slot, familia)
+                      : tag !== undefined
+                        ? emblemaDaTag(tag, familia)
+                        : null;
+                  return (
+                    <span key={item.id} className={`ficha-da-build ficha-da-build--${familia}`}>
+                      {arte !== null && <img src={arte} alt="" width={28} height={28} />}
+                      <span className="ficha-da-build__nome">{item.nome}</span>
+                    </span>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>
       </div>
 
       <footer className="modos">
-        <button
-          type="button"
-          className="botao botao--forte"
+        <Botao
+          variante="forte"
+          legenda="Você escolhe a recompensa depois de cada boss."
           onClick={() => {
             aoComecar('manual');
           }}
         >
           MANUAL
-          <small>Você escolhe a recompensa depois de cada boss.</small>
-        </button>
-        <button
-          type="button"
-          className="botao"
+        </Botao>
+        <Botao
+          legenda="A run não para. A escolha é feita por você."
           onClick={() => {
             aoComecar('automatico');
           }}
         >
           AUTOMÁTICO
-          <small>A run não para. A escolha é feita por você.</small>
-        </button>
+        </Botao>
       </footer>
     </div>
   );
@@ -113,7 +133,6 @@ export const Checkpoint = ({
   readonly numero: number;
   readonly aoEscolher: (recompensa: Recompensa) => void;
 }): React.JSX.Element => {
-  const classe = classePorId(build.classe);
   return (
     <div className="tela centro tela--checkpoint">
       <h2>ÁREA {numero} CONCLUÍDA</h2>
@@ -132,8 +151,14 @@ export const Checkpoint = ({
                   : 'BÊNÇÃO'
             }
             tags={opcao.tags}
+            familia={
+              opcao.tipo === 'equipamento'
+                ? 'equipamento'
+                : opcao.tipo === 'evolucao'
+                  ? 'ativa'
+                  : 'passiva'
+            }
             sinergias={sinergiasCom(build, opcao.tags)}
-            cor={classe.corPrimaria}
             atraso={indice * 90}
             onClick={() => {
               audio.tocar('carta-escolhe');

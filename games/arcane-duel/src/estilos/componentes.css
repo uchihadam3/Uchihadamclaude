@@ -7,161 +7,269 @@
  * rejeitadas quando uma é escolhida.
  */
 
+/*
+ * A carta.
+ *
+ * Emblema à esquerda, conteúdo à direita, moldura colorida por categoria. A
+ * cor não é enfeite: ela diz "isto é uma habilidade" antes de o olho chegar
+ * ao texto, e é a mesma cor do emblema, então a carta lê como uma peça só em
+ * vez de um retângulo com um ícone colado.
+ *
+ * Três movimentos fazem quase todo o trabalho de tato: a carta **sobe** ao
+ * toque, o selo de sinergia pulsa devagar, e as rejeitadas **recuam** quando
+ * uma é escolhida — é esse recuo que faz a escolha parecer consequência em
+ * vez de troca de tela.
+ */
+
 .carta {
   position: relative;
   display: flex;
-  flex-direction: column;
-  gap: calc(var(--u) * 2);
+  gap: calc(var(--u) * 3);
+  align-items: stretch;
   width: 100%;
-  max-width: 300px;
-  min-height: 150px;
-  padding: calc(var(--u) * 4);
+  padding: calc(var(--u) * 2.5);
+  overflow: hidden;
+  font: inherit;
+  color: inherit;
   text-align: left;
-  color: var(--tinta);
-  background: linear-gradient(180deg, #241c31 0%, #171122 100%);
-  border: 0;
   cursor: pointer;
+  background: linear-gradient(135deg, var(--pedra-2) 0%, var(--pedra-1) 58%, #100c19 100%);
+  border: 0;
   box-shadow:
-    inset 0 var(--u) 0 0 var(--cor-da-carta, #5c4a6b),
-    inset 0 calc(var(--u) * -1) 0 0 #0f0b17,
-    0 0 0 var(--u) #0b0810,
-    0 var(--u) 0 var(--u) #08060c;
+    inset 0 2px 0 0 color-mix(in srgb, var(--cor-da-carta) 42%, #000),
+    inset 0 -3px 0 0 var(--pedra-0),
+    inset 3px 0 0 0 color-mix(in srgb, var(--cor-da-carta) 58%, #000),
+    0 0 0 2px var(--pedra-0),
+    0 0 0 3px color-mix(in srgb, var(--cor-da-carta) 22%, #0b0810),
+    0 4px 0 3px rgb(0 0 0 / 50%);
   animation: carta-entra 280ms steps(4) both;
   transition:
-    transform 110ms steps(2),
-    filter 110ms steps(2),
-    opacity 160ms steps(2);
+    transform 90ms steps(2),
+    filter 90ms steps(2);
 }
 
 @keyframes carta-entra {
   from {
     opacity: 0;
-    transform: translateY(calc(var(--u) * 6)) scale(0.94);
+    transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: none;
   }
 }
 
-/* Levantar no toque: a carta sai da fileira e fica um degrau à frente. */
+/* A cor de cada família. Um lugar só decide. */
+.carta--ativa {
+  --cor-da-carta: var(--cat-ativa);
+}
+
+.carta--passiva {
+  --cor-da-carta: var(--cat-passiva);
+}
+
+.carta--equipamento {
+  --cor-da-carta: var(--cat-equipamento);
+}
+
 .carta:hover:not(:disabled),
 .carta:focus-visible:not(:disabled) {
-  transform: translateY(calc(var(--u) * -2));
-  filter: brightness(1.16);
   outline: none;
+  filter: brightness(1.16);
+  transform: translateY(-3px);
 }
 
 .carta:active:not(:disabled) {
-  transform: translateY(0);
+  transform: translateY(2px);
 }
 
-/* A escolhida cresce; as recusadas recuam e apagam. */
 .carta--escolhida {
+  filter: brightness(1.3);
   animation: carta-escolhida 320ms steps(5) both;
-  z-index: 2;
 }
 
 @keyframes carta-escolhida {
   0% {
     transform: none;
   }
+
   40% {
-    transform: translateY(calc(var(--u) * -4)) scale(1.08);
-    filter: brightness(1.5);
+    transform: translateY(-8px) scale(1.03);
   }
+
   100% {
-    transform: translateY(calc(var(--u) * -3)) scale(1.04);
-    filter: brightness(1.2);
+    opacity: 0;
+    transform: translateY(-22px) scale(0.96);
   }
 }
 
 .carta--recuada {
-  opacity: 0.25;
-  transform: translateY(calc(var(--u) * 2)) scale(0.94);
-  filter: saturate(0.2);
+  animation: carta-recuada 320ms steps(4) both;
 }
 
-.carta__topo {
+@keyframes carta-recuada {
+  to {
+    opacity: 0;
+    filter: grayscale(0.8);
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+/* --- O emblema -------------------------------------------------------- */
+
+.carta__emblema {
+  position: relative;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: calc(var(--u) * 2);
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  padding: var(--u) 0;
+  background:
+    radial-gradient(60% 60% at 50% 42%, color-mix(in srgb, var(--cor-da-carta) 26%, transparent) 0%, transparent 100%),
+    linear-gradient(180deg, #100c19 0%, #0a0810 100%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--cor-da-carta) 34%, #000),
+    inset 0 2px 0 0 rgb(255 255 255 / 6%);
+}
+
+.carta__emblema img {
+  display: block;
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+
+/* A tarja: recarga de uma Ativa, slot de um Equipamento. */
+.carta__tarja {
+  padding: 2px 5px;
+  font-size: 7px;
+  color: color-mix(in srgb, var(--cor-da-carta) 72%, #fff);
+  letter-spacing: 0.06em;
+  background: #0a0810;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cor-da-carta) 38%, #000);
+}
+
+/* --- O corpo ---------------------------------------------------------- */
+
+.carta__corpo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+  justify-content: center;
+  min-width: 0;
 }
 
 .carta__nome {
-  font-family: var(--pixel);
-  font-size: clamp(8px, 1.5vw, 11px);
-  line-height: 1.7;
+  font-size: clamp(9px, 2.7vw, 11px);
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--cor-da-carta) 65%, #fff);
   letter-spacing: 0.04em;
-  color: var(--cor-da-carta, var(--ouro));
-  text-shadow: 0 2px 0 #08060c;
+  text-shadow: 0 2px 0 #07060c;
 }
 
-.carta__canto {
-  flex-shrink: 0;
-  padding: 2px calc(var(--u) * 1.5);
-  font-family: var(--pixel);
-  font-size: 8px;
-  color: var(--tinta-fraca);
-  background: #100c19;
-  box-shadow: 0 0 0 2px #0b0810;
-}
-
-/*
- * A descrição usa fonte de leitura, e não a de pixel.
- *
- * É a decisão que a direção do jogo obriga: "uma pessoa sem experiência em
- * RPG deve entender uma escolha rapidamente". Fonte de bloco em três linhas
- * de texto corrido é bonita e ilegível, e ilegível aqui custa a partida.
- */
 .carta__descricao {
-  flex: 1;
-  font-size: clamp(12px, 2.1vw, 14px);
-  line-height: 1.5;
-  color: #d6cbb8;
-}
-
-.carta__rodape {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: calc(var(--u) * 2);
-  min-height: 18px;
+  font-size: clamp(11px, 3.2vw, 13px);
+  line-height: 1.42;
+  color: #cfc5b2;
 }
 
 .carta__tags {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--u);
+  gap: 4px;
 }
 
-.carta__tag {
-  padding: 1px calc(var(--u) * 1.5);
+/*
+ * As etiquetas.
+ *
+ * Cada tag tem a sua cor, e ela é a mesma no draft, no medidor e no resumo
+ * da build. Uma tag que muda de cor entre telas força o jogador a reaprender
+ * o código de cores em cada uma.
+ */
+.etiqueta {
+  padding: 2px 6px;
   font-family: var(--pixel);
   font-size: 7px;
-  color: #b4a58f;
-  background: #14101f;
-  box-shadow: 0 0 0 1px #2c2338;
+  color: var(--cor-da-etiqueta, var(--tinta-fraca));
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--cor-da-etiqueta, #6f6890) 14%, #0d0a14);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cor-da-etiqueta, #6f6890) 38%, #000);
 }
 
-/* O aviso de sinergia: discreto, e nunca "melhor escolha". */
-.carta__sinergia {
-  flex-shrink: 0;
-  font-family: var(--pixel);
-  font-size: 7px;
-  color: var(--bom);
-  animation: pulsar-sinergia 1.6s steps(2) infinite;
+.etiqueta--ruptura {
+  --cor-da-etiqueta: #ff9a5c;
 }
 
-@keyframes pulsar-sinergia {
-  0%,
-  100% {
-    opacity: 0.65;
-  }
-  50% {
-    opacity: 1;
-  }
+.etiqueta--momentum {
+  --cor-da-etiqueta: #ffcf6a;
+}
+
+.etiqueta--defesa {
+  --cor-da-etiqueta: #7fc4ef;
+}
+
+.etiqueta--combo {
+  --cor-da-etiqueta: #b79cff;
+}
+
+.etiqueta--execucao {
+  --cor-da-etiqueta: #ff7b7b;
+}
+
+.etiqueta--cura {
+  --cor-da-etiqueta: #7fe4c0;
+}
+
+.etiqueta--critico {
+  --cor-da-etiqueta: #ffe08a;
+}
+
+.etiqueta--sangramento {
+  --cor-da-etiqueta: #e06a8a;
+}
+
+/* --- O selo de sinergia ----------------------------------------------- */
+
+/*
+ * Ele conta, não aconselha.
+ *
+ * Um número no canto diz "isto conversa com duas peças que você já tem". Uma
+ * estrela de "melhor escolha" diria qual clicar, e aí o draft deixaria de
+ * ser a parte do jogo em que o jogador pensa.
+ */
+.carta__selo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: linear-gradient(135deg, var(--bom) 0%, #2e8f7d 62%, #12463d 100%);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+
+.carta__selo-numero {
+  margin: -6px -6px 0 0;
+  font-size: 8px;
+  color: #04231d;
+}
+
+.carta--sinergica {
+  box-shadow:
+    inset 0 2px 0 0 color-mix(in srgb, var(--cor-da-carta) 42%, #000),
+    inset 0 -3px 0 0 var(--pedra-0),
+    inset 3px 0 0 0 color-mix(in srgb, var(--cor-da-carta) 58%, #000),
+    0 0 0 2px var(--pedra-0),
+    0 0 0 3px color-mix(in srgb, var(--bom) 42%, #0b0810),
+    0 4px 0 3px rgb(0 0 0 / 50%);
 }
 
 /* --------------------------------------------------------------------------

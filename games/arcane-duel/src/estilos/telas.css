@@ -9,18 +9,46 @@
  * com `clamp` e as áreas de toque nunca ficam menores que o polegar.
  */
 
+/*
+ * O cabeçalho.
+ *
+ * Três colunas de largura igual nas pontas, título no meio. As pontas terem a
+ * **mesma** largura é o que mantém o título opticamente centrado mesmo
+ * quando um dos lados está vazio; sem isso o título escorrega para o lado do
+ * elemento mais curto, que é o tipo de desalinhamento que ninguém aponta mas
+ * todo mundo sente.
+ *
+ * A peça de voltar não pode ser larga: `.peca` é 100% por padrão, e num
+ * cabeçalho isso empurrava o título para fora do centro e o fazia quebrar em
+ * duas linhas.
+ */
 .cabecalho {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: calc(var(--u) * 2);
   align-items: center;
-  justify-content: space-between;
-  gap: calc(var(--u) * 3);
-  padding: calc(var(--u) * 3) calc(var(--u) * 4);
-  border-bottom: var(--u) solid var(--borda);
-  background: #120e1a;
+  padding: calc(var(--u) * 2) calc(var(--u) * 3);
+  padding-top: calc(var(--u) * 2 + env(safe-area-inset-top));
+  border-bottom: 3px solid var(--pedra-0);
+  background: linear-gradient(180deg, #1a1426 0%, #120e1a 100%);
+  box-shadow: inset 0 -1px 0 0 var(--pedra-3);
 }
 
 .cabecalho h2 {
+  margin: 0;
+  font-size: clamp(10px, 3.2vw, 14px);
+  white-space: nowrap;
   text-align: center;
+}
+
+.cabecalho > .peca {
+  justify-self: start;
+  width: auto;
+  min-width: 88px;
+}
+
+.cabecalho > .peca .peca__face {
+  min-height: 36px;
 }
 
 .semente {
@@ -132,30 +160,124 @@
  * Draft e checkpoint.
  * ------------------------------------------------------------------------ */
 
+/*
+ * As ofertas.
+ *
+ * Três cartas, empilhadas no telefone em pé e lado a lado quando há largura.
+ * Elas ficam **centradas verticalmente** na área livre: encostadas no topo
+ * deixavam um vazio de meia tela embaixo, que é a diferença entre uma tela
+ * composta e uma tela onde o conteúdo caiu.
+ */
 .opcoes {
   display: flex;
   flex: 1;
-  flex-wrap: wrap;
-  gap: calc(var(--u) * 4);
-  align-items: center;
+  flex-direction: column;
+  gap: calc(var(--u) * 3);
+  align-content: center;
   justify-content: center;
-  padding: calc(var(--u) * 4);
+  min-height: 0;
+  padding: calc(var(--u) * 3) calc(var(--u) * 4);
   overflow-y: auto;
+}
+
+/*
+ * As cartas dividem a altura livre.
+ *
+ * Com altura natural, três cartas num telefone em pé ocupavam um terço da
+ * tela e deixavam dois vazios — um em cima e outro embaixo. Elas crescem até
+ * um teto: cartas que crescem sem limite num tablet viram painéis, e aí o
+ * texto curto que é a graça delas fica boiando no meio do nada.
+ */
+.opcoes .carta {
+  flex: 1 1 0;
+  min-height: 92px;
+  max-height: 168px;
+}
+
+/* Numa tela alta as cartas podem crescer mais antes de sobrar vazio. */
+@media (orientation: portrait) and (min-height: 700px) {
+  .opcoes {
+    gap: calc(var(--u) * 4);
+  }
+
+  .opcoes .carta {
+    max-height: 210px;
+  }
+}
+
+.opcoes .carta__emblema {
+  width: clamp(64px, 18vw, 86px);
+}
+
+.opcoes .carta__emblema img {
+  width: clamp(48px, 13vw, 64px);
+  height: clamp(48px, 13vw, 64px);
+}
+
+/*
+ * Lado a lado, quando há largura.
+ *
+ * Aqui a carta vira retrato: emblema numa faixa em cima, texto embaixo. O
+ * detalhe que importa é o **teto de altura sumir**: com ele, a descrição de
+ * duas linhas era cortada no meio e as etiquetas desapareciam — a carta
+ * ficava mostrando meia frase, que é pior do que mostrar menos texto.
+ */
+@media (min-width: 720px) {
+  .opcoes {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .opcoes .carta {
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: stretch;
+    max-height: none;
+    padding: calc(var(--u) * 2);
+  }
+
+  .opcoes .carta__emblema {
+    flex: 0 0 auto;
+    width: auto;
+    height: clamp(56px, 13vh, 92px);
+    padding: 0;
+  }
+
+  .opcoes .carta__emblema img {
+    width: clamp(40px, 9vh, 64px);
+    height: clamp(40px, 9vh, 64px);
+  }
+
+  .opcoes .carta__corpo {
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    min-height: 0;
+  }
+
+  .opcoes .carta__tarja {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+  }
 }
 
 .vazio {
   color: var(--tinta-fraca);
 }
 
+/* --- A barra de baixo do draft ---------------------------------------- */
+
 .rodape-do-draft {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--u) * 4);
+  gap: calc(var(--u) * 2) calc(var(--u) * 4);
   align-items: center;
   justify-content: space-between;
-  padding: calc(var(--u) * 3) calc(var(--u) * 4);
-  border-top: var(--u) solid var(--borda);
-  background: #120e1a;
+  padding: calc(var(--u) * 2) calc(var(--u) * 4);
+  padding-bottom: calc(var(--u) * 2 + env(safe-area-inset-bottom));
+  border-top: 3px solid var(--pedra-0);
+  background: linear-gradient(180deg, #17121f 0%, #100c18 100%);
+  box-shadow: inset 0 2px 0 0 var(--pedra-3);
 }
 
 /*
@@ -167,26 +289,33 @@
  */
 .medidor {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
-  gap: calc(var(--u) * 4);
+  gap: calc(var(--u) * 2) calc(var(--u) * 4);
   align-items: center;
 }
 
-.medidor__poder,
-.medidor__sinergia {
+.medidor__bloco {
   display: flex;
-  gap: var(--u);
+  gap: calc(var(--u) * 1.5);
   align-items: baseline;
+}
+
+.medidor__bloco--largo {
+  align-items: center;
+  min-width: 0;
 }
 
 .medidor__rotulo {
   font-size: 7px;
   color: var(--tinta-fraca);
+  letter-spacing: 0.1em;
 }
 
 .medidor__valor {
-  font-size: clamp(16px, 3vw, 24px);
-  color: var(--ouro);
+  font-size: clamp(15px, 3.6vw, 22px);
+  color: var(--ouro-3);
+  text-shadow: 0 2px 0 #07060c;
 }
 
 .medidor__faixa {
@@ -197,20 +326,85 @@
 .medidor__tags {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--u);
+  gap: 4px;
 }
 
-.medidor__tag {
-  padding: 2px calc(var(--u) * 1.5);
-  font-size: 7px;
-  color: var(--bom);
-  background: #101a1a;
-  box-shadow: 0 0 0 1px #24413c;
-}
-
-.progresso-do-draft {
-  font-size: 8px;
+.medidor__vazio {
+  font-size: 10px;
+  font-style: italic;
   color: var(--tinta-fraca);
+}
+
+.rodape-do-draft__acoes {
+  display: flex;
+  flex: 0 0 auto;
+  gap: calc(var(--u) * 3);
+  align-items: center;
+}
+
+.rodape-do-draft__acoes .peca {
+  width: auto;
+  min-width: 132px;
+}
+
+/*
+ * A trilha.
+ *
+ * Três grupos de contas: ativas, passivas, equipamentos. Cada conta acesa é
+ * uma escolha já feita. Substitui o `4/4 · 3/3 · 0/3`, que exigia leitura e
+ * ainda deixava a dúvida de qual número era o quê.
+ */
+.trilha {
+  display: flex;
+  gap: calc(var(--u) * 2);
+  align-items: center;
+}
+
+.trilha__grupo {
+  display: flex;
+  gap: 3px;
+}
+
+.trilha__grupo--ativa {
+  --cor-da-trilha: var(--cat-ativa);
+}
+
+.trilha__grupo--passiva {
+  --cor-da-trilha: var(--cat-passiva);
+}
+
+.trilha__grupo--equipamento {
+  --cor-da-trilha: var(--cat-equipamento);
+}
+
+.trilha__conta {
+  width: 8px;
+  height: 8px;
+  background: #0f0b17;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cor-da-trilha) 34%, #000);
+  transform: rotate(45deg);
+}
+
+.trilha__conta--feita {
+  background: var(--cor-da-trilha);
+  box-shadow:
+    inset 0 0 0 1px #0a0810,
+    0 0 5px color-mix(in srgb, var(--cor-da-trilha) 60%, transparent);
+}
+
+@media (max-width: 520px) {
+  .rodape-do-draft {
+    gap: var(--u) calc(var(--u) * 3);
+  }
+
+  .medidor {
+    gap: var(--u) calc(var(--u) * 3);
+  }
+
+  .rodape-do-draft__acoes {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
 }
 
 .subtitulo {
@@ -224,63 +418,88 @@
  * Modo e resumo.
  * ------------------------------------------------------------------------ */
 
+/*
+ * O resumo da build, antes de descer.
+ *
+ * Medidor em cima (ou ao lado, quando há largura), e as dez peças em fichas
+ * compactas com emblema. A versão anterior listava nome **e descrição** de
+ * cada peça, e não cabia em tela nenhuma: em pé rolava, deitado rolava mais.
+ * O jogador acabou de ler essas descrições no draft; aqui ele quer ver o
+ * conjunto.
+ */
 .resumo-da-build {
   display: flex;
   flex: 1;
-  flex-wrap: wrap;
-  gap: calc(var(--u) * 5);
-  padding: calc(var(--u) * 4);
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  min-height: 0;
+  padding: calc(var(--u) * 2) calc(var(--u) * 3);
   overflow-y: auto;
 }
 
 .resumo__medidor {
   display: flex;
-  flex-direction: column;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: calc(var(--u) * 2);
-  align-items: flex-start;
-  min-width: 140px;
+  align-items: center;
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2);
 }
 
-.resumo__medidor .medidor__valor {
-  font-size: clamp(28px, 6vw, 46px);
+.resumo__poder {
+  font-size: clamp(20px, 6vw, 30px);
+  line-height: 1;
+  text-shadow: 0 3px 0 #07060c;
 }
 
 .resumo__listas {
-  display: grid;
+  display: flex;
   flex: 1;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: calc(var(--u) * 4);
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  min-height: 0;
 }
 
 .resumo__grupo h3 {
-  margin-bottom: calc(var(--u) * 2);
+  margin: 0 0 4px;
+  font-size: 7px;
   color: var(--tinta-fraca);
+  letter-spacing: 0.16em;
 }
 
-.resumo__grupo ul {
-  margin: 0;
-  padding-left: calc(var(--u) * 4);
-  font-size: 12px;
-  line-height: 1.6;
-  color: #c9bda8;
+.resumo__pecas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 4px;
 }
+
+@media (min-width: 720px) {
+  .resumo-da-build {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .resumo__medidor {
+    flex: 0 0 200px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* --- Os dois modos ---------------------------------------------------- */
 
 .modos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(var(--u) * 4);
-  justify-content: center;
-  padding: calc(var(--u) * 4);
-  border-top: var(--u) solid var(--borda);
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 2) calc(var(--u) * 3);
+  padding-bottom: calc(var(--u) * 2 + env(safe-area-inset-bottom));
+  border-top: 3px solid var(--pedra-0);
+  background: linear-gradient(180deg, #17121f 0%, #100c18 100%);
 }
 
-.modos .botao {
-  display: flex;
-  flex-direction: column;
-  gap: var(--u);
-  min-width: 190px;
-}
-
+.peca__legenda,
 .modos small {
   font-family: var(--leitura);
   font-size: 11px;
@@ -292,140 +511,319 @@
  * Dungeon e HUD.
  * ------------------------------------------------------------------------ */
 
+/*
+ * A batalha, em grade.
+ *
+ * Esta é a correção estrutural da tela de combate. Antes o canvas ocupava a
+ * tela inteira e o HUD flutuava **por cima** dele, o que produzia exatamente
+ * os dois defeitos que se via na captura: barras passando por cima das
+ * pernas do personagem, e blocos de HUD disputando o mesmo espaço.
+ *
+ * Agora são cinco faixas declaradas, e a cena é **uma delas**. Nada flutua
+ * sobre nada; cada coisa tem o seu lugar e o seu tamanho. A faixa da cena é
+ * a única elástica: ela fica com tudo o que sobrar, e é a partir do tamanho
+ * dela que a cena calcula a própria largura lógica.
+ *
+ * As linhas são declaradas por `grid-row` em cada peça, e não pela ordem do
+ * HTML. É o que permite o HUD inteiro aparecer só depois do primeiro quadro
+ * da simulação sem que a cena mude de lugar enquanto isso.
+ */
 .dungeon {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
   background: #08060c;
 }
 
+/*
+ * Em pé, a sobra vai para a faixa da build.
+ *
+ * A cena é uma janela larga e a tela é alta e estreita: com a cena ocupando
+ * a largura toda, sobram quase trezentos pixels embaixo dela. Deixá-los
+ * pretos desperdiça meia tela; esticar a cena para preencher corta os
+ * personagens, que era o defeito antigo. Então a cena fica do tamanho certo
+ * e a sobra vira conteúdo.
+ */
+@media (orientation: portrait) {
+  .dungeon {
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+  }
+
+  /*
+   * A altura da faixa da cena é do CSS, não do canvas.
+   *
+   * A tentativa anterior era derivar a altura da proporção que o canvas
+   * calculava — e isso é um ovo e uma galinha: na criação a faixa ainda não
+   * tinha altura, o cálculo via uma caixa de altura zero e devolvia o mundo
+   * mais largo possível.
+   *
+   * Aqui a faixa declara a própria altura e o mundo se ajusta a ela. O teto
+   * de 52vh deixa espaço para o HUD e para a faixa da build; o outro termo
+   * impede que, numa tela muito estreita, a faixa fique mais alta do que o
+   * mundo sabe desenhar.
+   */
+  .dungeon__cena {
+    width: 100%;
+    height: min(52vh, calc(100vw * 340 / 208));
+  }
+}
+
+/*
+ * O HUD não é uma caixa: é um conjunto de peças.
+ *
+ * `display: contents` faz os filhos dele serem filhos da grade, que é o que
+ * permite a cena ficar entre a barra do inimigo e a do jogador sem inverter
+ * a árvore do React por causa de layout.
+ */
+.hud {
+  display: contents;
+}
+
 .dungeon__cena {
-  position: absolute;
-  inset: 0;
+  position: relative;
   display: flex;
+  grid-row: 3;
   align-items: center;
   justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+  background: #06050a;
 }
 
 .dungeon__cena canvas {
   /*
    * O canvas não é esticado por CSS.
    *
-   * Quem dimensiona é o Phaser, em modo ENVELOP. Forçar largura e altura aqui
-   * produzia escala fracionária em cima da escala do Phaser — que é como se
-   * perde a nitidez de pixel art sem ninguém perceber de onde veio.
+   * Quem dimensiona é o Phaser, em modo FIT, sobre uma largura lógica que já
+   * tem a proporção da caixa. Forçar largura e altura aqui produzia escala
+   * fracionária em cima da escala do Phaser — que é como se perde a nitidez
+   * de pixel art sem ninguém perceber de onde veio.
    */
   display: block;
   image-rendering: pixelated;
 }
 
-.hud {
-  position: relative;
-  display: flex;
+/* --- Faixa 6: a build da run (só em pé) ------------------------------- */
+
+.hud__build {
+  display: none;
+  grid-row: 6;
   flex-direction: column;
-  height: 100%;
-  padding: calc(var(--u) * 2);
+  gap: calc(var(--u) * 1.5);
+  min-height: 0;
+  padding: calc(var(--u) * 2) calc(var(--u) * 3);
+  padding-bottom: calc(var(--u) * 2 + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  background: linear-gradient(180deg, #0d0a14 0%, #08060c 100%);
+  box-shadow: inset 0 2px 0 0 var(--pedra-0);
+}
+
+@media (orientation: portrait) {
+  .hud__build {
+    display: flex;
+  }
+}
+
+.hud__build-titulo {
+  flex: 0 0 auto;
+  font-size: 7px;
+  color: var(--tinta-fraca);
+  letter-spacing: 0.18em;
+}
+
+.hud__build-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 4px;
+  align-content: start;
+}
+
+.ficha-da-build {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 3px 5px;
+  background: linear-gradient(180deg, var(--pedra-2) 0%, #0d0a14 100%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, var(--cor-da-ficha) 30%, #000),
+    inset 2px 0 0 0 color-mix(in srgb, var(--cor-da-ficha) 58%, #000),
+    0 0 0 1px var(--pedra-0);
+}
+
+.ficha-da-build--equipamento {
+  --cor-da-ficha: var(--cat-equipamento);
+}
+
+.ficha-da-build--passiva {
+  --cor-da-ficha: var(--cat-passiva);
+}
+
+.ficha-da-build img {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+}
+
+.ficha-da-build__nome {
+  overflow: hidden;
+  font-size: 9px;
+  color: #bfb5a4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Uma sombra interna nas bordas da cena, que a assenta na moldura do HUD. */
+.dungeon__cena::after {
+  position: absolute;
+  inset: 0;
   pointer-events: none;
+  content: '';
+  box-shadow:
+    inset 0 3px 0 0 rgb(5 4 9 / 85%),
+    inset 0 -3px 0 0 rgb(5 4 9 / 85%),
+    inset 0 0 44px 10px rgb(5 4 9 / 55%);
 }
 
 .hud button {
   pointer-events: auto;
 }
 
+/* --- Faixa 1: onde estou e a que velocidade -------------------------- */
+
 .hud__topo {
   display: flex;
+  grid-row: 1;
+  gap: calc(var(--u) * 2);
   align-items: center;
   justify-content: space-between;
-  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 3);
+  padding-top: calc(var(--u) * 1.5 + env(safe-area-inset-top));
+  background: linear-gradient(180deg, #1a1426 0%, #100c18 100%);
+  box-shadow: inset 0 -2px 0 0 var(--pedra-0);
 }
 
 .hud__sala {
-  font-size: clamp(8px, 1.6vw, 11px);
+  font-size: clamp(8px, 2.4vw, 11px);
   color: var(--tinta);
   text-shadow: 0 2px 0 #000;
 }
 
 .hud__area {
-  font-size: clamp(7px, 1.3vw, 9px);
-  color: var(--ouro);
+  flex: 1;
+  overflow: hidden;
+  font-size: clamp(7px, 2vw, 9px);
+  color: var(--ouro-3);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-shadow: 0 2px 0 #000;
 }
 
 .hud__velocidade {
   display: flex;
-  gap: var(--u);
+  gap: 3px;
 }
 
 .hud__velocidade .botao {
-  padding: calc(var(--u)) calc(var(--u) * 2);
+  min-height: 28px;
+  min-width: 30px;
+  padding: 3px 6px;
+  font-family: var(--pixel);
   font-size: 8px;
-  background: rgb(10 8 14 / 72%);
+  color: var(--tinta-fraca);
+  background: linear-gradient(180deg, var(--pedra-3) 0%, var(--pedra-1) 100%);
+  border: 0;
+  box-shadow:
+    inset 0 1px 0 0 var(--pedra-4),
+    0 0 0 2px var(--pedra-0);
 }
 
 .hud__velocidade .ativo {
-  color: var(--ouro);
-  box-shadow: 0 0 0 var(--u) var(--ouro-escuro);
+  color: #2a1c05;
+  background: linear-gradient(180deg, var(--ouro-3) 0%, var(--ouro-1) 100%);
+  box-shadow:
+    inset 0 1px 0 0 var(--ouro-4),
+    0 0 0 2px var(--pedra-0);
 }
 
-/* O inimigo fica no alto, centralizado: é para lá que o olho vai primeiro. */
+/* --- Faixa 2: o inimigo ---------------------------------------------- */
+
+/*
+ * O inimigo fica no alto, e a barra dele é a mais larga da tela.
+ *
+ * É a única informação do combate que muda a decisão do jogador enquanto ele
+ * assiste — se vai dar tempo, se a poção vai chegar antes. Ela merece a
+ * largura.
+ */
 .hud__inimigo {
   display: flex;
+  grid-row: 2;
   flex-direction: column;
-  gap: 2px;
-  width: min(420px, 62%);
-  margin: calc(var(--u) * 2) auto 0;
+  gap: 3px;
+  width: min(520px, 92%);
+  margin: calc(var(--u) * 2) auto;
   text-align: center;
 }
 
 .hud__inimigo--boss {
-  width: min(560px, 82%);
+  width: min(620px, 96%);
 }
 
 .hud__inimigo--boss .hud__nome {
-  font-size: clamp(9px, 1.9vw, 13px);
+  font-size: clamp(9px, 2.6vw, 13px);
   color: var(--perigo);
 }
 
 .hud__nome {
-  font-size: clamp(7px, 1.4vw, 10px);
+  font-size: clamp(7px, 2.2vw, 10px);
   color: var(--tinta);
+  letter-spacing: 0.08em;
   text-shadow: 0 2px 0 #000;
 }
 
+/* --- Faixa 4: o jogador ---------------------------------------------- */
+
 /*
- * O bloco do jogador.
+ * O bloco do jogador ocupa a faixa inteira.
  *
- * Ele tem fundo próprio. Barras soltas por cima da cena passam por cima das
- * pernas do personagem e o desenho some atrás de uma faixa colorida — que é
- * exatamente o que faz um HUD parecer colado depois, e não feito junto.
+ * Antes ele era uma caixa encostada no canto esquerdo por cima da cena, com
+ * as barras passando na frente das pernas do personagem. Agora é uma faixa
+ * própria: nível à esquerda, barras no meio, poções à direita — a mesma
+ * ordem sempre, que é o que permite ler de relance.
  */
 .hud__jogador {
   display: flex;
+  grid-row: 4;
   gap: calc(var(--u) * 2);
-  align-items: flex-end;
-  align-self: flex-start;
-  margin-top: auto;
-  padding: calc(var(--u) * 1.5) calc(var(--u) * 2);
-  background: linear-gradient(90deg, rgb(10 8 14 / 86%) 0%, rgb(10 8 14 / 70%) 100%);
-  border-top: 2px solid #2c2440;
-  border-right: 2px solid #2c2440;
-  box-shadow: 0 -2px 0 rgb(0 0 0 / 40%);
+  align-items: center;
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 3);
+  background: linear-gradient(180deg, #17121f 0%, #100c18 100%);
+  box-shadow: inset 0 2px 0 0 var(--pedra-3);
 }
 
 .hud__retrato {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
-  gap: 2px;
-  min-width: 62px;
-  padding: calc(var(--u) * 1.5);
-  background: rgb(10 8 14 / 72%);
-  box-shadow: 0 0 0 2px #0b0810;
+  gap: 3px;
+  align-items: center;
+  min-width: 54px;
+  padding: calc(var(--u) * 1.25) var(--u);
+  background: linear-gradient(180deg, var(--pedra-2) 0%, #0d0a14 100%);
+  box-shadow:
+    inset 0 1px 0 0 var(--pedra-4),
+    0 0 0 2px var(--pedra-0);
 }
 
 .hud__nivel {
   font-size: 9px;
-  color: var(--ouro);
+  color: var(--ouro-3);
+}
+
+.hud__exp {
+  width: 100%;
 }
 
 .hud__barras {
@@ -433,8 +831,7 @@
   flex: 1;
   flex-direction: column;
   gap: 3px;
-  min-width: 210px;
-  max-width: 260px;
+  min-width: 0;
 }
 
 .hud__linha {
@@ -445,7 +842,7 @@
 
 .hud__linha .barra {
   flex: 1;
-  min-width: 96px;
+  min-width: 60px;
 }
 
 .hud__rotulo {
@@ -461,9 +858,11 @@
   color: var(--tinta);
 }
 
+/* As poções ficam à direita, sempre no mesmo lugar, sempre em três. */
 .hud__pocoes {
   display: flex;
-  gap: var(--u);
+  flex: 0 0 auto;
+  gap: 3px;
 }
 
 .pocao {
@@ -481,12 +880,24 @@
   background: #241c31;
 }
 
-/* As quatro habilidades: o cooldown desce como líquido, e não pisca. */
+/* --- Faixa 5: as habilidades ----------------------------------------- */
+
+/*
+ * As quatro habilidades: o cooldown desce como líquido, e não pisca.
+ *
+ * Elas são a última faixa e nunca cobrem a cena. O jogador não as aciona —
+ * o combate é automático — mas ver qual está pronta e qual está carregando é
+ * o que torna a luta legível em vez de aleatória.
+ */
 .hud__habilidades {
-  display: flex;
-  gap: calc(var(--u) * 1.5);
-  justify-content: center;
-  margin-top: calc(var(--u) * 2);
+  display: grid;
+  grid-row: 5;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  padding: 3px calc(var(--u) * 2);
+  padding-bottom: calc(3px + env(safe-area-inset-bottom));
+  background: #0b0812;
+  box-shadow: inset 0 2px 0 0 var(--pedra-0);
 }
 
 .habilidade {
@@ -494,11 +905,13 @@
   display: flex;
   align-items: flex-end;
   width: clamp(58px, 15vw, 96px);
-  height: clamp(30px, 7vw, 44px);
+  height: clamp(30px, 7.5vw, 44px);
   padding: 3px;
   overflow: hidden;
-  background: rgb(14 11 20 / 88%);
-  box-shadow: 0 0 0 2px #0b0810, inset 0 0 0 1px #30263f;
+  background: linear-gradient(180deg, #16111f 0%, #0d0a14 100%);
+  box-shadow:
+    inset 0 1px 0 0 #30263f,
+    0 0 0 2px #0b0810;
 }
 
 .habilidade__nome {
@@ -506,8 +919,13 @@
   z-index: 2;
   font-family: var(--pixel);
   font-size: 6px;
-  line-height: 1.4;
-  color: #b4a58f;
+  line-height: 1.35;
+  color: #9d9080;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .habilidade__recarga {
@@ -518,16 +936,21 @@
 }
 
 .habilidade--pronta {
-  box-shadow: 0 0 0 2px var(--ouro-escuro), inset 0 0 0 1px var(--ouro);
+  background: linear-gradient(180deg, #241a10 0%, #14100a 100%);
+  box-shadow:
+    inset 0 1px 0 0 var(--ouro-2),
+    0 0 0 2px var(--ouro-1),
+    0 0 8px rgb(232 180 74 / 24%);
 }
 
 .habilidade--pronta .habilidade__nome {
-  color: var(--ouro);
+  color: var(--ouro-3);
 }
 
 /* A entrada do boss: nome grande, curto, e some. */
 .anuncio-de-boss {
   position: absolute;
+  z-index: 30;
   inset: 0;
   display: flex;
   align-items: center;

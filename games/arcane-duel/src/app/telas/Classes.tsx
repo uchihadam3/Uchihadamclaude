@@ -16,6 +16,15 @@ import { Retrato } from '../../ui/Retrato.js';
  * A ficha do Guerreiro mostra o **sprite animado** dele, e não um quadrado
  * colorido. É o mesmo boneco que vai lutar, respirando na tela de seleção, e
  * é o que transforma uma lista em elenco.
+ *
+ * O layout foi refeito para o **telefone em pé**, que é como o jogo vai ser
+ * jogado. A versão anterior era duas colunas de desktop espremidas: o texto
+ * caía fora da tela pela direita e o botão de selecionar ficava pela metade.
+ * Agora a ordem é vertical — retrato, nome, o que a classe faz, números,
+ * botão — e só quando há largura sobrando as duas primeiras viram colunas.
+ *
+ * A marcação é a **mesma** nas duas orientações. Duas árvores diferentes por
+ * orientação é o caminho curto para uma delas apodrecer sem ninguém notar.
  */
 
 export const Classes = ({
@@ -29,6 +38,7 @@ export const Classes = ({
 }): React.JSX.Element => {
   const guerreiro = recordeDe(save, 'guerreiro');
   const classePrincipal = CLASSES[0];
+  const trancadas = CLASSES.filter((c) => !c.jogavel);
 
   return (
     <div className="tela tela--classes">
@@ -37,62 +47,94 @@ export const Classes = ({
           VOLTAR
         </Botao>
         <h2>ESCOLHA A CLASSE</h2>
-        <span />
+        <span className="cabecalho__eco pixel">1 / 12</span>
       </header>
 
-      <div className="palco-de-classe">
-        {classePrincipal !== undefined && (
-          <div className={`ficha-de-classe moldura${guerreiro.dourada ? ' moldura--ouro' : ''}`}>
-            <Retrato
-              quadros={gerarAnimacao('repouso', { dourado: guerreiro.dourada })}
-              fps={7}
-              escala={3}
-            />
-            <div className="ficha-de-classe__texto">
-              <h3 style={{ color: guerreiro.dourada ? 'var(--ouro)' : classePrincipal.corPrimaria }}>
+      {classePrincipal !== undefined && (
+        <div className="palco-de-classe">
+          <div className={`heroi${guerreiro.dourada ? ' heroi--dourado' : ''}`}>
+            {/*
+              O palco do retrato.
+              Um disco de luz atrás e uma sombra de contato embaixo. Sem os
+              dois o sprite fica colado num retângulo e parece recorte.
+            */}
+            <div className="heroi__palco">
+              <Retrato
+                quadros={gerarAnimacao('repouso', { dourado: guerreiro.dourada })}
+                fps={7}
+                escala={3}
+              />
+            </div>
+
+            <div className="heroi__ficha">
+              <h3
+                className="heroi__nome"
+                style={{ color: guerreiro.dourada ? 'var(--ouro-3)' : classePrincipal.corPrimaria }}
+              >
                 {classePrincipal.nome}
                 {guerreiro.dourada ? ' DOURADO' : ''}
               </h3>
-              <p className="ficha-de-classe__lema">{classePrincipal.lema}</p>
-              <p className="ficha-de-classe__detalhe">
+              <p className="heroi__lema">{classePrincipal.lema}</p>
+              <p className="heroi__detalhe">
                 Vive de <strong>Momentum</strong> e de quebrar Armadura. Quanto mais o inimigo
                 perde a guarda, mais forte ele bate.
               </p>
-              <div className="linhas pixel">
-                <span>RECORDE</span>
-                <span>{guerreiro.melhorSala} / 50</span>
-                <span>RUNS</span>
-                <span>{guerreiro.runs}</span>
-                <span>ESTADO</span>
-                <span className={guerreiro.dourada ? 'dourado' : ''}>
-                  {guerreiro.dourada ? 'DOURADA' : guerreiro.concluida ? 'CONCLUÍDA' : 'ABERTA'}
-                </span>
+
+              <div className="heroi__numeros">
+                <Numero rotulo="RECORDE" valor={`${String(guerreiro.melhorSala)}/50`} />
+                <Numero rotulo="RUNS" valor={String(guerreiro.runs)} />
+                <Numero
+                  rotulo="ESTADO"
+                  valor={guerreiro.dourada ? 'DOURADA' : guerreiro.concluida ? 'FEITA' : 'ABERTA'}
+                  destacado={guerreiro.dourada}
+                />
               </div>
-              <Botao
-                variante="forte"
-                onClick={() => {
-                  aoEscolher('guerreiro', guerreiro.dourada);
-                }}
-              >
-                SELECIONAR
-              </Botao>
             </div>
           </div>
-        )}
 
-        <div className="em-breve">
-          {CLASSES.filter((c) => !c.jogavel).map((classe) => (
-            <div
-              key={classe.id}
-              className="ficha-trancada"
-              style={{ ['--cor-da-classe' as string]: classe.corPrimaria }}
+          <div className="palco-de-classe__acao">
+            <Botao
+              variante="forte"
+              onClick={() => {
+                aoEscolher('guerreiro', guerreiro.dourada);
+              }}
             >
-              <span className="ficha-trancada__nome pixel">{classe.nome}</span>
-              <span className="ficha-trancada__selo pixel">EM BREVE</span>
+              SELECIONAR
+            </Botao>
+          </div>
+
+          <div className="em-breve">
+            <span className="em-breve__titulo pixel">OUTRAS CLASSES</span>
+            <div className="em-breve__grade">
+              {trancadas.map((classe) => (
+                <span
+                  key={classe.id}
+                  className="ficha-trancada pixel"
+                  style={{ ['--cor-da-classe' as string]: classe.corPrimaria }}
+                >
+                  {classe.nome}
+                </span>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
+
+/** Um número da ficha: rótulo pequeno em cima, valor grande embaixo. */
+const Numero = ({
+  rotulo,
+  valor,
+  destacado = false,
+}: {
+  readonly rotulo: string;
+  readonly valor: string;
+  readonly destacado?: boolean;
+}): React.JSX.Element => (
+  <span className={`numero moldura--fina${destacado ? ' numero--dourado' : ''}`}>
+    <small className="numero__rotulo pixel">{rotulo}</small>
+    <strong className="numero__valor pixel">{valor}</strong>
+  </span>
+);

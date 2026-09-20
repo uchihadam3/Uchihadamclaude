@@ -1,0 +1,314 @@
+/*
+ * O kit: moldura, peça e carta.
+ *
+ * Este arquivo existe porque a interface estava sendo montada tela a tela, e
+ * o resultado era o previsível: cada tela com uma borda um pouco diferente,
+ * um painel um pouco mais claro, um botão com outra espessura. Um jogo não
+ * pode parecer feito por três pessoas que não se falaram.
+ *
+ * Aqui ficam as três peças que todas as telas usam, e **só** elas decidem
+ * como é uma borda, uma profundidade e um estado apertado. Se algo na
+ * interface precisa de uma moldura, ele usa `.moldura`; não desenha a dele.
+ *
+ * A regra de ouro do pixel art em CSS: nenhuma borda arredondada, nenhum
+ * desfoque, nenhuma transição contínua. Profundidade se faz com degraus de
+ * `box-shadow` de tamanho inteiro, e movimento se faz com `steps()`.
+ */
+
+:root {
+  /* A pedra dos painéis, do fundo para a luz. */
+  --pedra-0: #0a0810;
+  --pedra-1: #16121f;
+  --pedra-2: #221b30;
+  --pedra-3: #302644;
+  --pedra-4: #46385f;
+  --pedra-5: #6b5885;
+
+  /* O metal das peças de ouro. */
+  --ouro-0: #3d2a09;
+  --ouro-1: #6b4a12;
+  --ouro-2: #a8781f;
+  --ouro-3: #e8b44a;
+  --ouro-4: #ffdd8a;
+
+  /* As cores de categoria, usadas nas cartas e nas etiquetas. */
+  --cat-ativa: #e8873a;
+  --cat-passiva: #9b7fe4;
+  --cat-equipamento: #5aa9d8;
+}
+
+/* --------------------------------------------------------------------------
+ * A moldura.
+ *
+ * Uma caixa de pedra com quatro degraus: contorno preto por fora, aresta
+ * clara em cima, corpo, e base escura embaixo. Os cantos ganham um rebite,
+ * desenhado com `radial-gradient` de parada dura — que em pixel art lê como
+ * um quadrado de metal, não como um círculo borrado.
+ * ------------------------------------------------------------------------ */
+
+.moldura {
+  position: relative;
+  background:
+    linear-gradient(180deg, var(--pedra-3) 0%, var(--pedra-2) 22%, var(--pedra-1) 100%);
+  box-shadow:
+    inset 0 2px 0 0 var(--pedra-5),
+    inset 2px 0 0 0 var(--pedra-4),
+    inset -2px 0 0 0 var(--pedra-0),
+    inset 0 -3px 0 0 var(--pedra-0),
+    0 0 0 2px var(--pedra-0),
+    0 0 0 4px var(--pedra-3),
+    0 4px 0 4px rgb(0 0 0 / 55%);
+}
+
+/* Os rebites dos cantos. Dois pseudo-elementos cobrem os quatro. */
+.moldura::before,
+.moldura::after {
+  position: absolute;
+  height: 4px;
+  pointer-events: none;
+  content: '';
+  background:
+    linear-gradient(90deg, var(--ouro-2) 0 4px, transparent 4px calc(100% - 4px), var(--ouro-2) calc(100% - 4px) 100%);
+}
+
+.moldura::before {
+  inset: 3px 3px auto;
+}
+
+.moldura::after {
+  inset: auto 3px 3px;
+}
+
+.moldura--ouro {
+  background: linear-gradient(180deg, var(--ouro-1) 0%, #2c1f0c 30%, var(--pedra-1) 100%);
+  box-shadow:
+    inset 0 2px 0 0 var(--ouro-3),
+    inset 2px 0 0 0 var(--ouro-2),
+    inset -2px 0 0 0 var(--pedra-0),
+    inset 0 -3px 0 0 var(--pedra-0),
+    0 0 0 2px var(--pedra-0),
+    0 0 0 4px var(--ouro-1),
+    0 4px 0 4px rgb(0 0 0 / 55%);
+}
+
+/* Uma moldura discreta, para blocos que não devem competir. */
+.moldura--fina {
+  background: linear-gradient(180deg, var(--pedra-2) 0%, var(--pedra-1) 100%);
+  box-shadow:
+    inset 0 2px 0 0 var(--pedra-4),
+    inset 0 -2px 0 0 var(--pedra-0),
+    0 0 0 2px var(--pedra-0);
+}
+
+.moldura--fina::before,
+.moldura--fina::after {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+ * A peça: o botão.
+ *
+ * Três coisas fazem um botão parecer objeto e não retângulo: uma face que
+ * pega luz em cima, uma base escura que lhe dá espessura, e o fato de que ele
+ * **afunda** e perde a base quando apertado. O resto é acabamento.
+ * ------------------------------------------------------------------------ */
+
+.peca {
+  display: block;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  animation: peca-entra 260ms steps(4) both;
+}
+
+@keyframes peca-entra {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.peca__face {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: calc(var(--u) * 2.5) calc(var(--u) * 4);
+  background: linear-gradient(180deg, var(--pedra-4) 0%, var(--pedra-3) 40%, var(--pedra-2) 100%);
+  box-shadow:
+    inset 0 3px 0 0 var(--pedra-5),
+    inset 3px 0 0 0 rgb(107 88 133 / 55%),
+    inset -3px 0 0 0 rgb(10 8 16 / 70%),
+    inset 0 -4px 0 0 var(--pedra-0),
+    0 0 0 3px var(--pedra-0),
+    0 5px 0 3px #07060c;
+  transition:
+    transform 70ms steps(2),
+    filter 70ms steps(2);
+}
+
+/* Os rebites laterais: dois quadradinhos de metal em cada ponta. */
+.peca__face::before,
+.peca__face::after {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  content: '';
+  background: var(--ouro-2);
+  box-shadow: 0 0 0 1px var(--pedra-0);
+}
+
+.peca__face::before {
+  left: 7px;
+}
+
+.peca__face::after {
+  right: 7px;
+}
+
+.peca__texto {
+  font-family: var(--pixel);
+  font-size: clamp(9px, 2.6vw, 12px);
+  line-height: 1.2;
+  color: var(--tinta);
+  text-shadow: 0 2px 0 #07060c;
+  letter-spacing: 0.08em;
+}
+
+.peca__legenda {
+  font-size: 9px;
+  color: var(--tinta-fraca);
+  letter-spacing: 0.06em;
+}
+
+.peca:hover:not(:disabled) .peca__face,
+.peca:focus-visible:not(:disabled) .peca__face {
+  filter: brightness(1.2);
+  transform: translateY(-2px);
+}
+
+/* Apertada, a peça desce e perde a base. O dedo sente a peça encostar. */
+.peca:active:not(:disabled) .peca__face {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 3px 0 0 rgb(107 88 133 / 40%),
+    inset 0 -3px 0 0 var(--pedra-0),
+    0 0 0 3px var(--pedra-0),
+    0 1px 0 3px #07060c;
+}
+
+.peca:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.peca:disabled .peca__face {
+  filter: saturate(0.3);
+}
+
+/* A peça forte: a ação principal da tela. Só pode haver uma por tela. */
+.peca--forte .peca__face {
+  background: linear-gradient(180deg, var(--ouro-3) 0%, var(--ouro-2) 42%, var(--ouro-1) 100%);
+  box-shadow:
+    inset 0 3px 0 0 var(--ouro-4),
+    inset 3px 0 0 0 rgb(255 221 138 / 45%),
+    inset -3px 0 0 0 rgb(61 42 9 / 80%),
+    inset 0 -4px 0 0 var(--ouro-0),
+    0 0 0 3px var(--pedra-0),
+    0 5px 0 3px #07060c;
+}
+
+.peca--forte .peca__texto {
+  color: #2a1c05;
+  text-shadow: 0 2px 0 rgb(255 221 138 / 55%);
+}
+
+.peca--forte .peca__face::before,
+.peca--forte .peca__face::after {
+  background: #2a1c05;
+  box-shadow: 0 0 0 1px rgb(255 221 138 / 40%);
+}
+
+.peca--forte:active:not(:disabled) .peca__face {
+  box-shadow:
+    inset 0 3px 0 0 rgb(255 221 138 / 40%),
+    inset 0 -3px 0 0 var(--ouro-0),
+    0 0 0 3px var(--pedra-0),
+    0 1px 0 3px #07060c;
+}
+
+/* A peça discreta: voltar, fechar, cancelar. */
+.peca--discreto .peca__face {
+  min-height: 40px;
+  padding: var(--u) calc(var(--u) * 3);
+  background: linear-gradient(180deg, var(--pedra-2) 0%, var(--pedra-1) 100%);
+  box-shadow:
+    inset 0 2px 0 0 var(--pedra-4),
+    inset 0 -2px 0 0 var(--pedra-0),
+    0 0 0 2px var(--pedra-0),
+    0 3px 0 2px #07060c;
+}
+
+.peca--discreto .peca__texto {
+  font-size: clamp(8px, 2.2vw, 10px);
+  color: var(--tinta-fraca);
+}
+
+.peca--discreto .peca__face::before,
+.peca--discreto .peca__face::after {
+  display: none;
+}
+
+/* Uma peça pequena, para barras de controle. */
+.peca--mini .peca__face {
+  min-height: 34px;
+  padding: 2px calc(var(--u) * 2);
+}
+
+.peca--mini .peca__texto {
+  font-size: 9px;
+}
+
+.peca--mini .peca__face::before,
+.peca--mini .peca__face::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .peca {
+    animation: none;
+  }
+
+  .peca__face {
+    transition: none;
+  }
+}
+
+/* Uma peça marcada como escolhida: ela fica acesa e não pisca. */
+.peca--ativa .peca__face {
+  background: linear-gradient(180deg, var(--ouro-2) 0%, var(--ouro-1) 46%, #2c1f0c 100%);
+  box-shadow:
+    inset 0 3px 0 0 var(--ouro-3),
+    inset 0 -4px 0 0 var(--ouro-0),
+    0 0 0 3px var(--ouro-1),
+    0 0 0 5px var(--pedra-0),
+    0 5px 0 5px #07060c;
+}
+
+.peca--ativa .peca__texto {
+  color: var(--ouro-4);
+}

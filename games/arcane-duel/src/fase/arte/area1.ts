@@ -20,10 +20,31 @@ import { TelaDeArte } from './tela.js';
  * tocha na pedra, que dão a elas um lugar de onde nascer.
  */
 
+/*
+ * A largura é um **pedido**, não uma constante.
+ *
+ * A cena de combate ajusta a largura lógica à proporção da tela: num
+ * telefone em pé a faixa de combate é quase quadrada, deitado ela é bem
+ * larga. Se o cenário tivesse largura fixa, cobrir a faixa larga exigiria
+ * esticar ou cortar — e as duas coisas estragam pixel art. Então os planos
+ * são desenhados na largura pedida, e os elementos se distribuem nela.
+ *
+ * A **altura** continua fixa, e é ela que define a escala do mundo: 180
+ * unidades é a altura em que o Guerreiro tem 70 pixels e ainda se lê a
+ * armadura. Mexer nisso é refazer a arte toda.
+ */
 export const LARGURA = 320;
 export const ALTURA = 180;
-/** A linha em que os atores pisam. */
-export const HORIZONTE = 132;
+/**
+ * A linha em que os atores pisam, medida **a partir de baixo**.
+ *
+ * Medir do topo era o que amarrava o cenário a uma altura única. Medindo do
+ * chão, uma cena mais alta simplesmente mostra mais céu — que é exatamente o
+ * que se quer num telefone em pé, onde sobra altura e falta largura.
+ */
+const DO_CHAO = 48;
+export const horizonteDe = (altura: number): number => altura - DO_CHAO;
+export const HORIZONTE = horizonteDe(ALTURA);
 
 const semente = (n: number): (() => number) => {
   let estado = n >>> 0;
@@ -34,8 +55,12 @@ const semente = (n: number): (() => number) => {
 };
 
 /** O céu: faixas horizontais e um facho que desce da abertura do teto. */
-export const ceu = (): HTMLCanvasElement => {
-  const t = new TelaDeArte(LARGURA, ALTURA);
+export const ceu = (
+  largura: number = LARGURA,
+  altura: number = ALTURA,
+): HTMLCanvasElement => {
+  const t = new TelaDeArte(largura, altura);
+  const horizonte = horizonteDe(altura);
   /*
    * O céu, com pontilhado entre os degraus.
    *
@@ -54,8 +79,8 @@ export const ceu = (): HTMLCanvasElement => {
     [15, 7, 13, 5],
   ];
 
-  for (let y = 0; y < ALTURA; y += 1) {
-    const f = y / ALTURA;
+  for (let y = 0; y < altura; y += 1) {
+    const f = y / altura;
     const escala = Math.max(0, Math.min(3.999, (1 - f) * 4.2));
     const baixo = Math.floor(escala);
     const mistura = escala - baixo;
@@ -68,7 +93,7 @@ export const ceu = (): HTMLCanvasElement => {
      * chapado, como tem de ser.
      */
     const naTransicao = mistura > 0.84 || mistura < 0.16;
-    for (let x = 0; x < LARGURA; x += 1) {
+    for (let x = 0; x < largura; x += 1) {
       if (!naTransicao) {
         t.pixel(x, y, 'aco', baixo);
         continue;
@@ -78,9 +103,9 @@ export const ceu = (): HTMLCanvasElement => {
     }
   }
   /* O facho: largo embaixo, estreito em cima, e só clareia o que já existe. */
-  const fonteX = Math.round(LARGURA * 0.66);
-  for (let y = 0; y < HORIZONTE; y += 1) {
-    const queda = 1 - y / HORIZONTE;
+  const fonteX = Math.round(largura * 0.66);
+  for (let y = 0; y < horizonte; y += 1) {
+    const queda = 1 - y / horizonte;
     const meio = Math.round(4 + y * 0.34);
     for (let x = fonteX - meio; x <= fonteX + meio; x += 1) {
       const lateral = 1 - Math.abs(x - fonteX) / Math.max(1, meio);
@@ -93,11 +118,15 @@ export const ceu = (): HTMLCanvasElement => {
 };
 
 /** A colunata distante: alta, sem contorno, quase névoa. */
-export const longe = (): HTMLCanvasElement => {
-  const t = new TelaDeArte(LARGURA, ALTURA);
+export const longe = (
+  largura: number = LARGURA,
+  altura: number = ALTURA,
+): HTMLCanvasElement => {
+  const t = new TelaDeArte(largura, altura);
+  const horizonte = horizonteDe(altura);
   const rnd = semente(4177);
-  const base = Math.round(HORIZONTE * 0.86);
-  for (let x = 4; x < LARGURA; x += 17 + Math.round(rnd() * 9)) {
+  const base = Math.round(horizonte * 0.86);
+  for (let x = 4; x < largura; x += 17 + Math.round(rnd() * 9)) {
     const largura = 3 + Math.round(rnd() * 2);
     const altura = Math.round(base * (0.5 + rnd() * 0.42));
     for (let y = base - altura; y < base; y += 1) {
@@ -112,15 +141,19 @@ export const longe = (): HTMLCanvasElement => {
 };
 
 /** O plano do meio: arcos, pedra rachada e os suportes de tocha. */
-export const perto = (): { readonly tela: HTMLCanvasElement; readonly tochas: readonly [number, number][] } => {
-  const t = new TelaDeArte(LARGURA, ALTURA);
+export const perto = (
+  largura: number = LARGURA,
+  altura: number = ALTURA,
+): { readonly tela: HTMLCanvasElement; readonly tochas: readonly [number, number][] } => {
+  const t = new TelaDeArte(largura, altura);
+  const horizonte = horizonteDe(altura);
   const rnd = semente(90211);
-  const base = HORIZONTE;
+  const base = horizonte;
   const tochas: [number, number][] = [];
 
   const colunas: { x: number; largura: number; altura: number }[] = [];
   let colunaId = 0;
-  for (let x = -6; x < LARGURA + 10; x += 42 + Math.round(rnd() * 14)) {
+  for (let x = -6; x < largura + 10; x += 42 + Math.round(rnd() * 14)) {
     colunaId += 1;
     const largura = 12 + Math.round(rnd() * 4);
     const altura = Math.round(base * (0.55 + rnd() * 0.4));
@@ -192,20 +225,20 @@ export const perto = (): { readonly tela: HTMLCanvasElement; readonly tochas: re
   }
 
   /* O chão: pedra gasta, com a aresta de luz que separa piso de fundo. */
-  for (let y = base; y < ALTURA; y += 1) {
-    const f = (y - base) / (ALTURA - base);
-    for (let x = 0; x < LARGURA; x += 1) {
+  for (let y = base; y < altura; y += 1) {
+    const f = (y - base) / (altura - base);
+    for (let x = 0; x < largura; x += 1) {
       t.pixel(x, y, 'aco', f < 0.06 ? 3 : f < 0.3 ? 2 : 1);
     }
   }
   for (let i = 0; i < 260; i += 1) {
-    const x = Math.round(rnd() * LARGURA);
-    const y = base + 2 + Math.round(rnd() * (ALTURA - base - 2));
+    const x = Math.round(rnd() * largura);
+    const y = base + 2 + Math.round(rnd() * (altura - base - 2));
     t.retangulo(x, y, 1 + Math.round(rnd() * 3), 1, 'aco', rnd() < 0.5 ? 0 : 2);
   }
   /* Tufos de mato entre as lajes. */
   for (let i = 0; i < 34; i += 1) {
-    const x = Math.round(rnd() * LARGURA);
+    const x = Math.round(rnd() * largura);
     const y = base + 3 + Math.round(rnd() * 16);
     for (let h = 0; h < 2 + Math.round(rnd() * 3); h += 1) {
       t.pixel(x + Math.round(rnd() * 2) - 1, y - h, 'carne', 1 + Math.round(rnd()));
@@ -223,29 +256,38 @@ export const perto = (): { readonly tela: HTMLCanvasElement; readonly tochas: re
  * primeira versão não tinha: sem ele o personagem fica colado sobre o fundo;
  * com ele, ele está dentro da cena.
  */
-export const frente = (): HTMLCanvasElement => {
-  const t = new TelaDeArte(LARGURA, ALTURA);
+export const frente = (
+  largura: number = LARGURA,
+  altura: number = ALTURA,
+): HTMLCanvasElement => {
+  const t = new TelaDeArte(largura, altura);
   const rnd = semente(5501);
   /* Pedras caídas nos cantos. */
   for (const [cx, escala] of [
     [18, 1.4],
-    [LARGURA - 26, 1.1],
-    [LARGURA * 0.52, 0.8],
+    [largura - 26, 1.1],
+    [largura * 0.52, 0.8],
   ] as const) {
     const raio = 12 * escala;
-    t.elipse(cx, ALTURA + 4, raio, raio * 0.6, 'aco', 0);
-    t.elipse(cx - raio * 0.3, ALTURA - raio * 0.5, raio * 0.5, raio * 0.3, 'aco', 0);
+    t.elipse(cx, altura + 4, raio, raio * 0.6, 'aco', 0);
+    t.elipse(cx - raio * 0.3, altura - raio * 0.5, raio * 0.5, raio * 0.3, 'aco', 0);
   }
-  /* Mato alto na borda inferior, irregular. */
-  for (let x = 0; x < LARGURA; x += 1) {
-    const altura = 4 + Math.round(Math.abs(Math.sin(x * 0.21) + Math.sin(x * 0.07)) * 7 + rnd() * 3);
-    for (let h = 0; h < altura; h += 1) t.pixel(x, ALTURA - 1 - h, 'carne', 0);
+  /*
+   * Mato alto na borda inferior, irregular.
+   *
+   * A altura de cada tufo tem nome próprio porque a da **cena** também se
+   * chama altura: com as duas com o mesmo nome, o tufo passava a ser
+   * desenhado a partir de si mesmo e o mato sumia da borda de baixo.
+   */
+  for (let x = 0; x < largura; x += 1) {
+    const tufo = 4 + Math.round(Math.abs(Math.sin(x * 0.21) + Math.sin(x * 0.07)) * 7 + rnd() * 3);
+    for (let h = 0; h < tufo; h += 1) t.pixel(x, altura - 1 - h, 'carne', 0);
   }
   for (let i = 0; i < 90; i += 1) {
-    const x = Math.round(rnd() * LARGURA);
+    const x = Math.round(rnd() * largura);
     const h = 8 + Math.round(rnd() * 14);
     for (let d = 0; d < h; d += 1) {
-      t.pixel(x + Math.round(Math.sin(d * 0.4) * 2), ALTURA - 1 - d, 'carne', 0);
+      t.pixel(x + Math.round(Math.sin(d * 0.4) * 2), altura - 1 - d, 'carne', 0);
     }
   }
   return t.resolver();

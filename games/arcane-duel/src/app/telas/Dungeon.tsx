@@ -6,7 +6,8 @@ import { BALANCEAMENTO } from '../../dados/balanceamento.js';
 import { classePorId } from '../../dados/classes.js';
 import type { Inimigo } from '../../dados/tipos.js';
 import { audio } from '../../audio/AudioManager.js';
-import { CONFIG_DA_FASE, CenaDeCombate } from '../../fase/CenaDeCombate.js';
+import { emblemaDaTag, emblemaDoSlot } from '../../fase/arte/emblemas.js';
+import { CenaDeCombate, tamanhoLogico } from '../../fase/CenaDeCombate.js';
 import type { Atributos, BuildParcial } from '../../nucleo/build.js';
 import { atributosDaBuild } from '../../nucleo/build.js';
 import type { Contexto, EstadoDeCombate, EventoDeCombate } from '../../nucleo/combate.js';
@@ -187,23 +188,30 @@ export const Dungeon = ({
     };
     definirHud(hudDe(combate.current, run.build, atributos));
 
+    /*
+     * A cena se **ajusta** à caixa, em vez de ser cortada por ela.
+     *
+     * Este era o pior defeito do jogo em pé: a cena tinha largura fixa, o
+     * Phaser cobria a tela com ela (ENVELOP), e num telefone em 390x844 a
+     * escala saía 4,7 — o canvas ficava com 1500 px de largura e o herói
+     * simplesmente não aparecia. A tela inteira mostrava metade do inimigo.
+     *
+     * A correção tem duas partes. A altura lógica é fixa, porque é ela que
+     * define o tamanho do mundo em pixels de arte. A largura lógica é
+     * calculada a partir da **proporção real da caixa**, e o cenário é
+     * desenhado nessa largura. Com a proporção batendo, FIT não corta nada e
+     * também não deixa tarja.
+     */
+    const caixaAgora = elemento.getBoundingClientRect();
+    const tamanho = tamanhoLogico(caixaAgora.width, caixaAgora.height);
     const instancia = new Phaser.Game({
       type: Phaser.AUTO,
       parent: elemento,
-      width: CONFIG_DA_FASE.LARGURA,
-      height: CONFIG_DA_FASE.ALTURA,
+      width: tamanho.largura,
+      height: tamanho.altura,
       pixelArt: true,
       backgroundColor: '#0d0a12',
-      /*
-       * A cena **cobre** o espaço, e não cabe dentro dele.
-       *
-       * FIT deixaria tarjas pretas num celular largo; e forçar o canvas a
-       * 100% por CSS, que era o que estava aqui, esticava a imagem e ainda
-       * cortava com `object-fit`. ENVELOP é o próprio Phaser cobrindo o
-       * espaço: a composição fica inteira na horizontal e o que sobra na
-       * vertical é sempre céu e chão, que o HUD já cobre.
-       */
-      scale: { mode: Phaser.Scale.ENVELOP, autoCenter: Phaser.Scale.CENTER_BOTH },
+      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
       scene: [CenaDeCombate],
       audio: { noAudio: true },
     });
@@ -227,7 +235,47 @@ export const Dungeon = ({
       audio.tocarMusica(nomeDaArea);
     }
 
+    /*
+     * A rotação refaz a cena.
+     *
+     * Girar o telefone muda a proporção da caixa, e com ela a largura lógica
+     * — que é a largura em que o cenário foi **desenhado**. Não dá para só
+     * redimensionar: os quatro planos precisam nascer de novo no tamanho
+     * novo. Então o observador recalcula a largura e, quando ela muda de
+     * verdade, reinicia a cena.
+     *
+     * O `Math.abs(...) > 8` existe para não reiniciar a cada pixel: a barra
+     * do navegador aparecendo e sumindo muda a altura o tempo todo, e uma
+     * cena que reinicia durante a luta é uma cena que pisca.
+     */
+    const observador = new ResizeObserver((entradas) => {
+      const caixaNova = entradas[0]?.contentRect;
+      if (caixaNova === undefined || caixaNova.width < 1 || caixaNova.height < 1) return;
+      /*
+       * O Phaser escuta a janela, não o pai.
+       *
+       * A grade só assenta depois do primeiro layout, e o canvas nasce
+       * dimensionado para uma caixa que ainda não era a definitiva — daí
+       * sobrar canvas para fora da faixa, cortando a grama e o céu. Um
+       * `refresh()` a cada mudança da caixa resolve isso e é barato: ele só
+       * remede e reposiciona, sem recriar nada.
+       */
+      instancia.scale.refresh();
+
+      const alvo = tamanhoLogico(caixaNova.width, caixaNova.height);
+      if (
+        Math.abs(alvo.largura - instancia.scale.width) <= 8 &&
+        Math.abs(alvo.altura - instancia.scale.height) <= 8
+      ) {
+        return;
+      }
+      instancia.scale.resize(alvo.largura, alvo.altura);
+      instancia.scene.getScene('combate').scene.restart();
+    });
+    observador.observe(elemento);
+
     return () => {
+      observador.disconnect();
       instancia.destroy(true);
       jogo.current = null;
       cena.current = null;
@@ -399,6 +447,41 @@ export const Dungeon = ({
                   />
                 </div>
               ))}
+            </div>
+
+            {/*
+              A faixa da run.
+
+              Num telefone em pé sobra altura embaixo da cena — a cena é uma
+              janela larga e a tela é estreita e alta. Preencher essa sobra
+              com preto seria desperdiçar meia tela; preencher esticando a
+              cena cortaria os personagens, que era o defeito antigo. Então
+              ela recebe **informação que o jogador quer**: o que a build
+              carrega. Passivas e equipamentos não têm recarga para mostrar,
+              e é justamente por isso que eles somem da memória no meio de
+              uma run de cinquenta salas.
+            */}
+            <div className="hud__build">
+              <span className="hud__build-titulo pixel">SUA BUILD</span>
+              <div className="hud__build-grade">
+                {run.build.equipamentos.map((e) => (
+                  <span key={e.id} className="ficha-da-build ficha-da-build--equipamento">
+                    <img src={emblemaDoSlot(e.slot, 'equipamento')} alt="" width={28} height={28} />
+                    <span className="ficha-da-build__nome">{e.nome}</span>
+                  </span>
+                ))}
+                {run.build.passivas.map((pa) => {
+                  const tag = pa.tags[0];
+                  return (
+                    <span key={pa.id} className="ficha-da-build ficha-da-build--passiva">
+                      {tag !== undefined && (
+                        <img src={emblemaDaTag(tag, 'passiva')} alt="" width={28} height={28} />
+                      )}
+                      <span className="ficha-da-build__nome">{pa.nome}</span>
+                    </span>
+                  );
+                })}
+              </div>
             </div>
           </>
         )}

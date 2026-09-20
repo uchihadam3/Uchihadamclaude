@@ -40,22 +40,91 @@
   }
 }
 
+/*
+ * O menu.
+ *
+ * Ele ocupa a **metade de baixo da tela inteira**, e a coluna de peças fica
+ * centrada dentro dela. Antes o menu estava ancorado no canto inferior
+ * esquerdo, e o efeito era o de uma lista largada sobre o cenário: em pé, no
+ * telefone, sobrava metade da tela vazia de um lado e o polegar cobria o
+ * outro.
+ *
+ * Centrar não é só estética. Num telefone em pé a faixa confortável para o
+ * polegar é o terço de baixo, no meio; e o logo, que é o outro peso da
+ * composição, também é central. Duas âncoras no mesmo eixo leem como uma
+ * composição; duas em eixos diferentes leem como descuido.
+ */
 .menu {
   position: absolute;
-  bottom: calc(var(--u) * 6 + env(safe-area-inset-bottom));
-  left: calc(var(--u) * 6 + env(safe-area-inset-left));
+  inset: auto 0 0;
   display: flex;
-  flex-direction: column;
-  gap: calc(var(--u) * 2.5);
-  width: min(300px, 58vw);
+  align-items: flex-end;
+  justify-content: center;
+  height: 58%;
+  padding:
+    0
+    calc(var(--u) * 5 + env(safe-area-inset-right))
+    calc(var(--u) * 7 + env(safe-area-inset-bottom))
+    calc(var(--u) * 5 + env(safe-area-inset-left));
   opacity: 0;
   pointer-events: none;
   transition: opacity 320ms steps(4);
 }
 
+/*
+ * A coluna.
+ *
+ * Largura única para todas as peças, e um respiro igual entre elas. Peças de
+ * larguras diferentes numa coluna vertical é o detalhe que mais rápido
+ * denuncia interface montada sem grade.
+ */
+.menu__coluna {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 3);
+  width: min(320px, 78vw);
+}
+
+/*
+ * A sombra sob a coluna.
+ *
+ * As peças ficam por cima da muralha, que tem fiadas de pedra e tochas. Sem
+ * um apoio escuro elas parecem adesivos colados na parede. Uma mancha suave
+ * atrás — bem maior que a coluna, para não virar uma caixa — assenta o menu
+ * na cena sem fechá-lo numa moldura pesada.
+ */
+.menu__coluna::before {
+  position: absolute;
+  inset: -14% -22%;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  background: radial-gradient(60% 52% at 50% 50%, rgb(5 4 9 / 78%) 0%, rgb(5 4 9 / 0%) 100%);
+}
+
+/* Deitado, a coluna é mais estreita e sobe um pouco: o dedo alcança melhor. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .menu {
+    height: 76%;
+    padding-bottom: calc(var(--u) * 6 + env(safe-area-inset-bottom));
+  }
+
+  .menu__coluna {
+    gap: calc(var(--u) * 2);
+    width: min(260px, 40vw);
+  }
+}
+
 .menu--visivel {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* Com um painel aberto, o menu sai do caminho em vez de disputar a tela. */
+.tela--titulo:has(.painel-de-jogo) .menu {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .selo-instalado {
@@ -67,133 +136,35 @@
   background: rgb(10 22 20 / 70%);
 }
 
-/* --------------------------------------------------------------------------
- * A peça: o botão que parece objeto de jogo.
- * ------------------------------------------------------------------------ */
-
-.peca {
-  display: block;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  animation: peca-entra 320ms steps(4) both;
-}
-
-@keyframes peca-entra {
-  from {
-    opacity: 0;
-    transform: translateX(calc(var(--u) * -4));
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.peca__face {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: center;
-  justify-content: center;
-  min-height: 48px;
-  padding: calc(var(--u) * 3) calc(var(--u) * 5);
-  background: linear-gradient(180deg, #3d3150 0%, #241c31 58%, #1a1426 100%);
-
-  /*
-   * A espessura.
-   *
-   * Uma face clara em cima, uma base escura embaixo, e um contorno duro em
-   * volta. São três `box-shadow` em degraus, sem raio e sem desfoque — é o
-   * que faz o botão ter altura física em vez de ser um retângulo pintado.
-   */
-  box-shadow:
-    inset 0 var(--u) 0 0 #6b5880,
-    inset 0 calc(var(--u) * -2) 0 0 #120d1c,
-    0 0 0 var(--u) #0b0810,
-    0 calc(var(--u) * 2) 0 var(--u) #08060c;
-  transition:
-    transform 80ms steps(2),
-    filter 80ms steps(2);
-}
-
-.peca--largo .peca__face {
-  width: 100%;
-}
-
-.peca__texto {
-  font-family: var(--pixel);
-  font-size: clamp(9px, 1.9vw, 13px);
-  letter-spacing: 0.1em;
-  color: var(--tinta);
-  text-shadow: 0 2px 0 #08060c;
-}
-
-.peca__legenda {
-  font-size: 10px;
-  color: var(--tinta-fraca);
-}
-
-.peca:hover:not(:disabled) .peca__face,
-.peca:focus-visible:not(:disabled) .peca__face {
-  filter: brightness(1.22);
-  transform: translateY(calc(var(--u) * -0.5));
-}
-
-/* Apertado, ele **afunda** e perde a base. O dedo sente a peça descer. */
-.peca:active:not(:disabled) .peca__face {
-  transform: translateY(calc(var(--u) * 2));
-  box-shadow:
-    inset 0 var(--u) 0 0 #241c31,
-    inset 0 calc(var(--u) * -1) 0 0 #120d1c,
-    0 0 0 var(--u) #0b0810;
-}
-
-.peca:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
-}
-
-.peca--forte .peca__face {
-  background: linear-gradient(180deg, #8a6a24 0%, #543d12 58%, #3a2a0c 100%);
-  box-shadow:
-    inset 0 var(--u) 0 0 var(--ouro),
-    inset 0 calc(var(--u) * -2) 0 0 #241a08,
-    0 0 0 var(--u) #0b0810,
-    0 calc(var(--u) * 2) 0 var(--u) #08060c;
-}
-
-.peca--forte .peca__texto {
-  color: #fff4d6;
-}
-
-.peca--discreto .peca__face {
-  min-height: 0;
-  padding: calc(var(--u) * 2) calc(var(--u) * 3.5);
-  background: rgb(10 8 14 / 74%);
-  box-shadow:
-    inset 0 2px 0 0 #4a3f58,
-    0 0 0 2px #0b0810;
-}
-
-.peca--discreto .peca__texto {
-  font-size: clamp(8px, 1.5vw, 10px);
-  color: var(--tinta-fraca);
-}
+/*
+ * As peças do menu vêm do kit (`kit.css`).
+ *
+ * Antes elas eram redefinidas aqui, e o resultado é o de sempre: o botão do
+ * menu ficava um pixel diferente do botão do draft, e nenhum dos dois
+ * arquivos deixava claro qual mandava.
+ */
 
 /* --------------------------------------------------------------------------
  * Painéis de jogo.
  * ------------------------------------------------------------------------ */
 
+/*
+ * O painel é modal de verdade.
+ *
+ * Antes ele era uma caixa flutuando sobre a tela, com o menu ainda visível e
+ * clicável atrás. O resultado numa captura em pé era o pior possível: dois
+ * blocos de interface disputando a mesma tela. Agora há um véu que escurece o
+ * que está atrás e **come os toques**, e o menu recua.
+ */
 .painel-de-jogo {
   position: absolute;
   inset: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: calc(var(--u) * 4);
+  background: rgb(5 4 9 / 62%);
   animation: entrar 200ms steps(3) both;
 }
 
@@ -317,82 +288,267 @@
 
 /* --------------------------------------------------------------------------
  * Seleção de classe.
+ *
+ * Portrait-first. Uma coluna: retrato, ficha, ação, e o rodapé das classes
+ * que ainda não existem. A partir de 640 px de largura o retrato e a ficha
+ * viram duas colunas, porque aí há espaço para isso sem apertar o texto.
+ *
+ * A área central rola **só se precisar**, e a ação fica fora dela: o botão de
+ * selecionar nunca pode depender de o jogador ter rolado até o fim.
  * ------------------------------------------------------------------------ */
+
+.tela--classes {
+  background:
+    radial-gradient(120% 70% at 50% 0%, #241c31 0%, #0d0a12 58%),
+    var(--fundo);
+}
+
+.cabecalho__eco {
+  min-width: 52px;
+  font-size: 8px;
+  color: var(--tinta-fraca);
+  text-align: right;
+}
 
 .palco-de-classe {
   display: flex;
   flex: 1;
-  flex-wrap: wrap;
-  gap: calc(var(--u) * 4);
-  align-content: flex-start;
-  padding: calc(var(--u) * 4);
-  overflow-y: auto;
+  flex-direction: column;
+  gap: calc(var(--u) * 3);
+  min-height: 0;
+  padding: calc(var(--u) * 3) calc(var(--u) * 4);
 }
 
-.ficha-de-classe {
-  display: flex;
-  flex: 1 1 330px;
-  gap: calc(var(--u) * 4);
-  align-items: center;
-  padding: calc(var(--u) * 5);
-}
-
-.retrato {
-  image-rendering: pixelated;
-  flex-shrink: 0;
-}
-
-.ficha-de-classe__texto {
+.heroi {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: calc(var(--u) * 2);
-  align-items: flex-start;
-  text-align: left;
+  gap: calc(var(--u) * 3);
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
 }
 
-.ficha-de-classe__lema {
+/*
+ * O palco do retrato.
+ *
+ * Um disco de luz atrás do sprite e uma sombra achatada sob os pés. São dois
+ * detalhes de dois minutos e são eles que tiram o personagem da condição de
+ * "imagem recortada colada na tela".
+ */
+/*
+ * O palco encolhe, mas não cresce.
+ *
+ * Com `flex: 1` ele engolia toda a sobra de altura e o personagem ficava
+ * ancorado no fundo de um vazio de meia tela. Agora o vazio se divide em
+ * cima e embaixo do conjunto inteiro, que é o que dá a impressão de
+ * composição em vez de conteúdo empurrado para o rodapé.
+ */
+.heroi__palco {
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+}
+
+.heroi__palco::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: radial-gradient(46% 42% at 50% 46%, rgb(107 88 133 / 34%) 0%, rgb(107 88 133 / 0%) 100%);
+}
+
+.heroi__palco::after {
+  position: absolute;
+  bottom: 4%;
+  left: 50%;
+  width: 34%;
+  height: 10px;
+  content: '';
+  background: radial-gradient(50% 50% at 50% 50%, rgb(5 4 9 / 72%) 0%, rgb(5 4 9 / 0%) 100%);
+  transform: translateX(-50%);
+}
+
+.heroi--dourado .heroi__palco::before {
+  background: radial-gradient(46% 42% at 50% 46%, rgb(232 180 74 / 28%) 0%, rgb(232 180 74 / 0%) 100%);
+}
+
+.retrato {
+  position: relative;
+  flex-shrink: 0;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.heroi__ficha {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+  width: 100%;
+  max-width: 460px;
+  text-align: center;
+}
+
+.heroi__nome {
   margin: 0;
-  font-size: 13px;
+  font-family: var(--pixel);
+  font-size: clamp(13px, 4.6vw, 20px);
+  letter-spacing: 0.06em;
+  text-shadow: 0 3px 0 #07060c;
+}
+
+.heroi__lema {
+  margin: 0;
+  font-size: clamp(11px, 3.4vw, 14px);
   font-style: italic;
   color: var(--tinta-fraca);
 }
 
-.ficha-de-classe__detalhe {
+.heroi__detalhe {
   margin: 0;
-  font-size: 12px;
+  font-size: clamp(11px, 3.2vw, 13px);
   line-height: 1.5;
   color: #c9bda8;
 }
 
-.em-breve {
+.heroi__detalhe strong {
+  color: var(--recurso);
+}
+
+/* Os três números, lado a lado, cada um na sua plaquinha. */
+.heroi__numeros {
   display: grid;
-  flex: 1 1 260px;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-  gap: calc(var(--u) * 2);
-  align-content: flex-start;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--u);
+  margin-top: var(--u);
+}
+
+.numero {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  padding: calc(var(--u) * 1.5) var(--u);
+}
+
+.numero__rotulo {
+  font-size: 7px;
+  color: var(--tinta-fraca);
+  letter-spacing: 0.08em;
+}
+
+.numero__valor {
+  font-size: clamp(9px, 2.8vw, 11px);
+  color: var(--tinta);
+}
+
+.numero--dourado .numero__valor {
+  color: var(--ouro-3);
+}
+
+.palco-de-classe__acao {
+  flex: 0 0 auto;
+  width: min(420px, 100%);
+  margin: 0 auto;
+}
+
+/*
+ * As onze que ainda não existem.
+ *
+ * Elas são um rodapé, não um catálogo. Antes cada uma era um cartão com nome
+ * e "EM BREVE" embaixo, e onze cartões ocupavam mais tela que o personagem
+ * jogável — o que é exatamente a hierarquia invertida.
+ */
+.em-breve {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--u);
+  align-items: center;
+  padding-top: calc(var(--u) * 2);
+  border-top: 2px solid var(--pedra-2);
+}
+
+.em-breve__titulo {
+  font-size: 7px;
+  color: var(--tinta-fraca);
+  letter-spacing: 0.16em;
+}
+
+.em-breve__grade {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
 }
 
 .ficha-trancada {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: calc(var(--u) * 2.5);
-  background: #120e1a;
-  box-shadow:
-    inset 0 2px 0 0 color-mix(in srgb, var(--cor-da-classe) 40%, #000),
-    0 0 0 2px #0b0810;
-  filter: grayscale(0.7) brightness(0.72);
-}
-
-.ficha-trancada__nome {
-  font-size: 8px;
-  color: var(--cor-da-classe);
-}
-
-.ficha-trancada__selo {
+  padding: 4px 7px;
   font-size: 7px;
-  color: var(--tinta-fraca);
+  color: color-mix(in srgb, var(--cor-da-classe) 55%, #6f6890);
+  background: #110d1a;
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, var(--cor-da-classe) 26%, #000),
+    0 0 0 1px #0b0810;
+}
+
+/*
+ * Deitado, ou numa tela larga: retrato à esquerda, ficha à direita.
+ *
+ * O ponto de corte é largura **e** altura. Um telefone deitado tem largura de
+ * sobra e altura nenhuma, e é exatamente aí que empilhar retrato sobre texto
+ * estoura a tela.
+ */
+@media (min-width: 620px) {
+  .heroi {
+    flex-direction: row;
+    gap: calc(var(--u) * 5);
+    align-items: center;
+    justify-content: center;
+  }
+
+  .heroi__palco {
+    flex: 1 1 40%;
+    align-items: center;
+  }
+
+  .heroi__ficha {
+    flex: 1 1 52%;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .heroi__numeros {
+    width: 100%;
+    max-width: 340px;
+  }
+}
+
+/* Telefone deitado: tudo encolhe e o rodapé some para o personagem respirar. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .palco-de-classe {
+    gap: calc(var(--u) * 2);
+    padding: calc(var(--u) * 2) calc(var(--u) * 4);
+  }
+
+  .heroi__detalhe {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .em-breve {
+    padding-top: var(--u);
+  }
+
+  .em-breve__grade {
+    gap: 4px;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -497,14 +653,25 @@
  * viver. As peças encolhem em vez de o menu vazar por baixo do polegar ou
  * empurrar a fortaleza para fora do quadro.
  */
+/*
+ * Telas muito baixas.
+ *
+ * Num aparelho de 390 pontos deitado, quatro peças no tamanho normal chegam
+ * colando na borda. Elas encolhem em vez de o menu vazar.
+ */
 @media (max-height: 460px) {
-  .menu {
+  .menu__coluna {
     gap: calc(var(--u) * 1.5);
-    width: min(260px, 46vw);
+    width: min(250px, 38vw);
   }
 
   .peca__face {
     min-height: 40px;
-    padding: calc(var(--u) * 2) calc(var(--u) * 4);
+    padding: calc(var(--u) * 1.5) calc(var(--u) * 3);
+  }
+
+  .painel-de-jogo__corpo {
+    gap: calc(var(--u) * 2);
+    padding: calc(var(--u) * 3);
   }
 }

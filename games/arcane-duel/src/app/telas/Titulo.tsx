@@ -74,11 +74,11 @@ export const Titulo = ({ save, aoJogar, aoMudarVolume }: TituloProps): React.JSX
       {entrada < 0.5 && <div className="cortina-de-entrada" />}
 
       <div className={`menu${menuVisivel ? ' menu--visivel' : ''}`}>
-        <Botao variante="forte" largo atraso={0} onClick={aoJogar}>
+        <div className="menu__coluna">
+        <Botao variante="forte" atraso={0} onClick={aoJogar}>
           {guerreiro.runs > 0 ? 'JOGAR' : 'COMEÇAR'}
         </Botao>
         <Botao
-          largo
           atraso={70}
           onClick={() => {
             definirPainel('progresso');
@@ -87,7 +87,6 @@ export const Titulo = ({ save, aoJogar, aoMudarVolume }: TituloProps): React.JSX
           PROGRESSO
         </Botao>
         <Botao
-          largo
           atraso={140}
           onClick={() => {
             definirPainel('configuracoes');
@@ -99,7 +98,6 @@ export const Titulo = ({ save, aoJogar, aoMudarVolume }: TituloProps): React.JSX
           <span className="selo-instalado pixel">JOGO INSTALADO</span>
         ) : (
           <Botao
-            largo
             atraso={210}
             onClick={() => {
               if (instalacao === 'pronta') {
@@ -115,6 +113,7 @@ export const Titulo = ({ save, aoJogar, aoMudarVolume }: TituloProps): React.JSX
             INSTALAR JOGO
           </Botao>
         )}
+        </div>
       </div>
 
       {painel === 'progresso' && (

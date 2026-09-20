@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
 import { BALANCEAMENTO } from '../../dados/balanceamento.js';
-import { classePorId } from '../../dados/classes.js';
-import type { Equipamento, Habilidade, Passiva } from '../../dados/tipos.js';
+import type { Equipamento, Habilidade, Passiva, Slot } from '../../dados/tipos.js';
+import type { Familia } from '../../fase/arte/emblemas.js';
 import { audio } from '../../audio/AudioManager.js';
 import type { BuildParcial } from '../../nucleo/build.js';
 import type { EstadoDoDraft } from '../../nucleo/draft.js';
@@ -17,6 +17,7 @@ import {
 import { avaliarBuild, sinergiasCom } from '../../nucleo/poder.js';
 import { Carta } from '../../ui/Carta.js';
 import { Sinergia } from '../../ui/Basicos.js';
+import { Botao } from '../../ui/Botao.js';
 
 /*
  * O draft.
@@ -44,7 +45,6 @@ export const Draft = ({
   const [escolhida, definirEscolhida] = useState<string | null>(null);
   const oferta = ofertaAtual(estado);
   const avaliacao = avaliarBuild(estado.build);
-  const classe = classePorId(estado.build.classe);
   const total = totalDaCategoria(estado.categoria);
 
   const titulo =
@@ -72,28 +72,39 @@ export const Draft = ({
     }, 340);
   };
 
-  /** Como cada categoria se apresenta. A peça continua sendo a original. */
+  /*
+   * Como cada categoria se apresenta.
+   *
+   * A família decide a paleta do emblema e a cor da moldura; a tarja mostra o
+   * que importa saber de relance — o tempo de recarga de uma Ativa, o slot de
+   * um Equipamento. Uma Passiva não tem número nenhum a mostrar, e não ganha
+   * tarja: inventar um número para preencher o canto é ruído.
+   */
   const paraCarta = (
     item: Habilidade | Passiva | Equipamento,
-  ): { readonly canto: string | null } =>
+  ): {
+    readonly canto: string | null;
+    readonly familia: Familia;
+    readonly slot?: Slot;
+  } =>
     'cooldownS' in item
-      ? { canto: `${item.cooldownS}s` }
+      ? { canto: `${String(item.cooldownS)}s`, familia: 'ativa' }
       : 'slot' in item
-        ? { canto: ROTULO_DO_SLOT[item.slot] }
-        : { canto: null };
+        ? { canto: ROTULO_DO_SLOT[item.slot], familia: 'equipamento', slot: item.slot }
+        : { canto: null, familia: 'passiva' };
 
   const opcoes: readonly (Habilidade | Passiva | Equipamento)[] = oferta.opcoes;
 
   return (
     <div className="tela tela--draft">
       <header className="cabecalho">
-        <button type="button" className="botao botao--discreto" onClick={aoVoltar}>
+        <Botao variante="discreto" onClick={aoVoltar}>
           VOLTAR
-        </button>
+        </Botao>
         <h2>
           {titulo} · {estado.escolha + 1}/{total}
         </h2>
-        <span className="pixel semente">SEED {estado.seed}</span>
+        <span className="cabecalho__eco pixel">{estado.seed}</span>
       </header>
 
       <div className="opcoes">
@@ -102,12 +113,11 @@ export const Draft = ({
             key={opcao.id}
             nome={opcao.nome}
             descricao={opcao.descricao}
-            canto={paraCarta(opcao).canto}
+            {...paraCarta(opcao)}
             tags={opcao.tags}
             sinergias={sinergiasCom(estado.build, opcao.tags)}
             escolhida={escolhida === opcao.id}
             recuada={escolhida !== null && escolhida !== opcao.id}
-            cor={classe.corPrimaria}
             atraso={indice * 70}
             onClick={() => {
               confirmar(opcao);
@@ -121,43 +131,94 @@ export const Draft = ({
       </div>
 
       <footer className="rodape-do-draft">
-        <button
-          type="button"
-          className="botao"
-          disabled={estado.rerolls <= 0 || escolhida !== null}
-          onClick={() => {
-            audio.tocar('nova-oferta');
-            aoAvancar(novaOferta(estado));
-          }}
-        >
-          ↻ NOVA OFERTA — {estado.rerolls}
-        </button>
+        {/*
+          A barra de baixo.
 
+          Ela responde a três perguntas que o jogador faz a cada escolha —
+          "quanto vale a minha build", "ela conversa consigo mesma" e "quanto
+          falta" — e responde na mesma ordem sempre. Antes isso era uma linha
+          de texto solta com pontos separando números, que é a forma mais
+          rápida de fazer informação de jogo parecer saída de terminal.
+        */}
         <div className="medidor">
-          <div className="medidor__poder">
+          <div className="medidor__bloco">
             <span className="medidor__rotulo pixel">PODER</span>
             <span className="medidor__valor pixel">{avaliacao.poder}</span>
             <span className="medidor__faixa pixel">{avaliacao.faixa}</span>
           </div>
-          <div className="medidor__sinergia">
+
+          <div className="medidor__bloco">
             <span className="medidor__rotulo pixel">SINERGIA</span>
             <Sinergia nivel={avaliacao.sinergia} />
           </div>
-          <div className="medidor__tags">
-            {avaliacao.tags.map((tag) => (
-              <span key={tag.tag} className="medidor__tag pixel">
-                {tag.rotulo} ×{tag.quantidade}
-              </span>
-            ))}
+
+          <div className="medidor__bloco medidor__bloco--largo">
+            <span className="medidor__rotulo pixel">BUILD</span>
+            <div className="medidor__tags">
+              {avaliacao.tags.length === 0 ? (
+                <span className="medidor__vazio">ainda sem tema</span>
+              ) : (
+                avaliacao.tags.map((tag) => (
+                  <span key={tag.tag} className={`etiqueta etiqueta--${tag.tag}`}>
+                    {tag.rotulo} ×{tag.quantidade}
+                  </span>
+                ))
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="progresso-do-draft pixel">
-          {estado.build.ativas.length}/{BALANCEAMENTO.draft.ativas} ·{' '}
-          {estado.build.passivas.length}/{BALANCEAMENTO.draft.passivas} ·{' '}
-          {estado.build.equipamentos.length}/{BALANCEAMENTO.draft.equipamentos}
+        <div className="rodape-do-draft__acoes">
+          <div className="trilha" aria-label="progresso do draft">
+            <Trilha feitas={estado.build.ativas.length} total={BALANCEAMENTO.draft.ativas} familia="ativa" />
+            <Trilha
+              feitas={estado.build.passivas.length}
+              total={BALANCEAMENTO.draft.passivas}
+              familia="passiva"
+            />
+            <Trilha
+              feitas={estado.build.equipamentos.length}
+              total={BALANCEAMENTO.draft.equipamentos}
+              familia="equipamento"
+            />
+          </div>
+
+          <Botao
+            variante="mini"
+            desabilitado={estado.rerolls <= 0 || escolhida !== null}
+            onClick={() => {
+              audio.tocar('nova-oferta');
+              aoAvancar(novaOferta(estado));
+            }}
+          >
+            ↻ NOVA OFERTA · {estado.rerolls}
+          </Botao>
         </div>
       </footer>
+
     </div>
   );
 };
+
+/*
+ * A trilha de uma categoria.
+ *
+ * Quatro losangos acesos ou apagados dizem "faltam duas ativas" sem o
+ * jogador precisar ler `2/4`. É a mesma informação, no tempo do olhar em vez
+ * do tempo da leitura.
+ */
+const Trilha = ({
+  feitas,
+  total,
+  familia,
+}: {
+  readonly feitas: number;
+  readonly total: number;
+  readonly familia: 'ativa' | 'passiva' | 'equipamento';
+}): React.JSX.Element => (
+  <span className={`trilha__grupo trilha__grupo--${familia}`}>
+    {Array.from({ length: total }, (_, i) => (
+      <span key={i} className={`trilha__conta${i < feitas ? ' trilha__conta--feita' : ''}`} />
+    ))}
+  </span>
+);
