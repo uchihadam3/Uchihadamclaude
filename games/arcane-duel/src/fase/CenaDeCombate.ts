@@ -477,9 +477,17 @@ export class CenaDeCombate extends Phaser.Scene {
       this.tocar(lado, 'apanhar', true);
     }
     lado.sprite.setTintFill(critico ? 0xffe9a8 : 0xffffff);
-    this.time.delayedCall(70, () => {
-      lado.sprite.clearTint();
-    });
+    /*
+     * O clarão apaga em tempo **real**, não no relógio da cena.
+     *
+     * A pausa de impacto põe o relógio da cena a 6% da velocidade. Um
+     * `delayedCall(70)` nesse relógio levava mais de um segundo para
+     * disparar, e o personagem ficava mais de um segundo branco — que foi
+     * exatamente o borrão branco que apareceu nas capturas.
+     */
+    globalThis.setTimeout(() => {
+      if (lado.sprite.active) lado.sprite.clearTint();
+    }, 70);
     this.tweens.add({
       targets: lado.sprite,
       x: lado.sprite.x + (lado === this.heroi ? -4 : 4),
@@ -568,9 +576,9 @@ export class CenaDeCombate extends Phaser.Scene {
 
         case 'especial': {
           const aviso = this.add
-            .text(X_INIMIGO, CHAO_Y - 86, evento.nome.toUpperCase(), {
+            .text(Math.min(X_INIMIGO, LARGURA - 70), CHAO_Y - 86, evento.nome.toUpperCase(), {
               fontFamily: 'monospace',
-              fontSize: '10px',
+              fontSize: '8px',
               color: '#ff8a7a',
               stroke: '#0b0810',
               strokeThickness: 4,

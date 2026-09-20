@@ -16,7 +16,7 @@
  * perder a run.
  */
 
-const VERSAO = '2ab85e1-2026-09-20T1458';
+const VERSAO = '1eaee9a-2026-09-20T1504';
 const CACHE = `arcane-duel-${VERSAO}`;
 
 /* O casco: o que precisa existir para a primeira tela aparecer offline. */

@@ -57,6 +57,9 @@ export interface Elenco {
 
 const CICLICAS: ReadonlySet<NomeDeAnimacao> = new Set<NomeDeAnimacao>(['repouso', 'andar']);
 
+/** A altura que um ator normal ocupa na cena, em pixels de arte. */
+const ALTURA_ALVO = 56;
+
 const SUBSTITUTA: Readonly<Record<NomeDeAnimacao, NomeDeAnimacao>> = {
   repouso: 'repouso',
   andar: 'repouso',
@@ -146,7 +149,15 @@ const elencoProvisorio = (silhueta: SilhuetaDoInimigo, id: string): Elenco => {
     largura: ator.largura,
     altura: ator.altura,
     chao: ator.altura,
-    escala: 2.4,
+    /*
+     * A escala vem da **altura alvo**, não de um número fixo.
+     *
+     * Os placeholders foram desenhados em grades muito diferentes entre si —
+     * de 22 a 44 pixels de altura. Ampliar todos pelo mesmo fator fazia um
+     * lobo caber na mão do Guerreiro e uma aberração encher a tela inteira.
+     * Aqui todos chegam perto da altura de um ator da cena.
+     */
+    escala: Math.max(1, Math.min(2.6, ALTURA_ALVO / ator.altura)),
     animacoes: {
       repouso: { quadros: [repouso, respiro], fps: 2.4, repete: true },
       ataque: { quadros: [golpe, golpe, repouso], fps: 10, repete: false },
