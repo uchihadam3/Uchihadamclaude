@@ -483,13 +483,21 @@ const p = (parcial: Partial<Pose>): Pose => ({ ...POSE_BASE, ...parcial });
  */
 const CHAVES: Readonly<Record<NomeDaAnimacao, readonly Pose[]>> = {
   /* Respiração: o peito sobe, a capa acompanha com atraso, a arma balança. */
+  /*
+   * Repouso, com a capa atrasada.
+   *
+   * O corpo sobe e desce; a capa faz o mesmo **um tempo depois**. É o truque
+   * mais barato de animação e o que mais rende: tudo que é mole e pendurado
+   * chega atrasado ao movimento de quem o carrega. Com a capa em fase com o
+   * peito, o boneco respira como um bloco só e lê como boneco.
+   */
   repouso: [
-    p({ sobe: 0, capa: 0, arma: 8 }),
-    p({ sobe: 1, capa: -1, arma: 9 }),
-    p({ sobe: 1.6, capa: -2, arma: 10 }),
-    p({ sobe: 1, capa: -1.4, arma: 9 }),
-    p({ sobe: 0, capa: 0, arma: 8 }),
-    p({ sobe: -0.4, capa: 1, arma: 7 }),
+    p({ sobe: 0, capa: 1, arma: 8, cabeca: 0 }),
+    p({ sobe: 1, capa: 0.4, arma: 8.6, cabeca: 0 }),
+    p({ sobe: 1.6, capa: -1, arma: 9.4, cabeca: -0.4 }),
+    p({ sobe: 1.2, capa: -2, arma: 10, cabeca: -0.4 }),
+    p({ sobe: 0.2, capa: -1.6, arma: 9, cabeca: 0 }),
+    p({ sobe: -0.5, capa: 0.2, arma: 7.6, cabeca: 0.3 }),
   ],
 
   /* Caminhada com peso: o corpo cai no apoio e sobe na passada. */
@@ -523,9 +531,17 @@ const CHAVES: Readonly<Record<NomeDaAnimacao, readonly Pose[]>> = {
   ],
 
   /* Levar um golpe: curto, para trás, cabeça baixa. */
+  /*
+   * Apanhar, em três tempos.
+   *
+   * Dois quadros davam um tremor; o golpe não tinha consequência. Agora há
+   * um recuo forte, um repique menor e a volta — que é o mínimo para o dano
+   * parecer ter empurrado o corpo em vez de piscado a cor dele.
+   */
   apanhar: [
-    p({ inclina: -4, sobe: 1, capa: 5, cabeca: 1, arma: 2 }),
-    p({ inclina: -2, sobe: 0, capa: 3, cabeca: 1, arma: 5 }),
+    p({ inclina: -7, sobe: 2, capa: 8, cabeca: 2, arma: 0, agacha: 1 }),
+    p({ inclina: -3, sobe: 0.5, capa: 5, cabeca: 1.4, arma: 3 }),
+    p({ inclina: -1, sobe: 0, capa: 2, cabeca: 0.5, arma: 6 }),
   ],
 
   /* Poção: ergue o braço de trás, o corpo relaxa um instante. */
@@ -562,9 +578,9 @@ const CHAVES: Readonly<Record<NomeDaAnimacao, readonly Pose[]>> = {
 export const QUADROS: Readonly<Record<NomeDaAnimacao, number>> = {
   repouso: 6,
   andar: 6,
-  ataque: 6,
+  ataque: 8,
   habilidade: 6,
-  apanhar: 2,
+  apanhar: 3,
   pocao: 3,
   'subir-de-nivel': 3,
   morrer: 4,
@@ -575,7 +591,7 @@ export const QUADROS: Readonly<Record<NomeDaAnimacao, number>> = {
 export const RITMO: Readonly<Record<NomeDaAnimacao, number>> = {
   repouso: 7,
   andar: 11,
-  ataque: 16,
+  ataque: 20,
   habilidade: 14,
   apanhar: 12,
   pocao: 8,
@@ -584,15 +600,41 @@ export const RITMO: Readonly<Record<NomeDaAnimacao, number>> = {
   vitoria: 5,
 };
 
+/*
+ * A curva de tempo de cada animação.
+ *
+ * Amostrar os quadros-chave em intervalos iguais dá movimento de metrônomo:
+ * a preparação, o golpe e a recuperação levam o mesmo tempo, e o golpe não
+ * tem estalo. Um golpe que se sente tem preparação **lenta** e impacto
+ * **rápido**.
+ *
+ * A curva deforma a posição da amostra, não a quantidade de quadros: com
+ * expoente acima de 1 a animação demora a sair e depois dispara, que é
+ * exatamente a leitura de força. O repouso e a caminhada ficam em 1, porque
+ * ciclo que acelera e desacelera sozinho parece defeito.
+ */
+const CURVA: Readonly<Record<NomeDaAnimacao, number>> = {
+  repouso: 1,
+  andar: 1,
+  ataque: 1.75,
+  habilidade: 1.9,
+  apanhar: 0.6,
+  pocao: 1,
+  'subir-de-nivel': 1,
+  morrer: 1.35,
+  vitoria: 1,
+};
+
 export const gerarAnimacao = (
   nome: NomeDaAnimacao,
   opcoes: OpcoesDoQuadro = {},
 ): readonly HTMLCanvasElement[] => {
   const chaves = CHAVES[nome];
   const total = QUADROS[nome];
+  const curva = CURVA[nome];
   const quadros: HTMLCanvasElement[] = [];
   for (let i = 0; i < total; i += 1) {
-    const posicao = (i / total) * chaves.length;
+    const posicao = Math.pow(i / total, curva) * chaves.length;
     const a = chaves[Math.floor(posicao) % chaves.length] ?? POSE_BASE;
     const b = chaves[Math.ceil(posicao) % chaves.length] ?? a;
     quadros.push(desenharQuadro(misturar(a, b, posicao % 1), opcoes));

@@ -224,16 +224,24 @@ const CHAVES: Readonly<Record<NomeDaAnimacao, readonly Pose[]>> = {
 
 export const QUADROS: Readonly<Record<NomeDaAnimacao, number>> = {
   repouso: 4,
-  ataque: 5,
+  ataque: 7,
   apanhar: 2,
   morrer: 3,
 };
 
 export const RITMO: Readonly<Record<NomeDaAnimacao, number>> = {
   repouso: 6,
-  ataque: 15,
+  ataque: 19,
   apanhar: 12,
   morrer: 7,
+};
+
+/* A mesma curva de tempo do Guerreiro: estocada lenta para sair, rápida para chegar. */
+const CURVA: Readonly<Record<NomeDaAnimacao, number>> = {
+  repouso: 1,
+  ataque: 1.8,
+  apanhar: 0.6,
+  morrer: 1.3,
 };
 
 export const gerarAnimacao = (nome: NomeDaAnimacao): readonly HTMLCanvasElement[] => {
@@ -241,7 +249,7 @@ export const gerarAnimacao = (nome: NomeDaAnimacao): readonly HTMLCanvasElement[
   const total = QUADROS[nome];
   const quadros: HTMLCanvasElement[] = [];
   for (let i = 0; i < total; i += 1) {
-    const posicao = (i / total) * chaves.length;
+    const posicao = Math.pow(i / total, CURVA[nome]) * chaves.length;
     const a = chaves[Math.floor(posicao) % chaves.length] ?? POSE_BASE;
     const b = chaves[Math.ceil(posicao) % chaves.length] ?? a;
     quadros.push(desenharPose(misturar(a, b, posicao % 1)));

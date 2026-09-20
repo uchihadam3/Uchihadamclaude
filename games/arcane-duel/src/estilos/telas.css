@@ -452,11 +452,19 @@
   text-shadow: 0 3px 0 #07060c;
 }
 
+/*
+ * As três listas ficam centradas na sobra.
+ *
+ * Dez peças não enchem um telefone em pé, e encostadas no topo elas deixam
+ * meia tela vazia entre a build e os dois botões de modo. Centradas, o vazio
+ * se divide e a tela lê como composição.
+ */
 .resumo__listas {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: calc(var(--u) * 2);
+  justify-content: center;
   min-height: 0;
 }
 
@@ -483,6 +491,10 @@
     flex: 0 0 200px;
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .resumo__listas {
+    justify-content: flex-start;
   }
 }
 
