@@ -1,0 +1,257 @@
+/*
+ * A identidade visual da interface.
+ *
+ * O jogo inteiro é pixel art, e a interface não é exceção. Mas "pixel art" na
+ * UI não significa fonte ilegível: título e número usam a fonte de bloco,
+ * porque é onde o sabor mora; **descrição de carta usa fonte legível**,
+ * porque a direção do jogo pediu que uma pessoa sem experiência em RPG
+ * entenda uma escolha rapidamente, e ninguém entende rápido lendo um texto de
+ * três linhas em fonte de oito pixels.
+ *
+ * As molduras são desenhadas com `box-shadow` em degraus — sem raio, sem
+ * gradiente suave, sem sombra difusa. É o que mantém a UI no mesmo mundo dos
+ * sprites.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+:root {
+  --tinta: #efe6d2;
+  --tinta-fraca: #9a8f7e;
+  --fundo: #0d0a12;
+  --fundo-painel: #1b1626;
+  --fundo-painel-alto: #292036;
+  --borda: #46384f;
+  --borda-clara: #6d5a78;
+  --ouro: #e8b44a;
+  --ouro-escuro: #8a6320;
+  --perigo: #ff6b5a;
+  --vida: #d8443c;
+  --armadura: #5aa9d8;
+  --recurso: #e8873a;
+  --bom: #7fe4d2;
+
+  --pixel: 'Press Start 2P', ui-monospace, 'Courier New', monospace;
+  --leitura: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --u: 4px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#raiz {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--fundo);
+  color: var(--tinta);
+  font-family: var(--leitura);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+canvas {
+  image-rendering: pixelated;
+}
+
+/* --------------------------------------------------------------------------
+ * A moldura de pixel.
+ *
+ * Três degraus de `box-shadow` fazem uma borda com luz em cima e sombra
+ * embaixo. É a mesma regra de iluminação dos sprites, aplicada à interface —
+ * e é o que impede a UI de parecer colada de outro jogo.
+ * ------------------------------------------------------------------------ */
+
+.moldura {
+  position: relative;
+  background: var(--fundo-painel);
+  box-shadow:
+    inset 0 0 0 var(--u) var(--fundo-painel-alto),
+    inset 0 var(--u) 0 var(--u) var(--borda-clara),
+    inset 0 calc(var(--u) * -1) 0 var(--u) #120e1a,
+    0 0 0 var(--u) var(--borda),
+    0 var(--u) 0 var(--u) #08060c;
+}
+
+.moldura--ouro {
+  box-shadow:
+    inset 0 0 0 var(--u) #3a2d16,
+    inset 0 var(--u) 0 var(--u) var(--ouro),
+    inset 0 calc(var(--u) * -1) 0 var(--u) var(--ouro-escuro),
+    0 0 0 var(--u) var(--ouro-escuro),
+    0 var(--u) 0 var(--u) #08060c;
+}
+
+/* --------------------------------------------------------------------------
+ * Tipografia.
+ * ------------------------------------------------------------------------ */
+
+.pixel {
+  font-family: var(--pixel);
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--pixel);
+  font-weight: 400;
+  margin: 0;
+  text-shadow: 0 var(--u) 0 #08060c;
+}
+
+h1 {
+  font-size: clamp(18px, 4.4vw, 34px);
+  letter-spacing: 0.08em;
+}
+
+h2 {
+  font-size: clamp(11px, 2.2vw, 16px);
+  letter-spacing: 0.1em;
+  color: var(--ouro);
+}
+
+h3 {
+  font-size: clamp(9px, 1.6vw, 12px);
+  letter-spacing: 0.08em;
+}
+
+/* --------------------------------------------------------------------------
+ * Botões.
+ * ------------------------------------------------------------------------ */
+
+.botao {
+  font-family: var(--pixel);
+  font-size: clamp(9px, 1.5vw, 12px);
+  letter-spacing: 0.08em;
+  color: var(--tinta);
+  background: linear-gradient(180deg, #3a2f4c 0%, #241c31 100%);
+  border: 0;
+  padding: calc(var(--u) * 3.5) calc(var(--u) * 5);
+  cursor: pointer;
+  box-shadow:
+    inset 0 var(--u) 0 0 #5c4a6b,
+    inset 0 calc(var(--u) * -1) 0 0 #140f1d,
+    0 0 0 var(--u) #0b0810,
+    0 var(--u) 0 var(--u) #08060c;
+  transition: transform 90ms steps(2), filter 90ms steps(2);
+}
+
+.botao:hover:not(:disabled) {
+  filter: brightness(1.18);
+}
+
+/* O botão **afunda** quando apertado. É o feedback mais barato que existe. */
+.botao:active:not(:disabled) {
+  transform: translateY(var(--u));
+  box-shadow:
+    inset 0 var(--u) 0 0 #140f1d,
+    0 0 0 var(--u) #0b0810;
+}
+
+.botao:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.botao--forte {
+  background: linear-gradient(180deg, #7a5a1e 0%, #4a3410 100%);
+  box-shadow:
+    inset 0 var(--u) 0 0 var(--ouro),
+    inset 0 calc(var(--u) * -1) 0 0 #241a08,
+    0 0 0 var(--u) #0b0810,
+    0 var(--u) 0 var(--u) #08060c;
+}
+
+.botao--discreto {
+  background: transparent;
+  color: var(--tinta-fraca);
+  box-shadow: 0 0 0 var(--u) var(--borda);
+  padding: calc(var(--u) * 2) calc(var(--u) * 3);
+}
+
+/* --------------------------------------------------------------------------
+ * Barras.
+ * ------------------------------------------------------------------------ */
+
+.barra {
+  position: relative;
+  height: calc(var(--u) * 4);
+  background: #120e1a;
+  box-shadow: 0 0 0 2px #08060c;
+  overflow: hidden;
+}
+
+.barra__cheio {
+  height: 100%;
+  transition: width 180ms linear;
+}
+
+/* O brilho no topo da barra: sem ele, a barra lê como retângulo chapado. */
+.barra__cheio::after {
+  content: '';
+  display: block;
+  height: 2px;
+  background: rgb(255 255 255 / 30%);
+}
+
+/*
+ * O rastro do dano.
+ *
+ * Uma segunda barra, mais clara, que desce **atrasada**. É o que deixa o
+ * jogador ver quanto acabou de perder, em vez de só ver o resultado.
+ */
+.barra__rastro {
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / 45%);
+  transition: width 620ms ease-out 140ms;
+}
+
+/* --------------------------------------------------------------------------
+ * Camadas de tela.
+ * ------------------------------------------------------------------------ */
+
+.tela {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  animation: entrar 260ms steps(4) both;
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--u) * 3));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.centro {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 5);
+  padding: calc(var(--u) * 5);
+  text-align: center;
+}
+
+.escondido {
+  display: none;
+}

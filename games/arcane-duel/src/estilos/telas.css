@@ -1,0 +1,702 @@
+/*
+ * As telas.
+ *
+ * Todas seguem a mesma planta: cabeçalho curto em cima, conteúdo no meio,
+ * ação embaixo. É repetição de propósito — o jogador aprende onde ficam as
+ * coisas uma vez e nunca mais procura.
+ *
+ * O jogo é jogado no telefone tanto quanto no computador, então tudo escala
+ * com `clamp` e as áreas de toque nunca ficam menores que o polegar.
+ */
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 3);
+  padding: calc(var(--u) * 3) calc(var(--u) * 4);
+  border-bottom: var(--u) solid var(--borda);
+  background: #120e1a;
+}
+
+.cabecalho h2 {
+  text-align: center;
+}
+
+.semente {
+  font-size: 8px;
+  color: var(--tinta-fraca);
+}
+
+/* --------------------------------------------------------------------------
+ * Início.
+ * ------------------------------------------------------------------------ */
+
+.tela--inicio {
+  background: radial-gradient(120% 80% at 50% 12%, #241c31 0%, #0d0a12 62%);
+}
+
+.marca__linha {
+  margin: calc(var(--u) * 3) 0 0;
+  font-size: clamp(7px, 1.4vw, 10px);
+  color: var(--tinta-fraca);
+}
+
+.progresso-geral {
+  display: flex;
+  gap: calc(var(--u) * 5);
+  font-size: clamp(7px, 1.4vw, 10px);
+  color: var(--tinta-fraca);
+}
+
+.dourado {
+  color: var(--ouro);
+}
+
+/* --------------------------------------------------------------------------
+ * Classes.
+ * ------------------------------------------------------------------------ */
+
+.grade-de-classes {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: calc(var(--u) * 3);
+  padding: calc(var(--u) * 4);
+  overflow-y: auto;
+  align-content: start;
+}
+
+.classe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+  min-height: 92px;
+  padding: calc(var(--u) * 3);
+  text-align: left;
+  color: var(--tinta);
+  background: linear-gradient(180deg, #241c31 0%, #171122 100%);
+  border: 0;
+  cursor: pointer;
+  box-shadow:
+    inset 0 var(--u) 0 0 var(--cor-da-classe),
+    inset 0 calc(var(--u) * -1) 0 0 #0f0b17,
+    0 0 0 var(--u) #0b0810;
+  transition: transform 100ms steps(2), filter 100ms steps(2);
+}
+
+.classe:hover:not(:disabled) {
+  transform: translateY(calc(var(--u) * -1));
+  filter: brightness(1.18);
+}
+
+.classe--bloqueada {
+  cursor: not-allowed;
+  filter: grayscale(0.85) brightness(0.55);
+}
+
+.classe--dourada {
+  box-shadow:
+    inset 0 var(--u) 0 0 var(--ouro),
+    inset 0 calc(var(--u) * -1) 0 0 var(--ouro-escuro),
+    0 0 0 var(--u) #0b0810;
+}
+
+.classe__nome {
+  font-size: clamp(9px, 1.6vw, 11px);
+  color: var(--cor-da-classe);
+}
+
+.classe__lema {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #b4a58f;
+}
+
+.classe__recorde {
+  font-size: 7px;
+  color: var(--tinta-fraca);
+}
+
+.rodape-dica {
+  margin: 0;
+  padding: calc(var(--u) * 3) calc(var(--u) * 4);
+  font-size: 12px;
+  color: var(--tinta-fraca);
+  text-align: center;
+  border-top: var(--u) solid var(--borda);
+}
+
+/* --------------------------------------------------------------------------
+ * Draft e checkpoint.
+ * ------------------------------------------------------------------------ */
+
+.opcoes {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 4);
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--u) * 4);
+  overflow-y: auto;
+}
+
+.vazio {
+  color: var(--tinta-fraca);
+}
+
+.rodape-do-draft {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 4);
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(var(--u) * 3) calc(var(--u) * 4);
+  border-top: var(--u) solid var(--borda);
+  background: #120e1a;
+}
+
+/*
+ * O medidor.
+ *
+ * Poder e Sinergia ficam à vista o tempo todo, e mudam no instante da
+ * escolha. É esse movimento que ensina a ler sinergia — nenhum texto
+ * explicativo faria o mesmo trabalho.
+ */
+.medidor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 4);
+  align-items: center;
+}
+
+.medidor__poder,
+.medidor__sinergia {
+  display: flex;
+  gap: var(--u);
+  align-items: baseline;
+}
+
+.medidor__rotulo {
+  font-size: 7px;
+  color: var(--tinta-fraca);
+}
+
+.medidor__valor {
+  font-size: clamp(16px, 3vw, 24px);
+  color: var(--ouro);
+}
+
+.medidor__faixa {
+  font-size: 8px;
+  color: var(--tinta);
+}
+
+.medidor__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--u);
+}
+
+.medidor__tag {
+  padding: 2px calc(var(--u) * 1.5);
+  font-size: 7px;
+  color: var(--bom);
+  background: #101a1a;
+  box-shadow: 0 0 0 1px #24413c;
+}
+
+.progresso-do-draft {
+  font-size: 8px;
+  color: var(--tinta-fraca);
+}
+
+.subtitulo {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 13px;
+  color: var(--tinta-fraca);
+}
+
+/* --------------------------------------------------------------------------
+ * Modo e resumo.
+ * ------------------------------------------------------------------------ */
+
+.resumo-da-build {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 5);
+  padding: calc(var(--u) * 4);
+  overflow-y: auto;
+}
+
+.resumo__medidor {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  align-items: flex-start;
+  min-width: 140px;
+}
+
+.resumo__medidor .medidor__valor {
+  font-size: clamp(28px, 6vw, 46px);
+}
+
+.resumo__listas {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: calc(var(--u) * 4);
+}
+
+.resumo__grupo h3 {
+  margin-bottom: calc(var(--u) * 2);
+  color: var(--tinta-fraca);
+}
+
+.resumo__grupo ul {
+  margin: 0;
+  padding-left: calc(var(--u) * 4);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #c9bda8;
+}
+
+.modos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 4);
+  justify-content: center;
+  padding: calc(var(--u) * 4);
+  border-top: var(--u) solid var(--borda);
+}
+
+.modos .botao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+  min-width: 190px;
+}
+
+.modos small {
+  font-family: var(--leitura);
+  font-size: 11px;
+  letter-spacing: 0;
+  color: var(--tinta-fraca);
+}
+
+/* --------------------------------------------------------------------------
+ * Dungeon e HUD.
+ * ------------------------------------------------------------------------ */
+
+.dungeon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #08060c;
+}
+
+.dungeon__cena {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dungeon__cena canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+.hud {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: calc(var(--u) * 2);
+  pointer-events: none;
+}
+
+.hud button {
+  pointer-events: auto;
+}
+
+.hud__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 2);
+}
+
+.hud__sala {
+  font-size: clamp(8px, 1.6vw, 11px);
+  color: var(--tinta);
+  text-shadow: 0 2px 0 #000;
+}
+
+.hud__area {
+  font-size: clamp(7px, 1.3vw, 9px);
+  color: var(--ouro);
+  text-shadow: 0 2px 0 #000;
+}
+
+.hud__velocidade {
+  display: flex;
+  gap: var(--u);
+}
+
+.hud__velocidade .botao {
+  padding: calc(var(--u)) calc(var(--u) * 2);
+  font-size: 8px;
+  background: rgb(10 8 14 / 72%);
+}
+
+.hud__velocidade .ativo {
+  color: var(--ouro);
+  box-shadow: 0 0 0 var(--u) var(--ouro-escuro);
+}
+
+/* O inimigo fica no alto, centralizado: é para lá que o olho vai primeiro. */
+.hud__inimigo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(420px, 62%);
+  margin: calc(var(--u) * 2) auto 0;
+  text-align: center;
+}
+
+.hud__inimigo--boss {
+  width: min(560px, 82%);
+}
+
+.hud__inimigo--boss .hud__nome {
+  font-size: clamp(9px, 1.9vw, 13px);
+  color: var(--perigo);
+}
+
+.hud__nome {
+  font-size: clamp(7px, 1.4vw, 10px);
+  color: var(--tinta);
+  text-shadow: 0 2px 0 #000;
+}
+
+.hud__jogador {
+  display: flex;
+  gap: calc(var(--u) * 2);
+  align-items: flex-end;
+  margin-top: auto;
+}
+
+.hud__retrato {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 62px;
+  padding: calc(var(--u) * 1.5);
+  background: rgb(10 8 14 / 72%);
+  box-shadow: 0 0 0 2px #0b0810;
+}
+
+.hud__nivel {
+  font-size: 9px;
+  color: var(--ouro);
+}
+
+.hud__barras {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 340px;
+}
+
+.hud__linha {
+  display: flex;
+  gap: calc(var(--u) * 1.5);
+  align-items: center;
+}
+
+.hud__linha .barra {
+  flex: 1;
+}
+
+.hud__rotulo {
+  min-width: 34px;
+  font-size: 7px;
+  color: var(--tinta-fraca);
+}
+
+.hud__numero {
+  min-width: 56px;
+  font-size: 7px;
+  text-align: right;
+  color: var(--tinta);
+}
+
+.hud__pocoes {
+  display: flex;
+  gap: var(--u);
+}
+
+.pocao {
+  display: block;
+  width: 12px;
+  height: 16px;
+  box-shadow: 0 0 0 2px #0b0810;
+}
+
+.pocao--cheia {
+  background: linear-gradient(180deg, #ff8f7a 0%, #b52f28 100%);
+}
+
+.pocao--vazia {
+  background: #241c31;
+}
+
+/* As quatro habilidades: o cooldown desce como líquido, e não pisca. */
+.hud__habilidades {
+  display: flex;
+  gap: calc(var(--u) * 1.5);
+  justify-content: center;
+  margin-top: calc(var(--u) * 2);
+}
+
+.habilidade {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: clamp(58px, 15vw, 96px);
+  height: clamp(30px, 7vw, 44px);
+  padding: 3px;
+  overflow: hidden;
+  background: rgb(14 11 20 / 88%);
+  box-shadow: 0 0 0 2px #0b0810, inset 0 0 0 1px #30263f;
+}
+
+.habilidade__nome {
+  position: relative;
+  z-index: 2;
+  font-family: var(--pixel);
+  font-size: 6px;
+  line-height: 1.4;
+  color: #b4a58f;
+}
+
+.habilidade__recarga {
+  position: absolute;
+  inset: 0 0 auto;
+  background: rgb(0 0 0 / 66%);
+  transition: height 90ms linear;
+}
+
+.habilidade--pronta {
+  box-shadow: 0 0 0 2px var(--ouro-escuro), inset 0 0 0 1px var(--ouro);
+}
+
+.habilidade--pronta .habilidade__nome {
+  color: var(--ouro);
+}
+
+/* A entrada do boss: nome grande, curto, e some. */
+.anuncio-de-boss {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgb(8 6 12 / 45%);
+  animation: anuncio 1.8s steps(6) both;
+}
+
+.anuncio-de-boss__nome {
+  font-family: var(--pixel);
+  font-size: clamp(14px, 4vw, 30px);
+  color: var(--perigo);
+  text-shadow: 0 var(--u) 0 #000;
+}
+
+@keyframes anuncio {
+  0% {
+    opacity: 0;
+    letter-spacing: 1em;
+  }
+  25% {
+    opacity: 1;
+    letter-spacing: 0.1em;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Resultado, despertar e maestria.
+ * ------------------------------------------------------------------------ */
+
+.titulo-vitoria {
+  color: var(--ouro);
+}
+
+.titulo-derrota {
+  color: var(--perigo);
+}
+
+.ficha {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 3);
+  width: min(460px, 92vw);
+  padding: calc(var(--u) * 5);
+}
+
+.ficha__linhas {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: calc(var(--u) * 1.5) calc(var(--u) * 4);
+  font-size: 8px;
+  text-align: left;
+}
+
+.ficha__linhas span:nth-child(odd) {
+  color: var(--tinta-fraca);
+}
+
+.ficha__linhas span:nth-child(even) {
+  text-align: right;
+}
+
+.ficha__escolhas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--u);
+  justify-content: center;
+  padding-top: calc(var(--u) * 3);
+  border-top: 2px solid var(--borda);
+}
+
+.ficha__escolha {
+  padding: 2px calc(var(--u) * 1.5);
+  font-size: 11px;
+  color: #c9bda8;
+  background: #14101f;
+}
+
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 3);
+  justify-content: center;
+}
+
+/*
+ * O despertar.
+ *
+ * Silêncio, escuro, e três pontos de interrogação. Nenhum texto explica o que
+ * está acontecendo — se explicasse, deixaria de ser segredo.
+ */
+.tela--despertar {
+  background: #000;
+  animation: despertar 2.6s steps(8) both;
+}
+
+.interrogacao {
+  font-family: var(--pixel);
+  font-size: clamp(30px, 10vw, 80px);
+  color: #6b0f3a;
+  animation: tremer 2.6s steps(3) infinite;
+}
+
+@keyframes despertar {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes tremer {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translate(2px, -2px);
+  }
+}
+
+.tela--dourado {
+  background: radial-gradient(120% 80% at 50% 30%, #3a2d12 0%, #0d0a12 60%);
+}
+
+.titulo-dourado {
+  color: var(--ouro);
+  animation: brilho-dourado 2.4s steps(4) infinite;
+}
+
+@keyframes brilho-dourado {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.4);
+  }
+}
+
+.brasao-dourado {
+  width: 84px;
+  height: 84px;
+  background:
+    conic-gradient(from 45deg, #e8b44a 0deg 90deg, #8a6320 90deg 180deg, #e8b44a 180deg 270deg, #8a6320 270deg);
+  box-shadow: 0 0 0 var(--u) #3a2d16, 0 0 0 calc(var(--u) * 2) #0b0810;
+  animation: girar-brasao 9s linear infinite;
+}
+
+@keyframes girar-brasao {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Telefone deitado e de pé: tudo precisa caber.
+ * ------------------------------------------------------------------------ */
+
+@media (max-width: 620px) {
+  :root {
+    --u: 3px;
+  }
+
+  .carta {
+    min-height: 124px;
+    max-width: 100%;
+  }
+
+  .opcoes {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .rodape-do-draft {
+    justify-content: center;
+    text-align: center;
+  }
+}

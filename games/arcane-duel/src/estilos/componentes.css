@@ -1,0 +1,191 @@
+/*
+ * A carta e os medidores.
+ *
+ * A carta é a peça mais tocada do jogo — dez escolhas por run, mais quatro
+ * checkpoints — então ela carrega o peso do polimento. Três coisas fazem o
+ * trabalho: o levantar no toque, o brilho da sinergia, e o recuo das
+ * rejeitadas quando uma é escolhida.
+ */
+
+.carta {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  width: 100%;
+  max-width: 300px;
+  min-height: 150px;
+  padding: calc(var(--u) * 4);
+  text-align: left;
+  color: var(--tinta);
+  background: linear-gradient(180deg, #241c31 0%, #171122 100%);
+  border: 0;
+  cursor: pointer;
+  box-shadow:
+    inset 0 var(--u) 0 0 var(--cor-da-carta, #5c4a6b),
+    inset 0 calc(var(--u) * -1) 0 0 #0f0b17,
+    0 0 0 var(--u) #0b0810,
+    0 var(--u) 0 var(--u) #08060c;
+  animation: carta-entra 280ms steps(4) both;
+  transition:
+    transform 110ms steps(2),
+    filter 110ms steps(2),
+    opacity 160ms steps(2);
+}
+
+@keyframes carta-entra {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--u) * 6)) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Levantar no toque: a carta sai da fileira e fica um degrau à frente. */
+.carta:hover:not(:disabled),
+.carta:focus-visible:not(:disabled) {
+  transform: translateY(calc(var(--u) * -2));
+  filter: brightness(1.16);
+  outline: none;
+}
+
+.carta:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* A escolhida cresce; as recusadas recuam e apagam. */
+.carta--escolhida {
+  animation: carta-escolhida 320ms steps(5) both;
+  z-index: 2;
+}
+
+@keyframes carta-escolhida {
+  0% {
+    transform: none;
+  }
+  40% {
+    transform: translateY(calc(var(--u) * -4)) scale(1.08);
+    filter: brightness(1.5);
+  }
+  100% {
+    transform: translateY(calc(var(--u) * -3)) scale(1.04);
+    filter: brightness(1.2);
+  }
+}
+
+.carta--recuada {
+  opacity: 0.25;
+  transform: translateY(calc(var(--u) * 2)) scale(0.94);
+  filter: saturate(0.2);
+}
+
+.carta__topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: calc(var(--u) * 2);
+}
+
+.carta__nome {
+  font-family: var(--pixel);
+  font-size: clamp(8px, 1.5vw, 11px);
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+  color: var(--cor-da-carta, var(--ouro));
+  text-shadow: 0 2px 0 #08060c;
+}
+
+.carta__canto {
+  flex-shrink: 0;
+  padding: 2px calc(var(--u) * 1.5);
+  font-family: var(--pixel);
+  font-size: 8px;
+  color: var(--tinta-fraca);
+  background: #100c19;
+  box-shadow: 0 0 0 2px #0b0810;
+}
+
+/*
+ * A descrição usa fonte de leitura, e não a de pixel.
+ *
+ * É a decisão que a direção do jogo obriga: "uma pessoa sem experiência em
+ * RPG deve entender uma escolha rapidamente". Fonte de bloco em três linhas
+ * de texto corrido é bonita e ilegível, e ilegível aqui custa a partida.
+ */
+.carta__descricao {
+  flex: 1;
+  font-size: clamp(12px, 2.1vw, 14px);
+  line-height: 1.5;
+  color: #d6cbb8;
+}
+
+.carta__rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 2);
+  min-height: 18px;
+}
+
+.carta__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--u);
+}
+
+.carta__tag {
+  padding: 1px calc(var(--u) * 1.5);
+  font-family: var(--pixel);
+  font-size: 7px;
+  color: #b4a58f;
+  background: #14101f;
+  box-shadow: 0 0 0 1px #2c2338;
+}
+
+/* O aviso de sinergia: discreto, e nunca "melhor escolha". */
+.carta__sinergia {
+  flex-shrink: 0;
+  font-family: var(--pixel);
+  font-size: 7px;
+  color: var(--bom);
+  animation: pulsar-sinergia 1.6s steps(2) infinite;
+}
+
+@keyframes pulsar-sinergia {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Medidores.
+ * ------------------------------------------------------------------------ */
+
+.sinergia {
+  font-size: clamp(13px, 2.4vw, 17px);
+  letter-spacing: 0.16em;
+}
+
+.sinergia__cheio {
+  color: var(--bom);
+}
+
+.sinergia__vazio {
+  color: #3d3349;
+}
+
+.etiqueta {
+  display: inline-block;
+  padding: 2px calc(var(--u) * 2);
+  font-family: var(--pixel);
+  font-size: 8px;
+  color: var(--tinta-fraca);
+  border: 2px solid var(--borda);
+}

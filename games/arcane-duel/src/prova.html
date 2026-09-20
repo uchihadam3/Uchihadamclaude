@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Folha de prova — pixel art</title>
+    <style>
+      body { margin: 0; background: #0d0a12; color: #e8dfcd; font: 13px system-ui; padding: 16px; }
+      h2 { font-size: 13px; letter-spacing: 2px; opacity: .6; margin: 18px 0 8px; text-transform: uppercase; }
+      canvas { image-rendering: pixelated; }
+      .linha { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+      .cena { position: relative; width: 640px; height: 360px; overflow: hidden; border: 1px solid #2a2333; }
+      .cena canvas { position: absolute; image-rendering: pixelated; }
+      .par { display:flex; gap:10px; flex-wrap: wrap; }
+      figure { margin: 0; text-align: center; }
+      figcaption { font-size: 10px; opacity: .5; margin-top: 4px; }
+    </style>
+  </head>
+  <body><div id="saida"></div><script type="module" src="/src/prova.ts"></script></body>
+</html>
