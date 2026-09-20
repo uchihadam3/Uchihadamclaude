@@ -489,3 +489,22 @@
     padding: 8px 10px;
   }
 }
+
+/*
+ * O celular deitado é baixo.
+ *
+ * Num aparelho de 390 pontos de altura o menu inteiro tem menos de 300 para
+ * viver. As peças encolhem em vez de o menu vazar por baixo do polegar ou
+ * empurrar a fortaleza para fora do quadro.
+ */
+@media (max-height: 460px) {
+  .menu {
+    gap: calc(var(--u) * 1.5);
+    width: min(260px, 46vw);
+  }
+
+  .peca__face {
+    min-height: 40px;
+    padding: calc(var(--u) * 2) calc(var(--u) * 4);
+  }
+}
