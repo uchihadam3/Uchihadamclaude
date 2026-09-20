@@ -603,16 +603,27 @@
   background: #06050a;
 }
 
+/*
+ * O canvas preenche a faixa, e isto é deliberado.
+ *
+ * A regra anterior deixava o Phaser dimensionar o canvas, e ele mede o pai
+ * num instante em que a grade ainda não assentou — o resultado era um canvas
+ * de 445 px no meio de uma faixa de 844, com tarja preta dos dois lados, e
+ * nenhum `refresh()` corrigia depois.
+ *
+ * Esticar por CSS costuma ser errado em pixel art porque produz escala
+ * fracionária. Aqui não é, porque o tamanho lógico do mundo é **calculado a
+ * partir da proporção desta faixa**: as duas proporções são a mesma, então
+ * o "esticar" é só escala uniforme — exatamente o que o FIT faria, sem
+ * depender de quando o Phaser resolveu medir.
+ *
+ * O `!important` existe porque o Phaser escreve largura e altura no estilo
+ * embutido do canvas, e estilo embutido ganha de classe.
+ */
 .dungeon__cena canvas {
-  /*
-   * O canvas não é esticado por CSS.
-   *
-   * Quem dimensiona é o Phaser, em modo FIT, sobre uma largura lógica que já
-   * tem a proporção da caixa. Forçar largura e altura aqui produzia escala
-   * fracionária em cima da escala do Phaser — que é como se perde a nitidez
-   * de pixel art sem ninguém perceber de onde veio.
-   */
   display: block;
+  width: 100% !important;
+  height: 100% !important;
   image-rendering: pixelated;
 }
 
@@ -1210,5 +1221,47 @@
 
   .tela--resultado .acoes {
     gap: calc(var(--u) * 2);
+  }
+}
+
+/*
+ * Deitado e baixo, as faixas encolhem para a cena crescer.
+ *
+ * Num telefone de 390 pontos deitado, as quatro faixas de HUD no tamanho
+ * normal comiam mais da metade da altura e sobrava uma fresta de 185 px para
+ * o combate. A cena é o jogo; o HUD é a legenda dele.
+ */
+@media (orientation: landscape) and (max-height: 480px) {
+  .hud__topo {
+    padding: 3px calc(var(--u) * 2);
+    padding-top: calc(3px + env(safe-area-inset-top));
+  }
+
+  .hud__inimigo {
+    gap: 2px;
+    margin: 3px auto;
+  }
+
+  .hud__jogador {
+    gap: var(--u);
+    padding: 3px calc(var(--u) * 2);
+  }
+
+  .hud__barras {
+    gap: 2px;
+  }
+
+  .hud__retrato {
+    min-width: 46px;
+    padding: 3px 2px;
+  }
+
+  .hud__habilidades {
+    padding: 2px calc(var(--u) * 1.5);
+    padding-bottom: calc(2px + env(safe-area-inset-bottom));
+  }
+
+  .habilidade {
+    height: 30px;
   }
 }

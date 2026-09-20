@@ -49,7 +49,7 @@ import { anelDeRuptura, arcoDeGolpe, clarao, estilhacos, numeroFlutuante, pausaD
  * os atores são posicionados em fração dela.
  */
 const LARGURA_MINIMA = 208;
-const LARGURA_MAXIMA = 640;
+const LARGURA_MAXIMA = 900;
 const ALTURA_MINIMA = 180;
 const ALTURA_MAXIMA = 340;
 

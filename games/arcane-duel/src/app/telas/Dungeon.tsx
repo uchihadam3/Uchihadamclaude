@@ -274,7 +274,20 @@ export const Dungeon = ({
     });
     observador.observe(elemento);
 
+    /*
+     * Um ajuste no quadro seguinte.
+     *
+     * O canvas nasce medindo um pai que a grade ainda não terminou de
+     * resolver, e o Phaser guarda essa medida. Sem este empurrão o canvas
+     * ficava estreito no meio de uma faixa larga — o mesmo defeito de
+     * medida, só que na outra direção.
+     */
+    const ajuste = requestAnimationFrame(() => {
+      instancia.scale.refresh();
+    });
+
     return () => {
+      cancelAnimationFrame(ajuste);
       observador.disconnect();
       instancia.destroy(true);
       jogo.current = null;
