@@ -655,11 +655,20 @@
   letter-spacing: 0.18em;
 }
 
+/*
+ * As fichas ficam centradas na faixa.
+ *
+ * Seis fichas não enchem a sobra de um telefone alto, e encostadas no topo
+ * elas deixavam uma tira preta colada no rodapé — que é justamente o que se
+ * queria evitar ao criar esta faixa.
+ */
 .hud__build-grade {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
-  gap: 4px;
-  align-content: start;
+  gap: 5px;
+  align-content: center;
+  flex: 1;
+  min-height: 0;
 }
 
 .ficha-da-build {
