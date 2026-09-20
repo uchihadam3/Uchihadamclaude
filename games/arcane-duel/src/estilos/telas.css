@@ -577,7 +577,7 @@
    */
   .dungeon__cena {
     width: 100%;
-    height: min(52vh, calc(100vw * 340 / 208));
+    height: min(58vh, calc(100vw * 340 / 208));
   }
 }
 
@@ -656,19 +656,17 @@
 }
 
 /*
- * As fichas ficam centradas na faixa.
+ * As fichas ficam logo abaixo do título.
  *
- * Seis fichas não enchem a sobra de um telefone alto, e encostadas no topo
- * elas deixavam uma tira preta colada no rodapé — que é justamente o que se
- * queria evitar ao criar esta faixa.
+ * Centrá-las na faixa afastava o bloco do rótulo que o nomeia, e um título
+ * solto a cem pixels do conteúdo lê como erro. A sobra de altura vai para a
+ * **cena**, que é onde ela vale alguma coisa.
  */
 .hud__build-grade {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
   gap: 5px;
-  align-content: center;
-  flex: 1;
-  min-height: 0;
+  align-content: start;
 }
 
 .ficha-da-build {
