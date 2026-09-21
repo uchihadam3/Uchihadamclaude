@@ -17,6 +17,7 @@ import { sortearEm } from '../../nucleo/rng.js';
 import type { EstadoDaRun } from '../../nucleo/run.js';
 import { expParaSubir, inimigoDaSala, soberanoEscalado } from '../../nucleo/run.js';
 import { Barra } from '../../ui/Basicos.js';
+import { Diagnostico, diagnosticoLigado } from '../Diagnostico.js';
 
 /*
  * A dungeon.
@@ -53,8 +54,11 @@ export interface DungeonProps {
 interface Hud {
   readonly vida: number;
   readonly vidaMaxima: number;
+  /** A Vida de um instante atrás. É o rastro que a barra deixa ao levar dano. */
+  readonly vidaRastro: number;
   readonly armadura: number;
   readonly armaduraMaxima: number;
+  readonly armaduraRastro: number;
   readonly momentum: number;
   readonly momentumMaximo: number;
   readonly pocoes: number;
@@ -62,18 +66,54 @@ interface Hud {
   readonly inimigoNome: string;
   readonly inimigoVida: number;
   readonly inimigoVidaMaxima: number;
+  readonly inimigoVidaRastro: number;
   readonly inimigoArmadura: number;
   readonly inimigoArmaduraMaxima: number;
   readonly ehBoss: boolean;
   readonly nivel: number;
   readonly expFracao: number;
+  /** Sobe a cada ganho de Momentum. Só serve para reiniciar a animação. */
+  readonly pulsoDeMomentum: number;
 }
 
-const hudDe = (estado: EstadoDeCombate, build: BuildParcial, atributos: Atributos): Hud => ({
+/*
+ * O rastro das barras.
+ *
+ * Quando a Vida cai de 200 para 140 num golpe, a barra vermelha pula para
+ * 140 e o jogador não vê **quanto** levou — ele vê uma barra menor. O rastro
+ * é a parte que ficou para trás e alcança a barra em seguida: é ele que
+ * desenha o tamanho da mordida.
+ *
+ * Ele vive fora do estado do React de propósito. É informação de
+ * apresentação, derivada da simulação e de mais nada — a simulação não sabe
+ * que ele existe, e por isso ele não pode divergir dela.
+ */
+interface Rastros {
+  vida: number;
+  armadura: number;
+  inimigoVida: number;
+}
+
+/** Aproxima o rastro do valor real. Sobe na hora, desce devagar. */
+const encostar = (rastro: number, valor: number, maximo: number, dtReal: number): number => {
+  if (valor >= rastro) return valor;
+  const passoDoRastro = Math.max(maximo * 0.35, (rastro - valor) * 3.2) * dtReal;
+  return Math.max(valor, rastro - passoDoRastro);
+};
+
+const hudDe = (
+  estado: EstadoDeCombate,
+  build: BuildParcial,
+  atributos: Atributos,
+  rastros: Rastros,
+  pulsoDeMomentum: number,
+): Hud => ({
   vida: estado.jogador.vida,
   vidaMaxima: estado.jogador.vidaMaxima,
+  vidaRastro: rastros.vida,
   armadura: estado.jogador.armadura,
   armaduraMaxima: estado.jogador.armaduraMaxima,
+  armaduraRastro: rastros.armadura,
   momentum: estado.jogador.momentum,
   momentumMaximo: estado.jogador.momentumMaximo,
   pocoes: estado.jogador.pocoes,
@@ -85,11 +125,13 @@ const hudDe = (estado: EstadoDeCombate, build: BuildParcial, atributos: Atributo
   inimigoNome: estado.inimigo.nome,
   inimigoVida: estado.inimigo.vida,
   inimigoVidaMaxima: estado.inimigo.vidaMaxima,
+  inimigoVidaRastro: rastros.inimigoVida,
   inimigoArmadura: estado.inimigo.armadura,
   inimigoArmaduraMaxima: estado.inimigo.armaduraMaxima,
   ehBoss: estado.inimigo.porte === 'boss',
   nivel: estado.jogador.nivel,
   expFracao: Math.min(1, estado.jogador.exp / expParaSubir(estado.jogador.nivel)),
+  pulsoDeMomentum,
 });
 
 /** O som que cada evento pede. Uma tabela, para não espalhar `tocar` pelo laço. */
@@ -139,10 +181,16 @@ export const Dungeon = ({
   const encerrada = useRef(false);
   /* Só para o painel de diagnóstico: quantos passos a simulação já rodou. */
   const passosRodados = useRef(0);
+  const quadrosRodados = useRef(0);
+  const cortesDoRelogio = useRef(0);
+  const rastros = useRef<Rastros>({ vida: 0, armadura: 0, inimigoVida: 0 });
+  const pulsoDeMomentum = useRef(0);
   const [hud, definirHud] = useState<Hud | null>(null);
   const [aviso, definirAviso] = useState<string | null>(null);
   const velocidadeAtual = useRef(velocidade);
   velocidadeAtual.current = velocidade;
+  /* Lido uma vez: a URL não muda no meio de uma luta. */
+  const [depurando] = useState(diagnosticoLigado);
 
   const inimigo: Inimigo = contraOSoberano ? soberanoEscalado() : inimigoDaSala(run.seed, run.sala);
   const classe = classePorId(run.build.classe);
@@ -189,7 +237,15 @@ export const Dungeon = ({
       atributos,
       rng: sortearEm(run.seed, `luta:${run.sala}:${String(contraOSoberano)}`),
     };
-    definirHud(hudDe(combate.current, run.build, atributos));
+    rastros.current = {
+      vida: combate.current.jogador.vida,
+      armadura: combate.current.jogador.armadura,
+      inimigoVida: combate.current.inimigo.vida,
+    };
+    passosRodados.current = 0;
+    quadrosRodados.current = 0;
+    cortesDoRelogio.current = 0;
+    definirHud(hudDe(combate.current, run.build, atributos, rastros.current, pulsoDeMomentum.current));
 
     /*
      * A cena se **ajusta** à caixa, em vez de ser cortada por ela.
@@ -333,6 +389,37 @@ export const Dungeon = ({
         }
         combate.current = estado;
         passosRodados.current += avanco.passos;
+        quadrosRodados.current += 1;
+        if (avanco.cortou) cortesDoRelogio.current += 1;
+
+        /*
+         * Os rastros andam no tempo **real**, não no da simulação.
+         *
+         * Em 4x a simulação roda quatro vezes mais passos por quadro, mas o
+         * rastro continua sendo uma animação de tela: se ele acompanhasse os
+         * passos, em 4x ele alcançaria a barra instantaneamente e o feedback
+         * do dano sumiria justamente na velocidade em que ele é mais
+         * necessário.
+         */
+        const dtReal = Math.min(0.1, delta);
+        rastros.current = {
+          vida: encostar(rastros.current.vida, estado.jogador.vida, estado.jogador.vidaMaxima, dtReal),
+          armadura: encostar(
+            rastros.current.armadura,
+            estado.jogador.armadura,
+            Math.max(1, estado.jogador.armaduraMaxima),
+            dtReal,
+          ),
+          inimigoVida: encostar(
+            rastros.current.inimigoVida,
+            estado.inimigo.vida,
+            estado.inimigo.vidaMaxima,
+            dtReal,
+          ),
+        };
+        for (const evento of eventos) {
+          if (evento.tipo === 'momentum') pulsoDeMomentum.current += 1;
+        }
 
         const ativa = jogo.current?.scene.getScene('combate');
         if (ativa instanceof CenaDeCombate && eventos.length > 0) {
@@ -344,7 +431,7 @@ export const Dungeon = ({
           audio.intensidadeDoBoss(estado.inimigo.vida / estado.inimigo.vidaMaxima);
         }
 
-        definirHud(hudDe(estado, run.build, ctx.atributos));
+        definirHud(hudDe(estado, run.build, ctx.atributos, rastros.current, pulsoDeMomentum.current));
         if (estado.terminou) terminar(estado.vencedor === 'jogador', estado);
       }
 
@@ -359,6 +446,28 @@ export const Dungeon = ({
   }, [run.build, terminar]);
 
   const area = areaDaSala(run.sala);
+
+  /*
+   * O diagnóstico lê a simulação **diretamente**, e o HUD do estado do React.
+   *
+   * É essa a prova: os dois números vêm de origens diferentes na tela e
+   * precisam bater. Se algum dia alguém introduzir uma cópia do estado no
+   * caminho do HUD, esta tabela acusa na hora.
+   */
+  const sim = combate.current;
+  const linhasDeDiagnostico =
+    depurando && hud !== null && sim !== null
+      ? [
+          { nome: 'vida', sim: sim.jogador.vida, hud: hud.vida },
+          { nome: 'vida máx', sim: sim.jogador.vidaMaxima, hud: hud.vidaMaxima, casas: 0 },
+          { nome: 'armadura', sim: sim.jogador.armadura, hud: hud.armadura },
+          { nome: 'momentum', sim: sim.jogador.momentum, hud: hud.momentum, casas: 0 },
+          { nome: 'poções', sim: sim.jogador.pocoes, hud: hud.pocoes, casas: 0 },
+          { nome: 'nível', sim: sim.jogador.nivel, hud: hud.nivel, casas: 0 },
+          { nome: 'vida inim.', sim: sim.inimigo.vida, hud: hud.inimigoVida },
+          { nome: 'arm. inim.', sim: sim.inimigo.armadura, hud: hud.inimigoArmadura },
+        ]
+      : [];
 
   return (
     <div className="dungeon">
@@ -393,6 +502,7 @@ export const Dungeon = ({
               <Barra
                 valor={hud.inimigoVida}
                 maximo={hud.inimigoVidaMaxima}
+                rastro={hud.inimigoVidaRastro}
                 cor="var(--vida)"
                 altura={hud.ehBoss ? 22 : 14}
               />
@@ -417,7 +527,12 @@ export const Dungeon = ({
               <div className="hud__barras">
                 <div className="hud__linha">
                   <span className="hud__rotulo pixel">VIDA</span>
-                  <Barra valor={hud.vida} maximo={hud.vidaMaxima} cor="var(--vida)" />
+                  <Barra
+                    valor={hud.vida}
+                    maximo={hud.vidaMaxima}
+                    rastro={hud.vidaRastro}
+                    cor="var(--vida)"
+                  />
                   <span className="hud__numero pixel">
                     {Math.ceil(hud.vida)}/{hud.vidaMaxima}
                   </span>
@@ -427,19 +542,35 @@ export const Dungeon = ({
                   <Barra
                     valor={hud.armadura}
                     maximo={hud.armaduraMaxima}
+                    rastro={hud.armaduraRastro}
                     cor="var(--armadura)"
                     altura={10}
                   />
                   <span className="hud__numero pixel">{Math.ceil(hud.armadura)}</span>
                 </div>
-                <div className="hud__linha">
+                {/*
+                  O recurso em segmentos, e não numa barra contínua.
+
+                  O Momentum é contado em pontos inteiros e gasto em pontos
+                  inteiros — uma barra lisa fazia o jogador ter de medir a
+                  olho quanto faltava para o Golpe do Carrasco. Dez luzes
+                  dizem o número sem que ninguém precise ler o número.
+                */}
+                <div
+                  className="hud__linha hud__linha--recurso"
+                  key={`recurso:${String(hud.pulsoDeMomentum)}`}
+                >
                   <span className="hud__rotulo pixel">{classe.recurso.nome.toUpperCase()}</span>
-                  <Barra
-                    valor={hud.momentum}
-                    maximo={hud.momentumMaximo}
-                    cor="var(--recurso)"
-                    altura={10}
-                  />
+                  <div className="recurso" aria-label={`${classe.recurso.nome} ${String(hud.momentum)} de ${String(hud.momentumMaximo)}`}>
+                    {Array.from({ length: hud.momentumMaximo }, (_, i) => (
+                      <span
+                        key={i}
+                        className={`recurso__luz${i < hud.momentum ? ' recurso__luz--acesa' : ''}${
+                          i === hud.momentum - 1 ? ' recurso__luz--nova' : ''
+                        }`}
+                      />
+                    ))}
+                  </div>
                   <span className="hud__numero pixel">{hud.momentum}</span>
                 </div>
               </div>
@@ -501,6 +632,24 @@ export const Dungeon = ({
                     </span>
                   );
                 })}
+                {/*
+                  As melhorias de checkpoint aparecem **separadas**.
+
+                  Elas não são passivas do draft, e misturá-las fazia a faixa
+                  contradizer a regra que o jogo repete em toda tela: três
+                  passivas. Aqui elas têm a borda dourada da recompensa.
+                */}
+                {run.build.upgrades.map((up) => {
+                  const tag = up.tags[0];
+                  return (
+                    <span key={up.id} className="ficha-da-build ficha-da-build--upgrade">
+                      {tag !== undefined && (
+                        <img src={emblemaDaTag(tag, 'passiva')} alt="" width={28} height={28} />
+                      )}
+                      <span className="ficha-da-build__nome">{up.nome}</span>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           </>
@@ -511,6 +660,17 @@ export const Dungeon = ({
         <div className="anuncio-de-boss">
           <span className="anuncio-de-boss__nome">{aviso}</span>
         </div>
+      )}
+
+      {depurando && sim !== null && (
+        <Diagnostico
+          linhas={linhasDeDiagnostico}
+          passos={passosRodados.current}
+          quadros={quadrosRodados.current}
+          tempoDeSimulacaoS={sim.tempoS}
+          velocidade={velocidade}
+          cortes={cortesDoRelogio.current}
+        />
       )}
     </div>
   );

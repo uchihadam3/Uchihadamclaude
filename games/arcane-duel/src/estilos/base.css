@@ -235,11 +235,18 @@ h3 {
  * Uma segunda barra, mais clara, que desce **atrasada**. É o que deixa o
  * jogador ver quanto acabou de perder, em vez de só ver o resultado.
  */
+/*
+ * O rastro do dano.
+ *
+ * Ele é animado em JavaScript, quadro a quadro, pelo laço da dungeon — e por
+ * isso **não** tem transição de CSS. Ter as duas coisas fazia a barra
+ * perseguir um alvo que já estava se movendo, e o resultado era um rastro que
+ * chegava atrasado e tremia.
+ */
 .barra__rastro {
   position: absolute;
   inset: 0;
   background: rgb(255 255 255 / 45%);
-  transition: width 620ms ease-out 140ms;
 }
 
 /* --------------------------------------------------------------------------

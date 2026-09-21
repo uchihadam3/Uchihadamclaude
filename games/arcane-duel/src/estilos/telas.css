@@ -689,6 +689,18 @@
   --cor-da-ficha: var(--cat-passiva);
 }
 
+/*
+ * A melhoria de checkpoint.
+ *
+ * Ela veio da dungeon, não do draft, e a faixa precisa dizer isso sem uma
+ * legenda: borda dourada, a mesma cor que a tela de recompensa usa.
+ */
+.ficha-da-build--upgrade {
+  --cor-da-ficha: var(--ouro);
+
+  border-style: dashed;
+}
+
 .ficha-da-build img {
   flex: 0 0 auto;
   width: 22px;
@@ -1063,13 +1075,37 @@
   text-align: right;
 }
 
+/*
+ * Os dois blocos da ficha: o que veio do draft e o que veio da dungeon.
+ *
+ * O rótulo é o que fecha a conta — "BUILD INICIAL — 10 ESCOLHAS" confirma a
+ * promessa do draft, e "MELHORIAS DA RUN" diz de onde veio o resto.
+ */
+.ficha__bloco {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+  padding-top: calc(var(--u) * 3);
+  border-top: 2px solid var(--borda);
+}
+
+.ficha__rotulo {
+  font-size: 7px;
+  color: var(--tinta-fraca);
+  text-align: center;
+  letter-spacing: 0.16em;
+}
+
 .ficha__escolhas {
   display: flex;
   flex-wrap: wrap;
   gap: var(--u);
   justify-content: center;
-  padding-top: calc(var(--u) * 3);
-  border-top: 2px solid var(--borda);
+}
+
+.ficha__escolha--upgrade {
+  color: var(--ouro);
+  border-color: color-mix(in srgb, var(--ouro) 45%, transparent);
 }
 
 .ficha__escolha {
@@ -1218,7 +1254,7 @@
     font-size: 7px;
   }
 
-  .tela--resultado .ficha__escolhas {
+  .tela--resultado .ficha__bloco {
     padding-top: calc(var(--u) * 1.5);
   }
 
@@ -1271,4 +1307,141 @@
   .habilidade {
     height: 30px;
   }
+}
+
+/* --------------------------------------------------------------------------
+ * O recurso em segmentos.
+ *
+ * Dez luzes em vez de uma barra lisa. O Momentum é contado e gasto em pontos
+ * inteiros, e uma barra contínua obrigava o jogador a medir a olho quanto
+ * faltava para a habilidade que exige cinco. A luz recém-acesa recebe um
+ * pulso curto: é o "+1" dito no HUD, e ele acaba antes de virar ruído.
+ * ------------------------------------------------------------------------ */
+
+.recurso {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 2px;
+  align-items: stretch;
+  min-width: 0;
+  height: 10px;
+  padding: 1px;
+  background: rgb(8 6 12 / 72%);
+  border: 1px solid rgb(255 255 255 / 10%);
+}
+
+.recurso__luz {
+  flex: 1 1 0;
+  min-width: 2px;
+  background: rgb(255 255 255 / 7%);
+  transition: background 140ms ease-out;
+}
+
+.recurso__luz--acesa {
+  background: var(--recurso);
+  box-shadow: 0 0 4px rgb(232 135 58 / 55%);
+}
+
+.recurso__luz--nova {
+  animation: recurso-acende 320ms ease-out;
+}
+
+@keyframes recurso-acende {
+  0% {
+    background: #fff;
+    box-shadow: 0 0 10px rgb(255 255 255 / 90%);
+    transform: scaleY(1.6);
+  }
+
+  100% {
+    background: var(--recurso);
+    box-shadow: 0 0 4px rgb(232 135 58 / 55%);
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recurso__luz--nova {
+    animation: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * O painel de diagnóstico.
+ *
+ * Só existe com `?debug=1`. Fica encostado no canto, pequeno e monoespaçado,
+ * e não tenta ser bonito — ele é instrumento, e um instrumento que disputa
+ * atenção com o jogo atrapalha as duas coisas.
+ * ------------------------------------------------------------------------ */
+
+.diagnostico {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  z-index: 60;
+  min-width: 152px;
+  padding: 6px 7px;
+  font-family: monospace;
+  font-size: 9px;
+  line-height: 1.4;
+  color: #cfd6e4;
+  pointer-events: none;
+  background: rgb(6 5 10 / 88%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  transform: translateY(-50%);
+}
+
+.diagnostico__titulo {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  color: #8b93a6;
+}
+
+.diagnostico__ok {
+  color: #7fe4a0;
+}
+
+.diagnostico__erro {
+  color: #ff7a6b;
+}
+
+.diagnostico__tabela {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.diagnostico__tabela th {
+  font-weight: normal;
+  color: #6b7285;
+  text-align: right;
+}
+
+.diagnostico__tabela th:first-child,
+.diagnostico__tabela td:first-child {
+  color: #8b93a6;
+  text-align: left;
+}
+
+.diagnostico__tabela td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.diagnostico__linha--diverge td {
+  color: #ff7a6b;
+}
+
+.diagnostico__rodape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin-top: 5px;
+  padding-top: 4px;
+  color: #8b93a6;
+  border-top: 1px solid rgb(255 255 255 / 12%);
 }

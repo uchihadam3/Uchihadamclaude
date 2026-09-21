@@ -100,6 +100,15 @@ const DO_CHAO = 34;
 const FRACAO_HEROI = 0.26;
 const FRACAO_INIMIGO = 0.74;
 
+/*
+ * A cor da Armadura, uma vez só.
+ *
+ * A mesma que o HUD usa em `--armadura`. Ela aparece no clarão, nas lascas,
+ * no número azul e no tint de quem apanhou sem perder Vida — e as quatro
+ * precisam ser a mesma cor, senão o jogador não liga uma coisa à outra.
+ */
+const COR_ARMADURA = 0x5aa9d8;
+
 export interface DadosDaCena {
   readonly classe: Classe;
   readonly dourado: boolean;
@@ -548,12 +557,19 @@ export class CenaDeCombate extends Phaser.Scene {
     });
   }
 
-  private apanhar(lado: Lado, critico: boolean): void {
+  private apanhar(lado: Lado, critico: boolean, soArmadura = false): void {
     /* Quem está no meio de um golpe não perde o gesto por levar um arranhão. */
     if (lado.nome !== 'ataque' && lado.nome !== 'habilidade' && lado.nome !== 'morrer') {
       this.tocar(lado, 'apanhar', true);
     }
-    lado.sprite.setTintFill(critico ? 0xffe9a8 : 0xffffff);
+    /*
+     * O clarão do golpe diz o que aconteceu.
+     *
+     * Branco quando a Vida foi atingida, azul quando a Armadura segurou
+     * tudo. É a mesma informação do número flutuante, dita no corpo — quem
+     * está olhando o personagem e não o canto da tela também entende.
+     */
+    lado.sprite.setTintFill(soArmadura ? COR_ARMADURA : critico ? 0xffe9a8 : 0xffffff);
     /*
      * O clarão apaga em tempo **real**, não no relógio da cena.
      *
@@ -606,23 +622,56 @@ export class CenaDeCombate extends Phaser.Scene {
           const alvo = doJogador ? this.alvo : this.heroi;
           const x = doJogador ? this.xInimigo : this.xHeroi;
           if (!doJogador) this.atacar(this.alvo, false, evento.porte);
-          this.apanhar(alvo, evento.critico);
-          clarao(
-            this,
-            x,
-            this.chaoY - 34,
-            doJogador ? 0xffd08a : 0xff6b5a,
-            evento.critico ? 19 : 12,
-          );
-          estilhacos(this, x, this.chaoY - 34, doJogador ? 0xffd08a : 0xff6b5a, evento.critico ? 9 : 5);
-          numeroFlutuante(
-            this,
-            x,
-            this.chaoY - 46,
-            String(Math.max(1, Math.round(evento.valor))),
-            doJogador ? (evento.critico ? '#ffe9a8' : '#ffffff') : '#ff8a7a',
-            evento.critico ? 16 : 11,
-          );
+
+          /*
+           * O golpe diz **onde** doeu, e a tela mostra.
+           *
+           * Este era o defeito que fazia a Vida parecer quebrada: o jogador
+           * via "-14" em vermelho, a barra de Vida não mexia, e concluía que
+           * o dano não estava sendo aplicado. Estava — na Armadura. Agora o
+           * número que a Armadura comeu sai azul e escrito, e o que chegou na
+           * Vida sai vermelho; quando os dois acontecem no mesmo golpe, saem
+           * os dois, em alturas diferentes para não se atropelarem.
+           *
+           * Os valores vêm do evento do motor. A tela não recalcula nada: se
+           * ela mostrar um número, é o número que a simulação aplicou.
+           */
+          const naArmadura = Math.round(evento.absorvido);
+          const naVida = Math.round(evento.naVida);
+          const soArmadura = naVida < 1 && naArmadura >= 1;
+
+          this.apanhar(alvo, evento.critico, soArmadura);
+
+          const corDoImpacto = soArmadura ? COR_ARMADURA : doJogador ? 0xffd08a : 0xff6b5a;
+          clarao(this, x, this.chaoY - 34, corDoImpacto, evento.critico ? 19 : 12);
+          estilhacos(this, x, this.chaoY - 34, corDoImpacto, evento.critico ? 9 : 5);
+
+          if (naArmadura >= 1) {
+            numeroFlutuante(
+              this,
+              x,
+              this.chaoY - 58,
+              `ARMADURA -${String(naArmadura)}`,
+              '#8fd4ff',
+              8,
+            );
+          }
+          if (naVida >= 1 || naArmadura < 1) {
+            numeroFlutuante(
+              this,
+              x,
+              this.chaoY - 46,
+              String(Math.max(1, naVida)),
+              doJogador ? (evento.critico ? '#ffe9a8' : '#ffffff') : '#ff8a7a',
+              evento.critico ? 16 : 11,
+            );
+          }
+
+          if (evento.perfurante && !doJogador) {
+            /* O golpe que passa **ao lado** da placa tem leitura própria. */
+            numeroFlutuante(this, x, this.chaoY - 72, 'IGNORA ARMADURA', '#e0a0ff', 7);
+          }
+
           if (evento.critico || evento.porte === 'ultimate') {
             pausaDeImpacto(this, evento.porte === 'ultimate' ? 90 : 55);
             this.cameras.main.shake(
@@ -633,14 +682,23 @@ export class CenaDeCombate extends Phaser.Scene {
           break;
         }
 
-        case 'armadura-quebrada':
-          anelDeRuptura(
-            this,
-            evento.alvo === 'inimigo' ? this.xInimigo : this.xHeroi,
-            this.chaoY - 34,
-          );
+        case 'armadura-quebrada': {
+          /*
+           * A Armadura quebrando tem efeito próprio, e não é o do golpe.
+           *
+           * É o instante em que a regra do combate muda: do próximo golpe em
+           * diante a Vida está exposta. Sem um efeito distinto, o momento
+           * mais importante da luta passava despercebido no meio dos
+           * números.
+           */
+          const xQuebra = evento.alvo === 'inimigo' ? this.xInimigo : this.xHeroi;
+          anelDeRuptura(this, xQuebra, this.chaoY - 34);
+          clarao(this, xQuebra, this.chaoY - 34, COR_ARMADURA, 26);
+          estilhacos(this, xQuebra, this.chaoY - 34, COR_ARMADURA, 12);
+          numeroFlutuante(this, xQuebra, this.chaoY - 66, 'ARMADURA QUEBRADA', '#8fd4ff', 8);
           this.cameras.main.shake(140, BALANCEAMENTO.tremor.skill);
           break;
+        }
 
         case 'cura':
           if (evento.valor < 1) break;
@@ -653,9 +711,25 @@ export class CenaDeCombate extends Phaser.Scene {
           numeroFlutuante(this, this.xHeroi, this.chaoY - 56, `+${String(Math.round(evento.valor))}`, '#7fe4d2', 14);
           break;
 
-        case 'momentum':
-          numeroFlutuante(this, this.xHeroi - 18, this.chaoY - 62, `+${String(evento.valor)}`, '#e8873a', 10);
+        case 'momentum': {
+          /*
+           * O Momentum ganho é um brilho metálico, não uma festa.
+           *
+           * Um `+1` pequeno junto ao herói e um clarão curto na cor do
+           * recurso. A leitura elegante é o pedido da direção: o jogador
+           * precisa perceber que ganhou, não ser interrompido por isso.
+           */
+          numeroFlutuante(
+            this,
+            this.xHeroi - 18,
+            this.chaoY - 62,
+            `+${String(evento.valor)}`,
+            '#e8873a',
+            10,
+          );
+          clarao(this, this.xHeroi, this.chaoY - 40, 0xe8873a, 10);
           break;
+        }
 
         case 'especial': {
           const aviso = this.add

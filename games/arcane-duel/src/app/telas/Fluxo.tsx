@@ -204,10 +204,27 @@ export const Resultado = ({
 }): React.JSX.Element => {
   const avaliacao = avaliarBuild(dados.build);
   const classe = classePorId(dados.build.classe);
+  /*
+   * A build inicial e as melhorias da run são **duas listas**.
+   *
+   * Antes eram uma só, e isso não era organização de tela: o checkpoint
+   * empurrava as recompensas para dentro das passivas, e a tela final de uma
+   * run completa listava sete passivas num jogo que promete três. O jogador
+   * não tinha como saber o que ele escolheu no draft e o que a dungeon deu.
+   *
+   * O núcleo agora guarda as duas coisas separadas (`build.upgrades`), e aqui
+   * elas aparecem separadas — com o número de escolhas dito por extenso,
+   * porque é ele que fecha a conta com o que o draft prometeu.
+   */
   const escolhas = [
     ...dados.build.ativas.map((a) => a.nome),
     ...dados.build.passivas.map((p) => p.nome),
     ...dados.build.equipamentos.map((e) => e.nome),
+  ];
+  const melhorias = [
+    ...dados.build.upgrades.map((u) => u.nome),
+    /* Uma evolução não vira peça nova: ela renomeia a ativa com um "+". */
+    ...dados.build.ativas.filter((a) => a.nome.endsWith('+')).map((a) => a.nome),
   ];
 
   return (
@@ -247,13 +264,33 @@ export const Resultado = ({
           <span>{dados.seed}</span>
         </div>
 
-        <div className="ficha__escolhas">
-          {escolhas.map((nome) => (
-            <span key={nome} className="ficha__escolha">
-              {nome}
-            </span>
-          ))}
+        <div className="ficha__bloco">
+          <span className="ficha__rotulo pixel">
+            BUILD INICIAL — {escolhas.length} ESCOLHAS
+          </span>
+          <div className="ficha__escolhas">
+            {escolhas.map((nome) => (
+              <span key={nome} className="ficha__escolha">
+                {nome}
+              </span>
+            ))}
+          </div>
         </div>
+
+        {melhorias.length > 0 && (
+          <div className="ficha__bloco">
+            <span className="ficha__rotulo pixel">
+              MELHORIAS DA RUN — {melhorias.length}
+            </span>
+            <div className="ficha__escolhas">
+              {melhorias.map((nome) => (
+                <span key={nome} className="ficha__escolha ficha__escolha--upgrade">
+                  {nome}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="acoes">
