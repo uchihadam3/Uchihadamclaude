@@ -1,4 +1,5 @@
 import { BALANCEAMENTO } from '../dados/balanceamento.js';
+import { classePorId } from '../dados/classes.js';
 
 import type { BuildParcial } from './build.js';
 import { atributosDaBuild } from './build.js';
@@ -34,7 +35,14 @@ export const lutarAteOFim = (
   contextoRng: Aleatorio,
   soberano = false,
 ): ResultadoDaLuta => {
-  const classeMomentum = 10;
+  /*
+   * O máximo do recurso vem da classe, e não de um 10 escrito aqui.
+   *
+   * O jogo lê `classePorId(...).recurso.maximo`; a bancada lia um literal. As
+   * duas concordam enquanto o Guerreiro é a única classe jogável, e passariam
+   * a discordar em silêncio no dia da segunda.
+   */
+  const classeMomentum = classePorId(build.classe).recurso.maximo;
   const inimigo = soberano ? soberanoEscalado() : inimigoDaSala(run.seed, run.sala);
   let estado = abrirCombate(
     build,

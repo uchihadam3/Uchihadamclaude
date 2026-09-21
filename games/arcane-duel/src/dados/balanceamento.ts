@@ -125,6 +125,19 @@ export const BALANCEAMENTO = {
     pesoDefensivo: 0.28,
     pesoDeUtilidade: 0.15,
     pesoDeSinergia: 0.15,
+    /*
+     * A escala final, e a âncora.
+     *
+     * O bruto de uma build **vazia** já vale alguma coisa, porque a classe tem
+     * atributos base. Multiplicar o bruto direto fazia o medidor abrir em 43
+     * com zero escolhas e fechar entre 61 e 79 com as dez — trinta e seis
+     * pontos de curso para cem de mostrador, cada escolha valendo um ou dois.
+     * O medidor mentia parado e não comunicava andando.
+     *
+     * Agora o Poder mede o que o **draft** acrescentou sobre a base da classe:
+     * zero escolhas é zero, e o curso usado passa a ser o mostrador inteiro.
+     */
+    escala: 330,
     faixas: [
       { minimo: 0, rotulo: 'Fraca' },
       { minimo: 40, rotulo: 'Regular' },

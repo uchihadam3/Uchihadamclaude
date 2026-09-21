@@ -13,7 +13,7 @@ import type { EstadoDoDraft } from '../nucleo/draft.js';
 import { iniciarDraft } from '../nucleo/draft.js';
 import { gerarSeed } from '../nucleo/rng.js';
 import type { EstadoDaRun } from '../nucleo/run.js';
-import { iniciarRun, inimigoDaSala, vencerSala } from '../nucleo/run.js';
+import { desfechoAoCair, desfechoAoVencer, iniciarRun, inimigoDaSala, vencerSala } from '../nucleo/run.js';
 import type { Save } from '../nucleo/salvar.js';
 import {
   carregar,
@@ -201,12 +201,9 @@ export const App = (): React.JSX.Element => {
 
       /* O Soberano: vencê-lo fecha a run com a maestria. */
       if (run.sala > BALANCEAMENTO.dungeon.totalDeSalas) {
-        fecharRun(
-          { ...run, tempoS: run.tempoS + fim.duracaoS },
-          true,
-          true,
-          BALANCEAMENTO.dungeon.totalDeSalas,
-        );
+        const fechada = { ...run, tempoS: run.tempoS + fim.duracaoS };
+        const desfecho = desfechoAoVencer(fechada, true);
+        fecharRun(fechada, desfecho.venceu, desfecho.derrotouSoberano, desfecho.salaAlcancada);
         return;
       }
 
@@ -239,7 +236,8 @@ export const App = (): React.JSX.Element => {
           definirTela({ t: 'despertar', run: { ...resultado.run, despertou: true } });
           return;
         }
-        fecharRun(resultado.run, true, false, BALANCEAMENTO.dungeon.totalDeSalas);
+        const desfecho = desfechoAoVencer(resultado.run, false);
+        fecharRun(resultado.run, desfecho.venceu, desfecho.derrotouSoberano, desfecho.salaAlcancada);
         return;
       }
 
@@ -273,18 +271,15 @@ export const App = (): React.JSX.Element => {
   const aoPerder = useCallback(
     (fim: FimDaLuta) => {
       /*
-       * A sala do Soberano não é a sala 51.
+       * Cair não apaga o que já foi vencido.
        *
-       * Ela é um encontro escondido **depois** do Boss 50, e a run guarda o
-       * número 51 só para saber que já passou do fim. Mostrar "51 / 50" na
-       * tela de resultado lê como erro de contagem, não como segredo.
+       * A regra canônica mora em `desfechoAoCair`, no núcleo, onde pode ser
+       * testada: quem derrotou o Boss 50 concluiu a classe, e perder depois
+       * para o Soberano Oculto — que é conteúdo extra — não desfaz isso.
        */
-      fecharRun(
-        { ...fim.run, tempoS: fim.run.tempoS + fim.duracaoS },
-        false,
-        false,
-        Math.min(fim.run.sala, BALANCEAMENTO.dungeon.totalDeSalas),
-      );
+      const run = { ...fim.run, tempoS: fim.run.tempoS + fim.duracaoS };
+      const desfecho = desfechoAoCair(run);
+      fecharRun(run, desfecho.venceu, desfecho.derrotouSoberano, desfecho.salaAlcancada);
     },
     [fecharRun],
   );

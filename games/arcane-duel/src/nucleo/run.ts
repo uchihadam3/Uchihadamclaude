@@ -223,6 +223,52 @@ export const perderRun = (run: EstadoDaRun, tempoDaLutaS: number): EstadoDaRun =
   tempoS: run.tempoS + tempoDaLutaS,
 });
 
+/* ---------------------------------------------------------------------------
+ * O desfecho.
+ * ------------------------------------------------------------------------- */
+
+export interface DesfechoDaRun {
+  readonly venceu: boolean;
+  readonly derrotouSoberano: boolean;
+  /** O número que a tela de resultado mostra. Nunca passa do total de salas. */
+  readonly salaAlcancada: number;
+}
+
+/**
+ * O desfecho de uma run que terminou com o jogador caído.
+ *
+ * Aqui mora a regra canônica que o fluxo antigo violava: **derrotar o Boss 50
+ * conclui a classe**. O Soberano Oculto é conteúdo extra, e cair para ele não
+ * desfaz o que já foi conquistado.
+ *
+ * O código anterior chamava o fechamento com `venceu: false` fixo, sem olhar
+ * para a run. Quem despertava o Soberano e perdia recebia uma tela de derrota
+ * comum e a classe voltava a não estar concluída — a run mais bem jogada do
+ * jogo era punida por ter ido além.
+ *
+ * A sala mostrada também é cortada no total: a run guarda 51 para saber que
+ * já passou do fim, e "51 / 50" na tela lê como erro de contagem em vez de
+ * segredo.
+ */
+export const desfechoAoCair = (run: EstadoDaRun): DesfechoDaRun => ({
+  venceu: run.venceu,
+  derrotouSoberano: false,
+  salaAlcancada: Math.min(run.sala, BALANCEAMENTO.dungeon.totalDeSalas),
+});
+
+/** O desfecho de uma run que terminou com o jogador de pé. */
+export const desfechoAoVencer = (
+  run: EstadoDaRun,
+  derrotouSoberano: boolean,
+): DesfechoDaRun => ({
+  venceu: true,
+  derrotouSoberano,
+  salaAlcancada: Math.min(
+    Math.max(run.sala, BALANCEAMENTO.dungeon.totalDeSalas),
+    BALANCEAMENTO.dungeon.totalDeSalas,
+  ),
+});
+
 export const nomeDaArea = (sala: number): string => areaDaSala(sala).nome;
 
 /** O total de bosses da dungeon, para a tela de resultado. */

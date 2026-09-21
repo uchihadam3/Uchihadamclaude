@@ -65,7 +65,7 @@ export const BOSSES: readonly Inimigo[] = [
     exp: 290,
     area: 3,
     /* Ignora Armadura por completo: a build de placa precisa de outra saída. */
-    especial: { nome: 'Canto Dissonante', aCadaS: 6.5, dano: 52 },
+    especial: { nome: 'Canto Dissonante', aCadaS: 6.5, dano: 52, ignoraArmadura: true },
     silhueta: {
       forma: 'aberracao',
       corpo: '#11272c',

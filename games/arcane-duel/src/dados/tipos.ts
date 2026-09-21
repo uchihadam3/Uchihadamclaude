@@ -200,6 +200,18 @@ export interface Inimigo {
     readonly aCadaS: number;
     readonly dano: number;
     readonly quebraArmadura?: number;
+    /**
+     * O golpe passa direto pela Armadura?
+     *
+     * Existe porque um boss tinha o comentário "ignora Armadura por completo"
+     * e nenhum campo para dizer isso — o motor mandava o golpe pelo caminho
+     * normal e a build de placa o absorvia inteiro. O comentário mentia, e
+     * comentário que mente é pior que comentário nenhum.
+     *
+     * É a resposta de projeto para a build que empilha Armadura: ela precisa
+     * de **outra** saída contra este inimigo, e não de mais placa.
+     */
+    readonly ignoraArmadura?: boolean;
   };
   readonly silhueta: SilhuetaDoInimigo;
 }

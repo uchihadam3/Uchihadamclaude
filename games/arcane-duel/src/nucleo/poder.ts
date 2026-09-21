@@ -3,7 +3,7 @@ import { classePorId } from '../dados/classes.js';
 import type { Tag } from '../dados/tipos.js';
 
 import type { BuildParcial, TagDaBuild } from './build.js';
-import { atributosDaBuild, contarTags, tagsPrincipais } from './build.js';
+import { atributosDaBuild, buildVazia, contarTags, tagsPrincipais } from './build.js';
 
 /*
  * Poder Estimado e Sinergia.
@@ -66,9 +66,15 @@ const bonusDeAfinidade = (parcial: BuildParcial, afinidades: readonly Tag[]): nu
   return saturar(total, 6);
 };
 
-export const avaliarBuild = (parcial: BuildParcial): Avaliacao => {
+/**
+ * O bruto: a soma ponderada, antes da escala.
+ *
+ * Separada de `avaliarBuild` porque a âncora precisa rodar a mesma conta sobre
+ * uma build vazia da mesma classe.
+ */
+const brutoDaBuild = (parcial: BuildParcial): number => {
   const classe = classePorId(parcial.classe);
-  const { poder: pesos, draft } = BALANCEAMENTO;
+  const { poder: pesos } = BALANCEAMENTO;
 
   /*
    * O nível de referência.
@@ -111,20 +117,34 @@ export const avaliarBuild = (parcial: BuildParcial): Avaliacao => {
   const sinergia = calcularSinergia(parcial);
   const sinergiaNormalizada = (sinergia - 1) / (BALANCEAMENTO.sinergia.maximo - 1);
 
-  const bruto =
+  return (
     ofensivo * pesos.pesoOfensivo +
     defensivo * pesos.pesoDefensivo +
     utilidade * pesos.pesoDeUtilidade +
-    sinergiaNormalizada * pesos.pesoDeSinergia;
+    sinergiaNormalizada * pesos.pesoDeSinergia
+  );
+};
 
-  /*
-   * A escala final.
-   *
-   * O bruto satura perto de 0,75 nas builds boas, então ele é esticado — sem
-   * isso a faixa "Excelente" nunca apareceria e o medidor viveria entre 30 e
-   * 55, que não comunica nada.
-   */
-  const poder = Math.max(0, Math.min(100, Math.round(bruto * 128)));
+/*
+ * A âncora de cada classe: o bruto de uma build sem nenhuma escolha.
+ *
+ * Memorizada porque `avaliarBuild` roda a cada quadro da tela de draft.
+ */
+const ancoras = new Map<string, number>();
+const ancoraDaClasse = (classe: BuildParcial['classe']): number => {
+  const guardada = ancoras.get(classe);
+  if (guardada !== undefined) return guardada;
+  const valor = brutoDaBuild(buildVazia(classe, false));
+  ancoras.set(classe, valor);
+  return valor;
+};
+
+export const avaliarBuild = (parcial: BuildParcial): Avaliacao => {
+  const { poder: pesos, draft } = BALANCEAMENTO;
+
+  const acrescentado = brutoDaBuild(parcial) - ancoraDaClasse(parcial.classe);
+  const poder = Math.max(0, Math.min(100, Math.round(acrescentado * pesos.escala)));
+  const sinergia = calcularSinergia(parcial);
 
   const preenchidas =
     parcial.ativas.length + parcial.passivas.length + parcial.equipamentos.length;

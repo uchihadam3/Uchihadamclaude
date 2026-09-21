@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 
 import { areaDaSala } from '../../dados/areas.js';
 import { BALANCEAMENTO } from '../../dados/balanceamento.js';
+import { DT, avancar, relogioNovo } from '../../nucleo/relogio.js';
 import { classePorId } from '../../dados/classes.js';
 import type { Inimigo } from '../../dados/tipos.js';
 import { audio } from '../../audio/AudioManager.js';
@@ -136,6 +137,8 @@ export const Dungeon = ({
   const combate = useRef<EstadoDeCombate | null>(null);
   const contexto = useRef<Contexto | null>(null);
   const encerrada = useRef(false);
+  /* Só para o painel de diagnóstico: quantos passos a simulação já rodou. */
+  const passosRodados = useRef(0);
   const [hud, definirHud] = useState<Hud | null>(null);
   const [aviso, definirAviso] = useState<string | null>(null);
   const velocidadeAtual = useRef(velocidade);
@@ -301,31 +304,35 @@ export const Dungeon = ({
     let vivo = true;
     let pedido = 0;
     let anterior = performance.now();
+    /*
+     * O relógio da simulação vive fora do quadro.
+     *
+     * Ele guarda a sobra de tempo que ainda não completou um passo. Era
+     * justamente essa sobra que o código antigo jogava fora, e por isso a
+     * simulação ficava parada num telefone de 120 Hz em 1x.
+     */
+    let relogio = relogioNovo();
 
     const quadro = (agora: number): void => {
       if (!vivo) return;
-      const delta = Math.min(0.25, (agora - anterior) / 1000);
+      const delta = (agora - anterior) / 1000;
       anterior = agora;
 
       const estadoAtual = combate.current;
       const ctx = contexto.current;
       if (estadoAtual !== null && ctx !== null && !encerrada.current) {
-        const dt = BALANCEAMENTO.passoDaSimulacaoS;
-        /*
-         * Quantos passos cabem neste quadro.
-         *
-         * O teto existe para uma aba que voltou do segundo plano não rodar
-         * mil passos de uma vez e matar o jogador sem ele ver nada.
-         */
-        const quantos = Math.min(24, Math.round((delta * velocidadeAtual.current) / dt));
+        const avanco = avancar(relogio, delta, velocidadeAtual.current);
+        relogio = avanco.relogio;
+
         const eventos: EventoDeCombate[] = [];
         let estado = estadoAtual;
-        for (let i = 0; i < quantos && !estado.terminou; i += 1) {
-          const resultado = passo(estado, ctx, dt);
+        for (let i = 0; i < avanco.passos && !estado.terminou; i += 1) {
+          const resultado = passo(estado, ctx, DT);
           estado = resultado.estado;
           eventos.push(...resultado.eventos);
         }
         combate.current = estado;
+        passosRodados.current += avanco.passos;
 
         const ativa = jogo.current?.scene.getScene('combate');
         if (ativa instanceof CenaDeCombate && eventos.length > 0) {

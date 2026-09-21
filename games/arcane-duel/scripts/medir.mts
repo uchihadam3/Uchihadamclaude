@@ -15,6 +15,7 @@ const referencia: BuildParcial = {
   dourada: false,
   ativas: rng.amostrar(GUERREIRO_ATIVAS, 4),
   passivas: rng.amostrar(GUERREIRO_PASSIVAS, 3),
+  upgrades: [],
   equipamentos: (['arma', 'armadura', 'reliquia'] as const).map((slot) =>
     rng.escolher(EQUIPAMENTOS.filter((e) => e.slot === slot)),
   ),

@@ -78,7 +78,12 @@ export type EventoDeCombate =
   | {
       readonly tipo: 'golpe';
       readonly origem: 'jogador' | 'inimigo';
+      /** O total entregue, antes de ser dividido entre Armadura e Vida. */
       readonly valor: number;
+      /** Quanto a Armadura do alvo comeu. */
+      readonly absorvido: number;
+      /** Quanto sobrou e entrou na Vida do alvo. */
+      readonly naVida: number;
       readonly critico: boolean;
       readonly perfurante: boolean;
       readonly porte: Porte;
@@ -293,16 +298,21 @@ interface Mutavel {
 }
 
 /** Aplica dano ao inimigo respeitando Armadura, e devolve o que entrou na Vida. */
+interface Repartido {
+  readonly absorvido: number;
+  readonly naVida: number;
+}
+
 const baterNoInimigo = (
   m: Mutavel,
   bruto: number,
   perfurante: boolean,
   eventos: EventoDeCombate[],
-): number => {
-  if (bruto <= 0) return 0;
+): Repartido => {
+  if (bruto <= 0) return { absorvido: 0, naVida: 0 };
   if (perfurante) {
     m.inimigo.vida -= bruto;
-    return bruto;
+    return { absorvido: 0, naVida: bruto };
   }
   const absorvido = Math.min(m.inimigo.armadura, bruto);
   m.inimigo.armadura -= absorvido;
@@ -311,7 +321,7 @@ const baterNoInimigo = (
   if (absorvido > 0 && m.inimigo.armadura <= 0) {
     eventos.push({ tipo: 'armadura-quebrada', alvo: 'inimigo' });
   }
-  return restante;
+  return { absorvido, naVida: restante };
 };
 
 const quebrarArmadura = (m: Mutavel, valor: number, eventos: EventoDeCombate[]): void => {
@@ -417,10 +427,19 @@ export const passo = (estado: EstadoDeCombate, contexto: Contexto, dt: number): 
     if (m.inimigo.armadura <= 0) valor += atributos.danoContraSemArmadura;
     valor += m.jogador.momentum * atributos.danoPorMomentum;
     if (critico) valor *= atributos.multiplicadorDeCritico;
-    const naVida = baterNoInimigo(m, valor, perfurante, eventos);
-    eventos.push({ tipo: 'golpe', origem: 'jogador', valor, critico, perfurante, porte });
-    if (atributos.roubodeVida > 0 && naVida > 0) {
-      const curado = naVida * atributos.roubodeVida;
+    const repartido = baterNoInimigo(m, valor, perfurante, eventos);
+    eventos.push({
+      tipo: 'golpe',
+      origem: 'jogador',
+      valor,
+      absorvido: repartido.absorvido,
+      naVida: repartido.naVida,
+      critico,
+      perfurante,
+      porte,
+    });
+    if (atributos.roubodeVida > 0 && repartido.naVida > 0) {
+      const curado = repartido.naVida * atributos.roubodeVida;
       m.jogador.vida = Math.min(estado.jogador.vidaMaxima, m.jogador.vida + curado);
     }
   };
@@ -549,12 +568,26 @@ export const passo = (estado: EstadoDeCombate, contexto: Contexto, dt: number): 
   const limiteS = duracaoAlvoS[estado.inimigo.porte].maximo * enfurecimento.aposFatorDaDuracaoAlvo;
   const furia = 1 + Math.max(0, estado.tempoS - limiteS) * enfurecimento.porSegundo;
 
-  const ferirJogador = (bruto: number, quebra: number, nome: string | null): void => {
+  const ferirJogador = (
+    bruto: number,
+    quebra: number,
+    nome: string | null,
+    ignoraArmadura = false,
+  ): void => {
     if (m.jogador.vida <= 0) return;
     let valor = bruto * furia * (1 - atributos.reducaoDeDano);
     if (m.jogador.protecaoRestante > 0) valor *= 1 - m.jogador.protecaoValor;
     if (quebra > 0) m.jogador.armadura = Math.max(0, m.jogador.armadura - quebra);
-    const absorvido = Math.min(m.jogador.armadura, valor);
+
+    /*
+     * Um golpe que ignora Armadura vai direto para a Vida.
+     *
+     * A Armadura nem é tocada: ela continua lá depois, inteira. Isso é
+     * deliberado — o golpe não "fura" a placa, ele passa **ao lado** dela,
+     * e a leitura para o jogador é que aquela ameaça não se resolve com mais
+     * placa.
+     */
+    const absorvido = ignoraArmadura ? 0 : Math.min(m.jogador.armadura, valor);
     m.jogador.armadura -= absorvido;
     const naVida = valor - absorvido;
     m.jogador.vida -= naVida;
@@ -563,8 +596,19 @@ export const passo = (estado: EstadoDeCombate, contexto: Contexto, dt: number): 
       tipo: 'golpe',
       origem: 'inimigo',
       valor,
+      /*
+       * O golpe diz **onde** doeu.
+       *
+       * Sem esta separação a apresentação só sabia o total, e por isso não
+       * conseguia mostrar "ARMADURA -12" em azul e "-8" em vermelho. Era
+       * essa falta que fazia parecer que a Vida não funcionava: o jogador via
+       * um número grande e a barra de Vida parada, porque a Armadura tinha
+       * comido tudo, e nada na tela dizia isso.
+       */
+      absorvido,
+      naVida,
       critico: false,
-      perfurante: false,
+      perfurante: ignoraArmadura,
       porte: nome === null ? 'basico' : 'skill',
     });
     if (absorvido > 0 && m.jogador.armadura <= 0) {
@@ -582,7 +626,12 @@ export const passo = (estado: EstadoDeCombate, contexto: Contexto, dt: number): 
     if (especial !== undefined) {
       m.inimigo.proximoEspecialS -= dt;
       if (m.inimigo.proximoEspecialS <= 0) {
-        ferirJogador(especial.dano, especial.quebraArmadura ?? 0, especial.nome);
+        ferirJogador(
+          especial.dano,
+          especial.quebraArmadura ?? 0,
+          especial.nome,
+          especial.ignoraArmadura ?? false,
+        );
         m.inimigo.proximoEspecialS += especial.aCadaS;
       }
     }

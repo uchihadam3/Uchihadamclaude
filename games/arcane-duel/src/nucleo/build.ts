@@ -30,12 +30,30 @@ export interface Build {
   readonly dourada: boolean;
 }
 
-/** A build em construção, durante o draft. */
+/**
+ * A build em construção, durante o draft.
+ *
+ * As três listas do draft são as **dez peças principais**: quatro Ativas,
+ * três Passivas, três Equipamentos. Elas não crescem depois que a run começa.
+ *
+ * `upgrades` é outra coisa, e por isso é outro campo. São as recompensas de
+ * checkpoint — bênçãos e equipamentos entregues ao derrotar os bosses 10, 20,
+ * 30 e 40. Antes elas eram enfiadas em `passivas`, e o resultado era uma run
+ * chegando ao fim com sete "passivas" quando o jogo inteiro diz que são três.
+ * A tela de resultado mentia, e a contagem de sinergia também.
+ *
+ * Os modificadores das duas coleções somam juntos — para o motor, uma bênção
+ * é um modificador como qualquer outro. O que muda é a **narrativa**: a
+ * interface consegue dizer "isto você escolheu no draft" e "isto você ganhou
+ * no caminho", que são fatos diferentes.
+ */
 export interface BuildParcial {
   readonly classe: IdDeClasse;
   readonly ativas: readonly Habilidade[];
   readonly passivas: readonly Passiva[];
   readonly equipamentos: readonly Equipamento[];
+  /** As recompensas de checkpoint. Nunca são peças do draft. */
+  readonly upgrades: readonly Passiva[];
   readonly dourada: boolean;
 }
 
@@ -44,6 +62,7 @@ export const buildVazia = (classe: IdDeClasse, dourada: boolean): BuildParcial =
   ativas: [],
   passivas: [],
   equipamentos: [],
+  upgrades: [],
   dourada,
 });
 
@@ -104,6 +123,8 @@ export const somarModificadores = (parcial: BuildParcial): ModificadoresSomados 
   const fontes: readonly Modificadores[] = [
     ...parcial.passivas.map((passiva) => passiva.modificadores),
     ...parcial.equipamentos.map((equipamento) => equipamento.modificadores),
+    /* As recompensas da run somam como qualquer outra fonte. */
+    ...parcial.upgrades.map((upgrade) => upgrade.modificadores),
   ];
   for (const fonte of fontes) {
     for (const chave of CHAVES) {
@@ -128,6 +149,7 @@ export const contarTags = (parcial: BuildParcial): ReadonlyMap<Tag, number> => {
     ...parcial.ativas.map((a) => a.tags),
     ...parcial.passivas.map((p) => p.tags),
     ...parcial.equipamentos.map((e) => e.tags),
+    ...parcial.upgrades.map((u) => u.tags),
   ];
   for (const tags of todas) {
     for (const tag of tags) contagem.set(tag, (contagem.get(tag) ?? 0) + 1);

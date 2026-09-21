@@ -121,9 +121,17 @@ const evoluirHabilidade = (habilidade: Habilidade, recompensa: Recompensa): Habi
 /**
  * A build depois da recompensa.
  *
- * Bênção e equipamento viram uma passiva sintética: é o mesmo formato que o
- * resto do jogo já soma, então nada no motor precisa saber que a origem foi
- * um checkpoint. Evolução mexe na habilidade escolhida, e só nela.
+ * Bênção e equipamento entram em `upgrades`, e **não** em `passivas`. O
+ * formato interno continua o de uma passiva, porque é o formato que o motor
+ * já soma; o que muda é a coleção em que ela cai.
+ *
+ * A versão anterior jogava tudo em `passivas`, e uma run que passasse pelos
+ * quatro checkpoints terminava exibindo sete passivas — com o jogo inteiro,
+ * do draft à tela de modo, afirmando que são três. Nada na interface
+ * explicava a diferença, porque não havia diferença: a informação de origem
+ * tinha sido jogada fora na hora de aplicar.
+ *
+ * Evolução continua mexendo na habilidade escolhida, e só nela.
  */
 export const aplicarRecompensa = (build: BuildParcial, recompensa: Recompensa): BuildParcial => {
   if (recompensa.tipo === 'evolucao') {
@@ -144,7 +152,7 @@ export const aplicarRecompensa = (build: BuildParcial, recompensa: Recompensa): 
     tags: recompensa.tags,
     modificadores: recompensa.modificadores,
   };
-  return { ...build, passivas: [...build.passivas, sintetica] };
+  return { ...build, upgrades: [...build.upgrades, sintetica] };
 };
 
 /**
@@ -166,10 +174,17 @@ export const escolhaAutomatica = (
   for (const opcao of oferta.opcoes) {
     const depois = aplicarRecompensa(build, opcao);
     const avaliacao = avaliarBuild(depois);
-    let nota = avaliacao.poder + avaliacao.sinergia * 1.5;
+    /*
+     * O peso da sinergia acompanha a escala do Poder.
+     *
+     * Era 1,5 quando uma recompensa mexia um ou dois pontos no medidor. Com o
+     * Poder ancorado na base da classe, a mesma recompensa mexe três ou oito —
+     * manter 1,5 faria o desempate por sinergia parar de desempatar.
+     */
+    let nota = avaliacao.poder + avaliacao.sinergia * 4;
     /* Machucado no fim da área: sobreviver vale mais que bater mais forte. */
     if (fracaoDeVida < 0.45 && (opcao.tags.includes('defesa') || opcao.tags.includes('cura'))) {
-      nota += 6;
+      nota += 16;
     }
     if (nota > melhorNota) {
       melhorNota = nota;

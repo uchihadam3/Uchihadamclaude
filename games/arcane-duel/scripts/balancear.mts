@@ -24,6 +24,7 @@ const porTag = (tag: Tag): BuildParcial => ({
   passivas: [...GUERREIRO_PASSIVAS]
     .sort((a, b) => Number(b.tags.includes(tag)) - Number(a.tags.includes(tag)))
     .slice(0, 3),
+  upgrades: [],
   equipamentos: (['arma', 'armadura', 'reliquia'] as const).map((slot) => {
     const doSlot = EQUIPAMENTOS.filter((e) => e.slot === slot);
     const comTag = doSlot.find((e) => e.tags.includes(tag));
@@ -38,6 +39,7 @@ const aleatoria = (semente: string): BuildParcial => {
     dourada: false,
     ativas: rng.amostrar(GUERREIRO_ATIVAS, 4),
     passivas: rng.amostrar(GUERREIRO_PASSIVAS, 3),
+    upgrades: [],
     equipamentos: (['arma', 'armadura', 'reliquia'] as const).map((slot) =>
       rng.escolher(EQUIPAMENTOS.filter((e) => e.slot === slot)),
     ),
